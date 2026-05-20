@@ -585,13 +585,15 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
     const handleDrop = async () => {
       if (!dragItem.current || !dragOver.current) return;
       if (dragItem.current.id === dragOver.current.id) return;
-      // Zamenjaj sort_order
+      const fromId = dragItem.current.id;
+      const toId = dragOver.current.id;
       const fromOrder = dragItem.current.sort_order ?? 0;
       const toOrder = dragOver.current.sort_order ?? 0;
-      await dbShopUpdate(dragItem.current.id, { sort_order: toOrder });
-      await dbShopUpdate(dragOver.current.id, { sort_order: fromOrder });
       dragItem.current = null;
       dragOver.current = null;
+      // Optimistic update - takoj posodobi lokalni state
+      dbShopUpdate(fromId, { sort_order: toOrder });
+      dbShopUpdate(toId, { sort_order: fromOrder });
     };
 
     const handleTouchStart = (e, item) => {
@@ -609,9 +611,12 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
       const newIdx = diffY < 0 ? Math.max(0, idx - 1) : Math.min(sorted.length - 1, idx + 1);
       if (newIdx === idx) { touchDrag.current.item = null; return; }
       const neighbor = sorted[newIdx];
-      await dbShopUpdate(from.id, { sort_order: neighbor.sort_order ?? newIdx });
-      await dbShopUpdate(neighbor.id, { sort_order: from.sort_order ?? idx });
+      const fromOrder = from.sort_order ?? idx;
+      const toOrder = neighbor.sort_order ?? newIdx;
       touchDrag.current.item = null;
+      // Optimistic update - takoj posodobi lokalni state
+      dbShopUpdate(from.id, { sort_order: toOrder });
+      dbShopUpdate(neighbor.id, { sort_order: fromOrder });
     };
 
     const ShopItemRow = ({ item, allItems }) => {

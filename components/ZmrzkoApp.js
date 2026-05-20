@@ -552,15 +552,24 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
         <div style={{ marginBottom: 20 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: "#94A3B8", marginBottom: 8 }}>{t('člani')} ({members.length})</div>
           {members.map(m => (
-            <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "rgba(30,41,59,0.4)", borderRadius: 12, marginBottom: 4, border: "1px solid rgba(71,85,105,0.15)" }}>
+            <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: isDark ? "rgba(30,41,59,0.4)" : "rgba(255,255,255,0.8)", borderRadius: 12, marginBottom: 4, border: isDark ? "1px solid rgba(71,85,105,0.15)" : "1px solid rgba(99,102,241,0.1)" }}>
               <div style={{ width: 32, height: 32, borderRadius: "50%", background: "linear-gradient(135deg,#0EA5E9,#6366F1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, color: "#fff" }}>
                 {(m.display_name || "?")[0].toUpperCase()}
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: "#E2E8F0" }}>{m.display_name || "Uporabnik"}</div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: isDark ? "#E2E8F0" : "#1E293B" }}>{m.display_name || "Uporabnik"}</div>
                 <div style={{ fontSize: 11, color: "#475569" }}>{m.role === "owner" ? t('lastnik') : t('član')}</div>
               </div>
-              {m.user_id === user.id && <span style={{ fontSize: 11, color: "#38BDF8", fontWeight: 600 }}>Ti</span>}
+              {m.user_id === user.id
+                ? <span style={{ fontSize: 11, color: "#38BDF8", fontWeight: 600 }}>Ti</span>
+                : members.find(x => x.user_id === user.id)?.role === "owner" && (
+                  <button onClick={async () => {
+                    if (!confirm(`Odstrani ${m.display_name || "člana"} iz gospodinjstva?`)) return;
+                    const { supabase: sb } = await import('@/lib/supabase');
+                    await sb.from('household_members').delete().eq('id', m.id);
+                  }} style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.2)", color: "#EF4444", fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+                )
+              }
             </div>
           ))}
         </div>

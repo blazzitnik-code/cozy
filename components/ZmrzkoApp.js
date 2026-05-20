@@ -118,6 +118,25 @@ const CCOLS = ["#EF4444", "#F97316", "#F59E0B", "#22C55E", "#0EA5E9", "#6366F1",
 const QO = ["100g", "250g", "500g", "1kg", "1 kos", "2 kosa", "500ml", "1L"];
 
 // ─── STYLES ───
+// Dinamični stili glede na temo - definirani v komponenti kjer je `isDark` dostopen
+const getStyles = (isDark) => ({
+  A: { maxWidth: 430, margin: "0 auto", minHeight: "100vh", position: "relative", overflow: "hidden", background: isDark ? "linear-gradient(180deg,#0B1120 0%,#111827 40%,#0F172A 100%)" : "linear-gradient(180deg,#F0F4FF 0%,#E8EEFF 40%,#EEF2FF 100%)", color: isDark ? "#E2E8F0" : "#1E293B", fontFamily: "'Outfit','DM Sans',-apple-system,sans-serif" },
+  F1: { position: "absolute", top: -60, right: -60, width: 200, height: 200, background: isDark ? "radial-gradient(circle,rgba(56,189,248,0.08) 0%,transparent 70%)" : "radial-gradient(circle,rgba(56,189,248,0.15) 0%,transparent 70%)", borderRadius: "50%", pointerEvents: "none" },
+  F2: { position: "absolute", bottom: 100, left: -80, width: 250, height: 250, background: isDark ? "radial-gradient(circle,rgba(99,102,241,0.06) 0%,transparent 70%)" : "radial-gradient(circle,rgba(99,102,241,0.1) 0%,transparent 70%)", borderRadius: "50%", pointerEvents: "none" },
+  INP: { width: "100%", boxSizing: "border-box", padding: "14px 16px", background: isDark ? "rgba(30,41,59,0.8)" : "rgba(255,255,255,0.9)", border: isDark ? "1px solid rgba(99,102,241,0.3)" : "1px solid rgba(99,102,241,0.25)", borderRadius: 14, color: isDark ? "#E2E8F0" : "#1E293B", fontSize: 16, outline: "none", fontWeight: 500 },
+  LBL: { fontSize: 13, fontWeight: 700, color: isDark ? "#94A3B8" : "#64748B", display: "block", marginBottom: 8 },
+  cardBg: isDark ? "rgba(30,41,59,0.6)" : "rgba(255,255,255,0.8)",
+  cardBorder: isDark ? "1px solid rgba(71,85,105,0.2)" : "1px solid rgba(99,102,241,0.15)",
+  textPrimary: isDark ? "#E2E8F0" : "#1E293B",
+  textSecondary: isDark ? "#94A3B8" : "#64748B",
+  textMuted: isDark ? "#64748B" : "#94A3B8",
+  inputBg: isDark ? "rgba(30,41,59,0.8)" : "rgba(255,255,255,0.9)",
+  pillBg: isDark ? "rgba(30,41,59,0.5)" : "rgba(255,255,255,0.7)",
+  modalBg: isDark ? "linear-gradient(180deg,#1E293B,#0F172A)" : "linear-gradient(180deg,#FFFFFF,#F8FAFF)",
+  modalHandle: isDark ? "#334155" : "#CBD5E1",
+});
+
+// Statični stili (brez teme)
 const A = { maxWidth: 430, margin: "0 auto", minHeight: "100vh", position: "relative", overflow: "hidden", background: "linear-gradient(180deg,#0B1120 0%,#111827 40%,#0F172A 100%)", color: "#E2E8F0", fontFamily: "'Outfit','DM Sans',-apple-system,sans-serif" };
 const F1 = { position: "absolute", top: -60, right: -60, width: 200, height: 200, background: "radial-gradient(circle,rgba(56,189,248,0.08) 0%,transparent 70%)", borderRadius: "50%", pointerEvents: "none" };
 const F2 = { position: "absolute", bottom: 100, left: -80, width: 250, height: 250, background: "radial-gradient(circle,rgba(99,102,241,0.06) 0%,transparent 70%)", borderRadius: "50%", pointerEvents: "none" };
@@ -139,8 +158,11 @@ function Btn({ onClick, children, v = "primary", disabled = false, style: s = {}
   return <button onClick={onClick} disabled={disabled} style={{ width: "100%", padding: "15px", borderRadius: 14, border: st.b, background: st.bg, color: st.c, fontSize: 16, fontWeight: 700, cursor: disabled ? "default" : "pointer", opacity: disabled ? 0.4 : 1, ...s }}>{children}</button>;
 }
 
-function Modal({ children, onClose }) {
-  return <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 100 }}><div onClick={e => e.stopPropagation()} style={{ background: "linear-gradient(180deg,#1E293B,#0F172A)", borderRadius: "24px 24px 0 0", width: "100%", maxWidth: 430, padding: "24px 20px 36px", border: "1px solid rgba(71,85,105,0.3)", borderBottom: "none", maxHeight: "85vh", overflowY: "auto" }}><div style={{ width: 36, height: 4, background: "#334155", borderRadius: 2, margin: "0 auto 20px" }} />{children}</div></div>;
+function Modal({ children, onClose, isDark = true }) {
+  const modalBg = isDark ? "linear-gradient(180deg,#1E293B,#0F172A)" : "linear-gradient(180deg,#FFFFFF,#F8FAFF)";
+  const handleBg = isDark ? "#334155" : "#CBD5E1";
+  const border = isDark ? "1px solid rgba(71,85,105,0.3)" : "1px solid rgba(99,102,241,0.15)";
+  return <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 100 }}><div onClick={e => e.stopPropagation()} style={{ background: modalBg, borderRadius: "24px 24px 0 0", width: "100%", maxWidth: 430, padding: "24px 20px 36px", border, borderBottom: "none", maxHeight: "85vh", overflowY: "auto" }}><div style={{ width: 36, height: 4, background: handleBg, borderRadius: 2, margin: "0 auto 20px" }} />{children}</div></div>;
 }
 
 // ─── SWIPEABLE CARD ───
@@ -231,7 +253,7 @@ function FreezerDD({ freezers, selected, onChange, onAdd }) {
 function LabelInp({ value, onChange, labels, placeholder }) {
   const [focused, setFocused] = useState(false);
   const sug = useMemo(() => { if (!focused || !labels.length) return []; if (!value) return labels.slice(0, 5); return labels.filter(l => l.toLowerCase().includes(value.toLowerCase()) && l !== value).slice(0, 5); }, [value, focused, labels]);
-  return <div style={{ position: "relative" }}><input value={value} onChange={e => onChange(e.target.value)} onFocus={() => setFocused(true)} onBlur={() => setTimeout(() => setFocused(false), 150)} placeholder={placeholder} style={INP} />{sug.length > 0 && <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, background: "#1E293B", border: "1px solid rgba(71,85,105,0.4)", borderRadius: 12, padding: 4, zIndex: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}>{sug.map((s, i) => <button key={i} onMouseDown={() => onChange(s)} style={{ width: "100%", padding: "10px 14px", border: "none", borderRadius: 8, background: "transparent", color: "#CBD5E1", fontSize: 14, cursor: "pointer", textAlign: "left", fontWeight: 500 }}>📎 {s}</button>)}</div>}</div>;
+  return <div style={{ position: "relative" }}><input value={value} onChange={e => onChange(e.target.value)} onFocus={() => setFocused(true)} onBlur={() => setTimeout(() => setFocused(false), 150)} placeholder={placeholder} style={st.INP} />{sug.length > 0 && <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, background: "#1E293B", border: "1px solid rgba(71,85,105,0.4)", borderRadius: 12, padding: 4, zIndex: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}>{sug.map((s, i) => <button key={i} onMouseDown={() => onChange(s)} style={{ width: "100%", padding: "10px 14px", border: "none", borderRadius: 8, background: "transparent", color: "#CBD5E1", fontSize: 14, cursor: "pointer", textAlign: "left", fontWeight: 500 }}>📎 {s}</button>)}</div>}</div>;
 }
 
 // ═══════════════════════════
@@ -250,6 +272,15 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
   });
   const t = useT(lang);
   const switchLang = (l) => { setLang(l); localStorage.setItem('zmrzko_lang', l); };
+
+  // ─── TEMA ───
+  const [theme, setTheme] = useState(() => {
+    if (typeof window !== 'undefined') return localStorage.getItem('zmrzko_theme') || 'dark';
+    return 'dark';
+  });
+  const switchTheme = (th) => { setTheme(th); localStorage.setItem('zmrzko_theme', th); };
+  const isDark = theme === 'dark';
+  const st = getStyles(isDark);
 
   // ─── SUPABASE HOOKS (household-scoped) ───
   const { items, loading: itemsLoading, addItem: dbAddItem, updateItem: dbUpdateItem, deleteItem: dbDeleteItem } = useItems(householdId);
@@ -397,16 +428,16 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
     setShopSugg([]);
   }
 
-  async function shopToggle(id) {
+  function shopToggle(id) {
     const item = shopItems.find(i => i.id === id);
-    if (item) await dbShopUpdate(id, { checked: !item.checked });
+    if (item) dbShopUpdate(id, { checked: !item.checked });
   }
 
-  async function shopToggleFav(id) {
+  function shopToggleFav(id) {
     const item = shopItems.find(i => i.id === id);
     if (item) {
-      await dbShopUpdate(id, { favourite: !item.favourite });
-      await dbShopToggleFav(item.name, item.category || '');
+      dbShopUpdate(id, { favourite: !item.favourite });
+      dbShopToggleFav(item.name, item.category || '');
     }
   }
 
@@ -485,7 +516,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
   function SettingsModal() {
     if (!showSettings) return null;
     return (
-      <Modal onClose={() => setShowSettings(false)}>
+      <Modal isDark={isDark} onClose={() => setShowSettings(false)}>
         <div style={{ textAlign: "center", marginBottom: 20 }}>
           <div style={{ fontSize: 48, marginBottom: 8 }}>🏠</div>
           <h2 style={{ fontSize: 20, fontWeight: 800, margin: "0 0 4px" }}>{household.name}</h2>
@@ -493,10 +524,19 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
         </div>
 
         {/* JEZIK SWITCHER */}
-        <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+        <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
           {['sl', 'en'].map(l => (
-            <button key={l} onClick={() => switchLang(l)} style={{ flex: 1, padding: "10px", borderRadius: 12, border: "1px solid " + (lang === l ? "rgba(56,189,248,0.5)" : "rgba(71,85,105,0.3)"), background: lang === l ? "rgba(56,189,248,0.12)" : "rgba(30,41,59,0.6)", color: lang === l ? "#38BDF8" : "#94A3B8", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
+            <button key={l} onClick={() => switchLang(l)} style={{ flex: 1, padding: "10px", borderRadius: 12, border: "1px solid " + (lang === l ? "rgba(56,189,248,0.5)" : isDark ? "rgba(71,85,105,0.3)" : "rgba(99,102,241,0.2)"), background: lang === l ? "rgba(56,189,248,0.12)" : isDark ? "rgba(30,41,59,0.6)" : "rgba(255,255,255,0.8)", color: lang === l ? "#38BDF8" : isDark ? "#94A3B8" : "#64748B", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
               {l === 'sl' ? '🇸🇮 Slovenščina' : '🇬🇧 English'}
+            </button>
+          ))}
+        </div>
+
+        {/* TEMA SWITCHER */}
+        <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+          {[['dark', '🌙 Temna'], ['light', '☀️ Svetla']].map(([th, label]) => (
+            <button key={th} onClick={() => switchTheme(th)} style={{ flex: 1, padding: "10px", borderRadius: 12, border: "1px solid " + (theme === th ? "rgba(99,102,241,0.5)" : isDark ? "rgba(71,85,105,0.3)" : "rgba(99,102,241,0.2)"), background: theme === th ? "rgba(99,102,241,0.15)" : isDark ? "rgba(30,41,59,0.6)" : "rgba(255,255,255,0.8)", color: theme === th ? "#818CF8" : isDark ? "#94A3B8" : "#64748B", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
+              {label}
             </button>
           ))}
         </div>
@@ -547,7 +587,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
         byDate[k].push(a);
       });
       return (
-        <div style={A}><div style={F1} /><div style={F2} />
+        <div style={st.A}><div style={st.F1} /><div style={st.F2} />
           <div style={{ position: "relative", zIndex: 1, padding: "16px 16px 40px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12, paddingTop: 12, marginBottom: 20 }}>
               <button onClick={() => setShowShopArchive(false)} style={{ background: "rgba(30,41,59,0.8)", border: "1px solid rgba(71,85,105,0.3)", borderRadius: 12, padding: "10px 16px", color: "#94A3B8", fontSize: 14, cursor: "pointer", fontWeight: 600 }}>← Nazaj</button>
@@ -645,7 +685,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
     };
 
     return (
-      <div style={A}><div style={F1} /><div style={{ ...F2, background: "radial-gradient(circle,rgba(245,158,11,0.06) 0%,transparent 70%)" }} />
+      <div style={st.A}><div style={st.F1} /><div style={{ ...F2, background: "radial-gradient(circle,rgba(245,158,11,0.06) 0%,transparent 70%)" }} />
         <div style={{ position: "relative", zIndex: 1, padding: "16px 16px 40px" }}>
 
           {/* Header */}
@@ -736,7 +776,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
 
         {/* Shopping item detail modal */}
         {shopDetail && (
-          <Modal onClose={() => { setShopDetail(null); setEditingId(null); }}>
+          <Modal isDark={isDark} onClose={() => { setShopDetail(null); setEditingId(null); }}>
             <div style={{ textAlign: "center", marginBottom: 20 }}>
               <div style={{ fontSize: 48, marginBottom: 8 }}>🛒</div>
               {editingId === shopDetail.id ? (
@@ -771,7 +811,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
               {shopDetail.favourite && <span style={{ fontSize: 13, color: "#F59E0B", fontWeight: 600 }}>⭐ Priljubljen</span>}
             </div>
 
-            <label style={LBL}>Količina</label>
+            <label style={st.LBL}>Količina</label>
             <input
               value={shopDetail.qty}
               onChange={e => {
@@ -792,7 +832,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
             </div>
 
             {/* Store picker */}
-            <label style={LBL}>Trgovina</label>
+            <label style={st.LBL}>Trgovina</label>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
               {shopStores.map(s => (
                 <button key={s.id} onClick={() => {
@@ -824,11 +864,11 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
 
         {/* New store modal */}
         {showNewStore && (
-          <Modal onClose={() => setShowNewStore(false)}>
+          <Modal isDark={isDark} onClose={() => setShowNewStore(false)}>
             <h3 style={{ fontSize: 18, fontWeight: 800, margin: "0 0 20px", textAlign: "center" }}>Nova trgovina</h3>
-            <label style={LBL}>Ime</label>
+            <label style={st.LBL}>Ime</label>
             <input value={newStore.name} onChange={e => setNewStore(s => ({ ...s, name: e.target.value }))} placeholder="npr. Hofer, Spar..." style={{ ...INP, marginBottom: 14 }} />
-            <label style={LBL}>Ikona</label>
+            <label style={st.LBL}>Ikona</label>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 20 }}>
               {["🟢", "🟣", "🔵", "🟠", "🔴", "🟡", "⚫", "🏪"].map(ic => (
                 <button key={ic} onClick={() => setNewStore(s => ({ ...s, icon: ic }))} style={{ width: 44, height: 44, borderRadius: 12, fontSize: 22, border: "2px solid " + (newStore.icon === ic ? "#F59E0B" : "rgba(71,85,105,0.3)"), background: newStore.icon === ic ? "rgba(245,158,11,0.12)" : "rgba(30,41,59,0.5)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>{ic}</button>
@@ -863,7 +903,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
     const usedCount = fa.filter(a => !a.wasted).length;
 
     return (
-      <div style={A}><div style={F1} /><div style={F2} />
+      <div style={st.A}><div style={st.F1} /><div style={st.F2} />
 
         {/* MODAL - EDIT ARHIVIRANEGA ITEMA */}
         {editArchived && (
@@ -872,12 +912,12 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
               <div style={{ width: 36, height: 4, background: "#334155", borderRadius: 2, margin: "0 auto 20px" }} />
               <h3 style={{ fontSize: 18, fontWeight: 700, margin: "0 0 16px" }}>{t('urediArhiv')}{editArchived.name}</h3>
               <div style={{ marginBottom: 12 }}>
-                <label style={LBL}>{t('ime')}</label>
-                <input value={editArchived.name} onChange={e => setEditArchived(p => ({ ...p, name: e.target.value }))} style={INP} />
+                <label style={st.LBL}>{t('ime')}</label>
+                <input value={editArchived.name} onChange={e => setEditArchived(p => ({ ...p, name: e.target.value }))} style={st.INP} />
               </div>
               <div style={{ marginBottom: 20 }}>
-                <label style={LBL}>{t('količina')}</label>
-                <input value={editArchived.qty} onChange={e => setEditArchived(p => ({ ...p, qty: e.target.value }))} style={INP} />
+                <label style={st.LBL}>{t('količina')}</label>
+                <input value={editArchived.qty} onChange={e => setEditArchived(p => ({ ...p, qty: e.target.value }))} style={st.INP} />
               </div>
               <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
                 <button onClick={async () => {
@@ -1044,7 +1084,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
   // ═══════════════════════════
   if (screen === "home") {
     return (
-      <div style={A}><div style={F1} /><div style={F2} />
+      <div style={st.A}><div style={st.F1} /><div style={st.F2} />
         <div style={{ position: "relative", zIndex: 1, padding: "16px 16px 100px" }}>
 
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", paddingTop: 12, marginBottom: 14 }}>
@@ -1112,24 +1152,24 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
 
           if (editMode && editData) {
             return (
-              <Modal onClose={() => setEditMode(false)}>
+              <Modal isDark={isDark} onClose={() => setEditMode(false)}>
                 <h3 style={{ fontSize: 18, fontWeight: 800, margin: "0 0 20px", textAlign: "center" }}>✏️ Uredi izdelek</h3>
-                <label style={LBL}>Ime</label>
+                <label style={st.LBL}>Ime</label>
                 <input value={editData.name} onChange={e => setEditData(d => ({ ...d, name: e.target.value }))} style={{ ...INP, marginBottom: 14 }} />
-                <label style={LBL}>Kategorija</label>
+                <label style={st.LBL}>Kategorija</label>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>{Object.entries(categories).map(([k, v]) => <button key={k} onClick={() => setEditData(d => ({ ...d, cat: k }))} style={{ padding: "7px 11px", borderRadius: 12, fontSize: 12, fontWeight: 600, cursor: "pointer", border: "1px solid " + (editData.cat === k ? v.color + "80" : "rgba(71,85,105,0.3)"), background: editData.cat === k ? v.color + "20" : "rgba(30,41,59,0.5)", color: editData.cat === k ? v.color : "#94A3B8" }}>{v.icon} {v.label}</button>)}</div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
-                  <div><label style={LBL}>Količina</label><input value={editData.qty} onChange={e => setEditData(d => ({ ...d, qty: e.target.value }))} style={INP} /></div>
-                  <div><label style={LBL}>Paketi</label><div style={{ display: "flex", alignItems: "center", gap: 8 }}><button onClick={() => setEditData(d => ({ ...d, packets: Math.max(1, d.packets - 1) }))} style={{ width: 40, height: 46, borderRadius: 10, border: "1px solid rgba(71,85,105,0.3)", background: "rgba(30,41,59,0.6)", color: "#94A3B8", fontSize: 20, cursor: "pointer" }}>−</button><span style={{ fontSize: 20, fontWeight: 800, minWidth: 24, textAlign: "center" }}>{editData.packets}</span><button onClick={() => setEditData(d => ({ ...d, packets: d.packets + 1 }))} style={{ width: 40, height: 46, borderRadius: 10, border: "1px solid rgba(99,102,241,0.3)", background: "rgba(99,102,241,0.1)", color: "#818CF8", fontSize: 20, cursor: "pointer" }}>+</button></div></div>
+                  <div><label style={st.LBL}>Količina</label><input value={editData.qty} onChange={e => setEditData(d => ({ ...d, qty: e.target.value }))} style={st.INP} /></div>
+                  <div><label style={st.LBL}>Paketi</label><div style={{ display: "flex", alignItems: "center", gap: 8 }}><button onClick={() => setEditData(d => ({ ...d, packets: Math.max(1, d.packets - 1) }))} style={{ width: 40, height: 46, borderRadius: 10, border: "1px solid rgba(71,85,105,0.3)", background: "rgba(30,41,59,0.6)", color: "#94A3B8", fontSize: 20, cursor: "pointer" }}>−</button><span style={{ fontSize: 20, fontWeight: 800, minWidth: 24, textAlign: "center" }}>{editData.packets}</span><button onClick={() => setEditData(d => ({ ...d, packets: d.packets + 1 }))} style={{ width: 40, height: 46, borderRadius: 10, border: "1px solid rgba(99,102,241,0.3)", background: "rgba(99,102,241,0.1)", color: "#818CF8", fontSize: 20, cursor: "pointer" }}>+</button></div></div>
                 </div>
-                <label style={LBL}>Labela</label>
+                <label style={st.LBL}>Labela</label>
                 <LabelInp value={editData.label} onChange={v => setEditData(d => ({ ...d, label: v }))} labels={existingLabels} placeholder="opcijsko" />
                 <div style={{ height: 14 }} />
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
-                  <div><label style={LBL}>Zamrznjeno</label><input type="date" value={editData.frozen} onChange={e => setEditData(d => ({ ...d, frozen: e.target.value }))} style={{ ...INP, colorScheme: "dark" }} /></div>
-                  <div><label style={LBL}>Rok uporabe</label><input type="date" value={editData.expiry} onChange={e => setEditData(d => ({ ...d, expiry: e.target.value }))} style={{ ...INP, colorScheme: "dark" }} /></div>
+                  <div><label style={st.LBL}>Zamrznjeno</label><input type="date" value={editData.frozen} onChange={e => setEditData(d => ({ ...d, frozen: e.target.value }))} style={{ ...INP, colorScheme: "dark" }} /></div>
+                  <div><label style={st.LBL}>Rok uporabe</label><input type="date" value={editData.expiry} onChange={e => setEditData(d => ({ ...d, expiry: e.target.value }))} style={{ ...INP, colorScheme: "dark" }} /></div>
                 </div>
-                <label style={LBL}>Zamrzovalnik</label>
+                <label style={st.LBL}>Zamrzovalnik</label>
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 20 }}>{freezers.map(f => <button key={f.id} onClick={() => setEditData(d => ({ ...d, freezer: f.id }))} style={{ padding: "9px 14px", borderRadius: 12, border: "1px solid " + (editData.freezer === f.id ? "rgba(56,189,248,0.5)" : "rgba(71,85,105,0.3)"), background: editData.freezer === f.id ? "rgba(56,189,248,0.12)" : "rgba(30,41,59,0.5)", color: editData.freezer === f.id ? "#38BDF8" : "#94A3B8", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>{f.icon} {f.name}</button>)}</div>
                 <Btn v="success" onClick={async () => { await dbUpdateItem(editData.id, { name: editData.name, cat: editData.cat, qty: editData.qty, packets: editData.packets, label: editData.label, frozen: editData.frozen, expiry: editData.expiry, freezer: editData.freezer }); setShowDetail(editData); setEditMode(false); }}>💾 Shrani</Btn>
                 <Btn v="ghost" onClick={() => setEditMode(false)} style={{ marginTop: 8 }}>Prekliči</Btn>
@@ -1138,7 +1178,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
           }
 
           return (
-            <Modal onClose={() => setShowDetail(null)}>
+            <Modal isDark={isDark} onClose={() => setShowDetail(null)}>
               {/* Redesigned detail layout */}
               <div style={{ textAlign: "center", marginBottom: 12 }}>
                 <span style={{ fontSize: 56 }}>{cat.icon}</span>
@@ -1194,7 +1234,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
   const stepLabels = addStep < 2 ? [t('korak1'), t('korak2')] : [t('korak1'), t('korak2'), t('korak3')];
 
   return (
-    <div style={A}><div style={F1} /><div style={F2} />
+    <div style={st.A}><div style={st.F1} /><div style={st.F2} />
       <div style={{ position: "relative", zIndex: 1, padding: "16px 16px 40px", minHeight: "100vh" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
           <button onClick={() => { if (addStep === 0) setScreen("home"); else setAddStep(addStep - 1); }} style={{ background: "rgba(30,41,59,0.8)", border: "1px solid rgba(71,85,105,0.3)", borderRadius: 12, padding: "10px 16px", color: "#94A3B8", fontSize: 14, cursor: "pointer", fontWeight: 600 }}>{t('nazaj')}</button>
@@ -1210,7 +1250,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
         {/* STEP 0: Name + Category */}
         {addStep === 0 && (
           <div>
-            <label style={LBL}>{t('kajZamrzuješ')}</label>
+            <label style={st.LBL}>{t('kajZamrzuješ')}</label>
             <input ref={inputRef} value={addData.name} onChange={e => { setAddData(d => ({ ...d, name: e.target.value })); setSuggestions(e.target.value.length >= 2 ? SUGG.filter(s => s.n.toLowerCase().includes(e.target.value.toLowerCase())).slice(0, 5) : []); }} placeholder={t('primerekIskanja')} style={{ ...INP, fontSize: 17 }} />
             {suggestions.length > 0 && <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 4 }}>{suggestions.map((s, i) => { const cat = categories[s.c] || CATS[s.c]; return <button key={i} onClick={() => { const exp = new Date(addData.frozen); exp.setMonth(exp.getMonth() + (cat?.months || 6)); setAddData(d => ({ ...d, name: s.n, cat: s.c, expiry: exp.toISOString().split("T")[0] })); setSuggestions([]); setAddStep(1); }} style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 14px", background: "rgba(30,41,59,0.8)", border: "1px solid rgba(71,85,105,0.3)", borderRadius: 14, color: "#E2E8F0", fontSize: 15, cursor: "pointer", textAlign: "left" }}><span style={{ fontSize: 22 }}>{cat?.icon}</span><div><div style={{ fontWeight: 600 }}>{s.n}</div><div style={{ fontSize: 12, color: cat?.color, fontWeight: 600 }}>{cat?.label} · rok {cat?.months} mes.</div></div></button>; })}</div>}
             {addData.name.length >= 2 && suggestions.length === 0 && <div style={{ marginTop: 16 }}><p style={{ fontSize: 13, color: "#64748B", marginBottom: 10 }}>{t('izberiKategorijo')}</p><div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>{Object.entries(categories).map(([k, v]) => <button key={k} onClick={() => { const exp = new Date(addData.frozen); exp.setMonth(exp.getMonth() + (v.months || 6)); setAddData(d => ({ ...d, cat: k, expiry: exp.toISOString().split("T")[0] })); setAddStep(1); }} style={{ padding: "14px 6px", background: "rgba(30,41,59,0.6)", border: "1px solid rgba(71,85,105,0.2)", borderRadius: 14, color: "#E2E8F0", cursor: "pointer", textAlign: "center" }}><div style={{ fontSize: 24, marginBottom: 4 }}>{v.icon}</div><div style={{ fontSize: 11, fontWeight: 600, color: v.color }}>{v.label}</div></button>)}</div></div>}
@@ -1226,7 +1266,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
               <span style={{ fontSize: 13, color: (categories[addData.cat] || CATS[addData.cat])?.color, fontWeight: 600 }}>{(categories[addData.cat] || CATS[addData.cat])?.label}</span>
             </div>
 
-            <label style={LBL}>{t('količina')}</label>
+            <label style={st.LBL}>{t('količina')}</label>
             <input ref={inputRef} value={addData.qty} onChange={e => setAddData(d => ({ ...d, qty: e.target.value }))} placeholder="npr. 500g, 2 kosa, 1L" style={{ ...INP, marginBottom: 8 }} />
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 20 }}>
               {QO.map(q => <button key={q} onClick={() => setAddData(d => ({ ...d, qty: q }))} style={{ padding: "8px 12px", borderRadius: 12, border: "1px solid " + (addData.qty === q ? "rgba(99,102,241,0.5)" : "rgba(71,85,105,0.3)"), background: addData.qty === q ? "rgba(99,102,241,0.15)" : "rgba(30,41,59,0.5)", color: addData.qty === q ? "#818CF8" : "#94A3B8", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>{q}</button>)}
@@ -1262,7 +1302,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
               <span style={{ fontSize: 13, color: "#64748B" }}>{addData.qty} · {(categories[addData.cat] || CATS[addData.cat])?.label}</span>
             </div>
 
-            <label style={LBL}>{t('paketi')}</label>
+            <label style={st.LBL}>{t('paketi')}</label>
             <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18 }}>
               <button onClick={() => setAddData(d => ({ ...d, packets: Math.max(1, d.packets - 1) }))} style={{ width: 44, height: 44, borderRadius: 12, border: "1px solid rgba(71,85,105,0.3)", background: "rgba(30,41,59,0.6)", color: "#94A3B8", fontSize: 22, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
               <span style={{ fontSize: 24, fontWeight: 800, minWidth: 32, textAlign: "center" }}>{addData.packets}</span>
@@ -1270,16 +1310,16 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
               <span style={{ fontSize: 13, color: "#64748B" }}>{t('paketov')}</span>
             </div>
 
-            <label style={LBL}>{t('labela')} <span style={{ fontWeight: 400, color: "#475569" }}>({t('opcijsko')})</span></label>
+            <label style={st.LBL}>{t('labela')} <span style={{ fontWeight: 400, color: "#475569" }}>({t('opcijsko')})</span></label>
             <LabelInp value={addData.label} onChange={v => setAddData(d => ({ ...d, label: v }))} labels={existingLabels} placeholder={t('primerekLabele')} />
             <div style={{ height: 16 }} />
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
-              <div><label style={LBL}>{t('zamrznjeno')}</label><input type="date" value={addData.frozen} onChange={e => { const f = e.target.value; setAddData(d => ({ ...d, frozen: f, expiry: recalc(f, d.cat) })); }} style={{ ...INP, colorScheme: "dark" }} /></div>
-              <div><label style={LBL}>{t('rokUporabe')}</label><input type="date" value={addData.expiry || recalc(addData.frozen, addData.cat)} onChange={e => setAddData(d => ({ ...d, expiry: e.target.value }))} style={{ ...INP, colorScheme: "dark" }} /></div>
+              <div><label style={st.LBL}>{t('zamrznjeno')}</label><input type="date" value={addData.frozen} onChange={e => { const f = e.target.value; setAddData(d => ({ ...d, frozen: f, expiry: recalc(f, d.cat) })); }} style={{ ...INP, colorScheme: "dark" }} /></div>
+              <div><label style={st.LBL}>{t('rokUporabe')}</label><input type="date" value={addData.expiry || recalc(addData.frozen, addData.cat)} onChange={e => setAddData(d => ({ ...d, expiry: e.target.value }))} style={{ ...INP, colorScheme: "dark" }} /></div>
             </div>
 
-            <label style={LBL}>{t('zamrzovalnik')}</label>
+            <label style={st.LBL}>{t('zamrzovalnik')}</label>
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 24 }}>
               {freezers.map(f => <button key={f.id} onClick={() => setAddData(d => ({ ...d, freezer: f.id }))} style={{ padding: "10px 16px", borderRadius: 14, border: "1px solid " + (addData.freezer === f.id ? "rgba(56,189,248,0.5)" : "rgba(71,85,105,0.3)"), background: addData.freezer === f.id ? "rgba(56,189,248,0.12)" : "rgba(30,41,59,0.5)", color: addData.freezer === f.id ? "#38BDF8" : "#94A3B8", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>{f.icon} {f.name}</button>)}
             </div>

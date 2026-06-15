@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useItems, useArchived, useFreezers, useCategories, useShoppingItems, useShoppingArchived, useShoppingFavourites, useShoppingStores, normalizujNiz } from '@/lib/hooks';
 import { useT } from '@/lib/i18n';
+import { supabase } from '@/lib/supabase';
 
 // ─── CATEGORIES ───
 const CATS = {
@@ -46,50 +47,6 @@ const SHOP_SUGG = [
   "Toaletni papir", "Pralni prašek", "Detergent", "Gobice",
   "Pasja hrana", "Priboljški za psa",
   "Čokolada", "Keksi", "Čips", "Sladoled",
-];
-
-const FREEZERS = [
-  { id: "home", name: "Doma", icon: "🏠" },
-  { id: "vikend", name: "Vikend", icon: "🏡" },
-];
-
-// ─── DEMO DATA ───
-const DEMO_ITEMS = [
-  { id: 1, name: "Piščančja prsa", cat: "perutnina", qty: "500g", packets: 2, label: "", frozen: "2025-12-15", expiry: "2026-09-15", freezer: "home", sticky: false },
-  { id: 2, name: "Losos file", cat: "riba", qty: "300g", packets: 1, label: "", frozen: "2026-01-20", expiry: "2026-07-20", freezer: "home", sticky: false },
-  { id: 3, name: "Bolognese", cat: "pripravljena", qty: "1L", packets: 1, label: "za 4 osebe", frozen: "2025-11-01", expiry: "2026-02-01", freezer: "home", sticky: false },
-  { id: 4, name: "Mešana zelenjava", cat: "zelenjava", qty: "400g", packets: 3, label: "", frozen: "2026-02-10", expiry: "2027-02-10", freezer: "home", sticky: true },
-  { id: 5, name: "Mleto goveje", cat: "goveje", qty: "500g", packets: 4, label: "", frozen: "2026-03-01", expiry: "2027-03-01", freezer: "home", sticky: false },
-  { id: 6, name: "Gulaž", cat: "pripravljena", qty: "500ml", packets: 1, label: "za 2 osebi", frozen: "2026-02-15", expiry: "2026-05-15", freezer: "vikend", sticky: false },
-  { id: 7, name: "Svinjski zrezek", cat: "svinjsko", qty: "200g", packets: 4, label: "", frozen: "2026-01-05", expiry: "2026-07-05", freezer: "home", sticky: false },
-  { id: 8, name: "Pasja hrana - govedina", cat: "psi", qty: "300g", packets: 6, label: "za Reksa", frozen: "2026-03-15", expiry: "2026-09-15", freezer: "home", sticky: true },
-  { id: 9, name: "Jagode", cat: "sadje", qty: "250g", packets: 1, label: "", frozen: "2025-07-01", expiry: "2026-04-01", freezer: "vikend", sticky: false },
-];
-
-const DEMO_SHOPS = [
-  { id: "mercator", name: "Mercator", icon: "🟢" },
-  { id: "dm", name: "DM", icon: "🟣" },
-];
-
-const DEMO_SHOPPING = [
-  { id: 100, name: "Mleko", qty: "1L", checked: false, favourite: true, store: "mercator" },
-  { id: 101, name: "Jajca", qty: "10", checked: false, favourite: true, store: "mercator" },
-  { id: 102, name: "Kruh", qty: "", checked: false, favourite: true, store: "mercator" },
-  { id: 103, name: "Banane", qty: "1kg", checked: false, favourite: false, store: "mercator" },
-  { id: 104, name: "Piščančja prsa", qty: "500g", checked: false, favourite: false, store: "mercator" },
-  { id: 105, name: "Paradižnik", qty: "4", checked: true, favourite: false, store: "mercator" },
-  { id: 106, name: "Sir", qty: "", checked: true, favourite: true, store: "mercator" },
-  { id: 107, name: "Šampon", qty: "1×", checked: false, favourite: false, store: "dm" },
-  { id: 108, name: "Zobna pasta", qty: "", checked: false, favourite: false, store: "dm" },
-  { id: 109, name: "Vlažilna krema", qty: "", checked: true, favourite: false, store: "dm" },
-];
-
-const DEMO_ARCHIVED = [
-  { id: 50, name: "Bolognese", cat: "pripravljena", qty: "1L", packets: 1, label: "za 4 osebe", frozen: "2025-06-01", expiry: "2025-09-01", freezer: "home", archived_at: "2025-08-20", wasted: false },
-  { id: 51, name: "Piščančja prsa", cat: "perutnina", qty: "500g", packets: 1, label: "", frozen: "2025-05-01", expiry: "2026-02-01", freezer: "home", archived_at: "2025-10-15", wasted: false },
-  { id: 52, name: "Grah", cat: "zelenjava", qty: "400g", packets: 1, label: "", frozen: "2025-03-01", expiry: "2026-03-01", freezer: "home", archived_at: "2025-11-01", wasted: true },
-  { id: 53, name: "Losos file", cat: "riba", qty: "250g", packets: 1, label: "", frozen: "2025-04-01", expiry: "2025-10-01", freezer: "vikend", archived_at: "2025-12-01", wasted: false },
-  { id: 54, name: "Sladoled", cat: "drugo", qty: "500ml", packets: 1, label: "", frozen: "2025-07-01", expiry: "2026-01-01", freezer: "home", archived_at: "2026-01-10", wasted: true },
 ];
 
 // ─── UTILS ───
@@ -163,6 +120,19 @@ function Modal({ children, onClose, isDark = true }) {
   const handleBg = isDark ? "#334155" : "#CBD5E1";
   const border = isDark ? "1px solid rgba(71,85,105,0.3)" : "1px solid rgba(99,102,241,0.15)";
   return <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 100 }}><div onClick={e => e.stopPropagation()} style={{ background: modalBg, borderRadius: "24px 24px 0 0", width: "100%", maxWidth: 430, padding: "24px 20px 36px", border, borderBottom: "none", maxHeight: "85vh", overflowY: "auto" }}><div style={{ width: 36, height: 4, background: handleBg, borderRadius: 2, margin: "0 auto 20px" }} />{children}</div></div>;
+}
+
+function ConfirmModal({ action, onClose, isDark = true }) {
+  if (!action) return null;
+  return (
+    <Modal isDark={isDark} onClose={onClose}>
+      <p style={{ fontSize: 16, fontWeight: 600, color: isDark ? "#E2E8F0" : "#1E293B", textAlign: "center", marginBottom: 24, marginTop: 4 }}>{action.message}</p>
+      <div style={{ display: "flex", gap: 10 }}>
+        <button onClick={async () => { await action.onConfirm(); onClose(); }} style={{ flex: 1, padding: "14px", borderRadius: 14, border: "none", background: "linear-gradient(135deg,#EF4444,#DC2626)", color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>Potrdi</button>
+        <button onClick={onClose} style={{ flex: 1, padding: "14px", borderRadius: 14, border: "1px solid rgba(71,85,105,0.3)", background: "transparent", color: "#94A3B8", fontSize: 15, fontWeight: 600, cursor: "pointer" }}>Prekliči</button>
+      </div>
+    </Modal>
+  );
 }
 
 // ─── SWIPEABLE CARD ───
@@ -284,7 +254,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
 
   // ─── SUPABASE HOOKS (household-scoped) ───
   const { items, loading: itemsLoading, addItem: dbAddItem, updateItem: dbUpdateItem, deleteItem: dbDeleteItem } = useItems(householdId);
-  const { archived, loading: archLoading, archiveItem: dbArchiveItem } = useArchived(householdId);
+  const { archived, loading: archLoading, archiveItem: dbArchiveItem, updateArchived: dbUpdateArchived, deleteArchived: dbDeleteArchived, unarchiveItem: dbUnarchiveItem } = useArchived(householdId);
   const { freezers, addFreezer: dbAddFreezer } = useFreezers(householdId);
   const { categories, loading: catsLoading, addCategory: dbAddCategory } = useCategories(householdId);
   const { items: shopItems, loading: shopLoading, addItem: dbShopAdd, updateItem: dbShopUpdate, deleteItem: dbShopDelete } = useShoppingItems(householdId);
@@ -294,6 +264,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
 
   // ─── SETTINGS ───
   const [showSettings, setShowSettings] = useState(false);
+  const [confirmAction, setConfirmAction] = useState(null); // { message, onConfirm }
 
   // ─── FREEZER UI STATE ───
   const [screen, setScreen] = useState("home");
@@ -402,21 +373,6 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
     return { groups: Object.values(groups).sort((a, b) => a.order - b.order), checked };
   }, [sortedShop]);
 
-  // Group by store for "all" view
-  const shopByStore = useMemo(() => {
-    if (activeStore !== "all") return null;
-    const groups = {};
-    shopStores.forEach(s => {
-      const storeItems = shopItems.filter(i => i.store === s.id);
-      if (storeItems.length > 0) {
-        const unchecked = storeItems.filter(i => !i.checked);
-        const checked = storeItems.filter(i => i.checked);
-        groups[s.id] = { store: s, items: [...unchecked, ...checked] };
-      }
-    });
-    return groups;
-  }, [shopItems, shopStores, activeStore]);
-
   async function shopAddItem(name) {
     if (!name.trim()) return;
     const targetStore = activeStore === "all" ? lastStore : activeStore;
@@ -437,7 +393,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
     const item = shopItems.find(i => i.id === id);
     if (item) {
       dbShopUpdate(id, { favourite: !item.favourite });
-      dbShopToggleFav(item.name, item.category || '');
+      dbShopToggleFav(item.name);
     }
   }
 
@@ -563,12 +519,13 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
               {m.user_id === user.id
                 ? <span style={{ fontSize: 11, color: "#38BDF8", fontWeight: 600 }}>Ti</span>
                 : members.find(x => x.user_id === user.id)?.role === "owner" && (
-                  <button onClick={async () => {
-                    if (!confirm(`Odstrani ${m.display_name || "člana"} iz gospodinjstva?`)) return;
-                    const { supabase: sb } = await import('@/lib/supabase');
-                    const { error } = await sb.rpc('remove_household_member', { p_member_id: m.id });
-                    if (error) alert('Napaka: ' + error.message);
-                  }} style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.2)", color: "#EF4444", fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+                  <button onClick={() => setConfirmAction({
+                    message: `Odstrani ${m.display_name || "člana"} iz gospodinjstva?`,
+                    onConfirm: async () => {
+                      const { error } = await supabase.rpc('remove_household_member', { p_member_id: m.id });
+                      if (error) alert('Napaka: ' + error.message);
+                    },
+                  })} style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.2)", color: "#EF4444", fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
                 )
               }
             </div>
@@ -641,9 +598,10 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
       const toOrder = dragOver.current.sort_order ?? 0;
       dragItem.current = null;
       dragOver.current = null;
-      // Optimistic update - takoj posodobi lokalni state
-      dbShopUpdate(fromId, { sort_order: toOrder });
-      dbShopUpdate(toId, { sort_order: fromOrder });
+      await Promise.all([
+        dbShopUpdate(fromId, { sort_order: toOrder }),
+        dbShopUpdate(toId, { sort_order: fromOrder }),
+      ]);
     };
 
     const handleTouchStart = (e, item) => {
@@ -664,9 +622,10 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
       const fromOrder = from.sort_order ?? idx;
       const toOrder = neighbor.sort_order ?? newIdx;
       touchDrag.current.item = null;
-      // Optimistic update - takoj posodobi lokalni state
-      dbShopUpdate(from.id, { sort_order: toOrder });
-      dbShopUpdate(neighbor.id, { sort_order: fromOrder });
+      await Promise.all([
+        dbShopUpdate(from.id, { sort_order: toOrder }),
+        dbShopUpdate(neighbor.id, { sort_order: fromOrder }),
+      ]);
     };
 
     const ShopItemRow = ({ item, allItems }) => {
@@ -888,6 +847,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
           </Modal>
         )}
         <SettingsModal />
+        <ConfirmModal action={confirmAction} onClose={() => setConfirmAction(null)} isDark={isDark} />
       </div>
     );
   }
@@ -931,31 +891,25 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
               </div>
               <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
                 <button onClick={async () => {
-                  const { supabase: sb } = await import('@/lib/supabase');
-                  await sb.from('archived').update({ name: editArchived.name, qty: editArchived.qty }).eq('id', editArchived.id);
+                  await dbUpdateArchived(editArchived.id, { name: editArchived.name, qty: editArchived.qty });
                   setEditArchived(null);
                 }} style={{ flex: 1, padding: "13px", borderRadius: 14, border: "none", background: "linear-gradient(135deg,#0EA5E9,#6366F1)", color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>{t('shrani')}</button>
                 <button onClick={() => setEditArchived(null)} style={{ flex: 1, padding: "13px", borderRadius: 14, border: "1px solid rgba(71,85,105,0.3)", background: "transparent", color: "#64748B", fontSize: 15, fontWeight: 600, cursor: "pointer" }}>{t('prekliči')}</button>
               </div>
-              <button onClick={async () => {
-                if (!confirm(t('izbrišiVprašanje'))) return;
-                const { supabase: sb } = await import('@/lib/supabase');
-                await sb.from('archived').delete().eq('id', editArchived.id);
-                setEditArchived(null);
-              }} style={{ width: "100%", padding: "13px", borderRadius: 14, border: "1px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.1)", color: "#EF4444", fontSize: 15, fontWeight: 600, cursor: "pointer" }}>{t('izbrišiArhiv')}</button>
-              <button onClick={async () => {
-                if (!confirm(t('vrniVprašanje'))) return;
-                const { supabase: sb } = await import('@/lib/supabase');
-                await sb.from('items').insert([{
-                  name: editArchived.name, cat: editArchived.cat, qty: editArchived.qty,
-                  packets: editArchived.packets, label: editArchived.label,
-                  frozen: editArchived.frozen, expiry: editArchived.expiry,
-                  freezer: editArchived.freezer, sticky: false,
-                  household_id: householdId,
-                }]);
-                await sb.from('archived').delete().eq('id', editArchived.id);
-                setEditArchived(null);
-              }} style={{ width: "100%", padding: "13px", marginTop: 8, borderRadius: 14, border: "1px solid rgba(34,197,94,0.3)", background: "rgba(34,197,94,0.1)", color: "#22C55E", fontSize: 15, fontWeight: 600, cursor: "pointer" }}>{t('vrniVZamrzovalnik')}</button>
+              <button onClick={() => setConfirmAction({
+                message: t('izbrišiVprašanje'),
+                onConfirm: async () => {
+                  await dbDeleteArchived(editArchived.id);
+                  setEditArchived(null);
+                },
+              })} style={{ width: "100%", padding: "13px", borderRadius: 14, border: "1px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.1)", color: "#EF4444", fontSize: 15, fontWeight: 600, cursor: "pointer" }}>{t('izbrišiArhiv')}</button>
+              <button onClick={() => setConfirmAction({
+                message: t('vrniVprašanje'),
+                onConfirm: async () => {
+                  await dbUnarchiveItem(editArchived);
+                  setEditArchived(null);
+                },
+              })} style={{ width: "100%", padding: "13px", marginTop: 8, borderRadius: 14, border: "1px solid rgba(34,197,94,0.3)", background: "rgba(34,197,94,0.1)", color: "#22C55E", fontSize: 15, fontWeight: 600, cursor: "pointer" }}>{t('vrniVZamrzovalnik')}</button>
             </div>
           </div>
         )}
@@ -1085,6 +1039,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
             );
           })}
         </div>
+        <ConfirmModal action={confirmAction} onClose={() => setConfirmAction(null)} isDark={isDark} />
       </div>
     );
   }
@@ -1234,6 +1189,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
           );
         })()}
         <SettingsModal />
+        <ConfirmModal action={confirmAction} onClose={() => setConfirmAction(null)} isDark={isDark} />
       </div>
     );
   }

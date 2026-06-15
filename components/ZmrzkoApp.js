@@ -253,7 +253,7 @@ function FreezerDD({ freezers, selected, onChange, onAdd }) {
 function LabelInp({ value, onChange, labels, placeholder }) {
   const [focused, setFocused] = useState(false);
   const sug = useMemo(() => { if (!focused || !labels.length) return []; if (!value) return labels.slice(0, 5); return labels.filter(l => l.toLowerCase().includes(value.toLowerCase()) && l !== value).slice(0, 5); }, [value, focused, labels]);
-  return <div style={{ position: "relative" }}><input value={value} onChange={e => onChange(e.target.value)} onFocus={() => setFocused(true)} onBlur={() => setTimeout(() => setFocused(false), 150)} placeholder={placeholder} style={st.INP} />{sug.length > 0 && <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, background: "#1E293B", border: "1px solid rgba(71,85,105,0.4)", borderRadius: 12, padding: 4, zIndex: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}>{sug.map((s, i) => <button key={i} onMouseDown={() => onChange(s)} style={{ width: "100%", padding: "10px 14px", border: "none", borderRadius: 8, background: "transparent", color: "#CBD5E1", fontSize: 14, cursor: "pointer", textAlign: "left", fontWeight: 500 }}>📎 {s}</button>)}</div>}</div>;
+  return <div style={{ position: "relative" }}><input value={value} onChange={e => onChange(e.target.value)} onFocus={() => setFocused(true)} onBlur={() => setTimeout(() => setFocused(false), 150)} placeholder={placeholder} style={INP} />{sug.length > 0 && <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, background: "#1E293B", border: "1px solid rgba(71,85,105,0.4)", borderRadius: 12, padding: 4, zIndex: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}>{sug.map((s, i) => <button key={i} onMouseDown={() => onChange(s)} style={{ width: "100%", padding: "10px 14px", border: "none", borderRadius: 8, background: "transparent", color: "#CBD5E1", fontSize: 14, cursor: "pointer", textAlign: "left", fontWeight: 500 }}>📎 {s}</button>)}</div>}</div>;
 }
 
 // ═══════════════════════════
@@ -608,11 +608,11 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
               <div key={date} style={{ marginBottom: 16 }}>
                 <h3 style={{ fontSize: 14, fontWeight: 700, color: "#94A3B8", margin: "0 0 8px" }}>{date}</h3>
                 {ditems.map((it, i) => {
-                  const st = shopStores.find(s => s.id === it.store);
+                  const store = shopStores.find(s => s.id === it.store);
                   return (
                     <div key={it.id + "-" + i} style={{ padding: "8px 12px", background: "rgba(30,41,59,0.4)", borderRadius: 10, marginBottom: 3, fontSize: 14, color: "#CBD5E1", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <span>{it.name}{it.qty ? " · " + it.qty : ""}</span>
-                      {st && <span style={{ fontSize: 11, color: "#475569" }}>{st.icon} {st.name}</span>}
+                      {store && <span style={{ fontSize: 11, color: "#475569" }}>{store.icon} {store.name}</span>}
                     </div>
                   );
                 })}
@@ -670,7 +670,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
     };
 
     const ShopItemRow = ({ item, allItems }) => {
-      const st = shopStores.find(s => s.id === item.store);
+      const store = shopStores.find(s => s.id === item.store);
       return (
         <div
           draggable={!item.checked}
@@ -689,7 +689,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
             <span style={{ fontSize: 16, fontWeight: 600, color: item.checked ? "#475569" : "#E2E8F0", textDecoration: item.checked ? "line-through" : "none" }}>{item.name}</span>
             {item.qty && <span style={{ fontSize: 13, color: item.checked ? "#374151" : "#64748B", marginLeft: 8 }}>{item.qty}</span>}
           </div>
-          {activeStore === "all" && st && <span style={{ fontSize: 12, flexShrink: 0 }}>{st.icon}</span>}
+          {activeStore === "all" && store && <span style={{ fontSize: 12, flexShrink: 0 }}>{store.icon}</span>}
         </div>
       );
     };
@@ -1116,11 +1116,11 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {filtered.map(item => {
               const cat = categories[item.cat] || CATS.drugo;
-              const st = getSt(item);
+              const status = getSt(item);
               const frz = freezers.find(f => f.id === item.freezer);
               return (
                 <SwipeCard key={item.id} onSwipeLeft={() => doArchive(item, false)} onClick={() => { setShowDetail(item); setEditMode(false); }}>
-                  <div style={{ background: stBg(st), border: "1px solid " + (st === "expired" ? "rgba(239,68,68,0.2)" : st === "warning" ? "rgba(245,158,11,0.15)" : "rgba(71,85,105,0.15)"), borderRadius: 16, padding: "12px 14px", cursor: "pointer", position: "relative", overflow: "hidden" }}>
+                  <div style={{ background: stBg(status), border: "1px solid " + (status === "expired" ? "rgba(239,68,68,0.2)" : status === "warning" ? "rgba(245,158,11,0.15)" : "rgba(71,85,105,0.15)"), borderRadius: 16, padding: "12px 14px", cursor: "pointer", position: "relative", overflow: "hidden" }}>
                     <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 4, background: cat.color, borderRadius: "16px 0 0 16px" }} />
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 10, paddingLeft: 8, flex: 1, minWidth: 0 }}>
@@ -1138,7 +1138,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
                         </div>
                       </div>
                       <div style={{ textAlign: "right", flexShrink: 0, marginLeft: 8 }}>
-                        <div style={{ fontSize: 12, fontWeight: 800, color: stCol(st), background: stCol(st) + "15", padding: "3px 8px", borderRadius: 8, display: "inline-block", marginBottom: 2 }}>{wksShort(item.expiry)}</div>
+                        <div style={{ fontSize: 12, fontWeight: 800, color: stCol(status), background: stCol(status) + "15", padding: "3px 8px", borderRadius: 8, display: "inline-block", marginBottom: 2 }}>{wksShort(item.expiry)}</div>
                         <div style={{ fontSize: 10, color: "#475569" }}>{fmtD(item.expiry)}</div>
                       </div>
                     </div>
@@ -1157,7 +1157,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
         {showDetail && (() => {
           const item = showDetail;
           const cat = categories[item.cat] || CATS.drugo;
-          const st = getSt(item);
+          const status = getSt(item);
           const frz = freezers.find(f => f.id === item.freezer);
 
           if (editMode && editData) {
@@ -1169,7 +1169,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
                 <label style={st.LBL}>Kategorija</label>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>{Object.entries(categories).map(([k, v]) => <button key={k} onClick={() => setEditData(d => ({ ...d, cat: k }))} style={{ padding: "7px 11px", borderRadius: 12, fontSize: 12, fontWeight: 600, cursor: "pointer", border: "1px solid " + (editData.cat === k ? v.color + "80" : "rgba(71,85,105,0.3)"), background: editData.cat === k ? v.color + "20" : "rgba(30,41,59,0.5)", color: editData.cat === k ? v.color : "#94A3B8" }}>{v.icon} {v.label}</button>)}</div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
-                  <div><label style={st.LBL}>Količina</label><input value={editData.qty} onChange={e => setEditData(d => ({ ...d, qty: e.target.value }))} style={st.INP} /></div>
+                  <div><label style={st.LBL}>Količina</label><input value={editData.qty} onChange={e => setEditData(d => ({ ...d, qty: e.target.value }))} style={INP} /></div>
                   <div><label style={st.LBL}>Paketi</label><div style={{ display: "flex", alignItems: "center", gap: 8 }}><button onClick={() => setEditData(d => ({ ...d, packets: Math.max(1, d.packets - 1) }))} style={{ width: 40, height: 46, borderRadius: 10, border: "1px solid rgba(71,85,105,0.3)", background: "rgba(30,41,59,0.6)", color: "#94A3B8", fontSize: 20, cursor: "pointer" }}>−</button><span style={{ fontSize: 20, fontWeight: 800, minWidth: 24, textAlign: "center" }}>{editData.packets}</span><button onClick={() => setEditData(d => ({ ...d, packets: d.packets + 1 }))} style={{ width: 40, height: 46, borderRadius: 10, border: "1px solid rgba(99,102,241,0.3)", background: "rgba(99,102,241,0.1)", color: "#818CF8", fontSize: 20, cursor: "pointer" }}>+</button></div></div>
                 </div>
                 <label style={st.LBL}>Labela</label>
@@ -1194,7 +1194,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
                 <span style={{ fontSize: 56 }}>{cat.icon}</span>
                 <h2 style={{ fontSize: 22, fontWeight: 800, margin: "8px 0 4px" }}>{item.name}</h2>
                 {/* Status with full text */}
-                <div style={{ fontSize: 15, fontWeight: 700, color: stCol(st), marginBottom: 4 }}>{wksUntil(item.expiry)}</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: stCol(status), marginBottom: 4 }}>{wksUntil(item.expiry)}</div>
               </div>
 
               {/* Key info: frozen date + expiry first */}

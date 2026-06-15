@@ -816,26 +816,34 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
             </div>
           </div>
 
-          {/* Store tabs — max 3 visible + ··· */}
-          <div style={{ display: "flex", gap: 6, marginBottom: 14, alignItems: "center", overflowX: "auto", WebkitOverflowScrolling: "touch", scrollbarWidth: "none", msOverflowStyle: "none", paddingBottom: 2 }}>
-            <button onClick={() => setActiveStore("all")} style={{
-              padding: "8px 14px", borderRadius: 14, border: "1px solid",
-              borderColor: activeStore === "all" ? "rgba(245,158,11,0.4)" : "rgba(71,85,105,0.25)",
-              background: activeStore === "all" ? "rgba(245,158,11,0.12)" : "rgba(30,41,59,0.4)",
-              color: activeStore === "all" ? "#F59E0B" : "#64748B", fontSize: 13, fontWeight: 700, cursor: "pointer", flexShrink: 0,
-            }}>Vse ({shopItems.filter(i => !i.checked).length})</button>
-            {shopStores.slice(0, 3).map(s => {
-              const cnt = shopItems.filter(i => i.store === s.id && !i.checked).length;
-              return (
-                <button key={s.id} onClick={() => { setActiveStore(s.id); setLastStore(s.id); }} style={{
-                  padding: "8px 14px", borderRadius: 14, border: "1px solid", flexShrink: 0,
-                  borderColor: activeStore === s.id ? "rgba(245,158,11,0.4)" : "rgba(71,85,105,0.25)",
-                  background: activeStore === s.id ? "rgba(245,158,11,0.12)" : "rgba(30,41,59,0.4)",
-                  color: activeStore === s.id ? "#F59E0B" : "#64748B", fontSize: 13, fontWeight: 700, cursor: "pointer",
-                }}>{s.icon} {s.name} ({cnt})</button>
-              );
-            })}
-            <button onClick={() => setShowManageStores(true)} style={{ width: 34, height: 34, borderRadius: 12, border: "1px solid rgba(71,85,105,0.3)", background: "rgba(30,41,59,0.4)", color: "#64748B", fontSize: 15, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>···</button>
+          {/* Store tabs — scrollable row + pinned ··· button */}
+          <div style={{ position: "relative", marginBottom: 14 }}>
+            <div style={{ display: "flex", gap: 6, overflowX: "auto", WebkitOverflowScrolling: "touch", scrollbarWidth: "none", msOverflowStyle: "none", paddingRight: 44 }}>
+              <button onClick={() => setActiveStore("all")} style={{
+                padding: "8px 14px", borderRadius: 14, border: "1px solid", flexShrink: 0,
+                borderColor: activeStore === "all" ? "rgba(245,158,11,0.4)" : "rgba(71,85,105,0.25)",
+                background: activeStore === "all" ? "rgba(245,158,11,0.12)" : "rgba(30,41,59,0.4)",
+                color: activeStore === "all" ? "#F59E0B" : "#64748B", fontSize: 13, fontWeight: 700, cursor: "pointer",
+              }}>Vse ({shopItems.filter(i => !i.checked).length})</button>
+              {shopStores.map(s => {
+                const cnt = shopItems.filter(i => i.store === s.id && !i.checked).length;
+                return (
+                  <button key={s.id} onClick={() => { setActiveStore(s.id); setLastStore(s.id); }} style={{
+                    padding: "8px 14px", borderRadius: 14, border: "1px solid", flexShrink: 0,
+                    borderColor: activeStore === s.id ? "rgba(245,158,11,0.4)" : "rgba(71,85,105,0.25)",
+                    background: activeStore === s.id ? "rgba(245,158,11,0.12)" : "rgba(30,41,59,0.4)",
+                    color: activeStore === s.id ? "#F59E0B" : "#64748B", fontSize: 13, fontWeight: 700, cursor: "pointer",
+                  }}>{s.icon} {s.name} ({cnt})</button>
+                );
+              })}
+            </div>
+            <button onClick={() => setShowManageStores(true)} style={{
+              position: "absolute", right: 0, top: 0, bottom: 0,
+              width: 38, borderRadius: 12, border: "1px solid rgba(71,85,105,0.3)",
+              background: "linear-gradient(to left, rgba(11,17,32,1) 60%, rgba(11,17,32,0))",
+              color: "#64748B", fontSize: 15, fontWeight: 700, cursor: "pointer",
+              display: "flex", alignItems: "center", justifyContent: "flex-end", paddingRight: 4,
+            }}>···</button>
           </div>
 
           {/* Input - always visible */}

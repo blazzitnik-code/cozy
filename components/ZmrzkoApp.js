@@ -433,10 +433,9 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
     return (
       <div style={{ ...A, display: "flex", alignItems: "center", justifyContent: "center" }}>
         <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: 64, marginBottom: 16 }}>❄️</div>
+          <div style={{ fontSize: 64, marginBottom: 16 }}>🏠</div>
           <div style={{ fontSize: 28, fontWeight: 900 }}>
-            <span style={{ background: "linear-gradient(135deg,#E2E8F0,#38BDF8)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>ZMRZK</span>
-            <span style={{ color: "#38BDF8" }}>❄️</span>
+            <span style={{ background: "linear-gradient(135deg,#E2E8F0,#C4B5FD)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Cožy</span>
           </div>
           <div style={{ color: "#475569", marginTop: 8, fontSize: 14 }}>Nalagam...</div>
         </div>

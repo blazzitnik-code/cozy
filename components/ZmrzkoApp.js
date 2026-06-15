@@ -148,9 +148,8 @@ function BottomNav({ mode, onNavigate }) {
   return (
     <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 430, background: "rgba(11,17,32,0.97)", backdropFilter: "blur(16px)", borderTop: "1px solid rgba(71,85,105,0.2)", display: "flex", paddingBottom: "env(safe-area-inset-bottom)", zIndex: 80 }}>
       {NAV_TABS.map(tab => (
-        <button key={tab.id} onClick={() => onNavigate(tab.id)} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3, padding: "10px 4px 12px", background: "none", border: "none", cursor: "pointer", color: mode === tab.id ? "#C4B5FD" : "#475569", transition: "color 0.15s" }}>
-          <span style={{ fontSize: 20, lineHeight: 1 }}>{tab.icon}</span>
-          <span style={{ fontSize: 10, fontWeight: mode === tab.id ? 700 : 500, letterSpacing: 0.3 }}>{tab.label}</span>
+        <button key={tab.id} onClick={() => onNavigate(tab.id)} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "14px 4px", background: "none", border: "none", cursor: "pointer", color: mode === tab.id ? "#C4B5FD" : "#475569", transition: "color 0.15s" }}>
+          <span style={{ fontSize: 24, lineHeight: 1, filter: mode === tab.id ? "none" : "grayscale(0.3)" }}>{tab.icon}</span>
         </button>
       ))}
     </div>
@@ -1259,7 +1258,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
           {filtered.length === 0 && <div style={{ textAlign: "center", padding: "48px 0", color: "#475569" }}><div style={{ fontSize: 48, marginBottom: 12 }}>{items.length === 0 ? "❄️" : "🔍"}</div><p>{items.length === 0 ? "Zamrzovalnik je prazen!" : "Ni zadetkov"}</p></div>}
         </div>
 
-        <button onClick={() => { const df = selFrzs.length === 1 ? selFrzs[0] : "home"; setAddData({ name: "", cat: "", qty: "", packets: 1, label: "", frozen: new Date().toISOString().split("T")[0], expiry: "", freezer: df }); setAddStep(0); setSuggestions([]); setScreen("add"); }} style={{ position: "fixed", bottom: 88, left: "50%", transform: "translateX(-50%)", width: 62, height: 62, borderRadius: "50%", border: "none", background: "linear-gradient(135deg,#0EA5E9,#6366F1)", color: "#fff", fontSize: 30, fontWeight: 300, cursor: "pointer", boxShadow: "0 8px 32px rgba(14,165,233,0.4),0 0 0 4px rgba(14,165,233,0.1)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }}>+</button>
+        <button onClick={() => { const df = selFrzs.length === 1 ? selFrzs[0] : "home"; setAddData({ name: "", cat: "", qty: "", packets: 1, label: "", frozen: new Date().toISOString().split("T")[0], expiry: "", freezer: df }); setAddStep(0); setSuggestions([]); setScreen("add"); }} style={{ position: "fixed", bottom: 74, left: "50%", transform: "translateX(-50%)", width: 62, height: 62, borderRadius: "50%", border: "none", background: "linear-gradient(135deg,#0EA5E9,#6366F1)", color: "#fff", fontSize: 30, fontWeight: 300, cursor: "pointer", boxShadow: "0 8px 32px rgba(14,165,233,0.4),0 0 0 4px rgba(14,165,233,0.1)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }}>+</button>
 
         {/* DETAIL MODAL - REDESIGNED */}
         {showDetail && (() => {

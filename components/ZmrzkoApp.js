@@ -135,6 +135,28 @@ function ConfirmModal({ action, onClose, isDark = true }) {
   );
 }
 
+// ─── BOTTOM NAV ───
+const NAV_TABS = [
+  { id: "home",     icon: "🏠", label: "Dom" },
+  { id: "freezer",  icon: "❄️", label: "Zmrzko" },
+  { id: "shopping", icon: "🛒", label: "Nakupi" },
+  { id: "calendar", icon: "📅", label: "Koledar" },
+  { id: "more",     icon: "···", label: "Več" },
+];
+
+function BottomNav({ mode, onNavigate }) {
+  return (
+    <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 430, background: "rgba(11,17,32,0.97)", backdropFilter: "blur(16px)", borderTop: "1px solid rgba(71,85,105,0.2)", display: "flex", paddingBottom: "env(safe-area-inset-bottom)", zIndex: 80 }}>
+      {NAV_TABS.map(tab => (
+        <button key={tab.id} onClick={() => onNavigate(tab.id)} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3, padding: "10px 4px 12px", background: "none", border: "none", cursor: "pointer", color: mode === tab.id ? "#C4B5FD" : "#475569", transition: "color 0.15s" }}>
+          <span style={{ fontSize: 20, lineHeight: 1 }}>{tab.icon}</span>
+          <span style={{ fontSize: 10, fontWeight: mode === tab.id ? 700 : 500, letterSpacing: 0.3 }}>{tab.label}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 // ─── SWIPEABLE CARD ───
 function SwipeCard({ children, onSwipeLeft, onClick }) {
   const [offsetX, setOffsetX] = useState(0);
@@ -232,8 +254,8 @@ function LabelInp({ value, onChange, labels, placeholder }) {
 export default function ZmrzkoApp({ user, household, members, signOut }) {
   const householdId = household?.id;
   
-  // ─── MODE: freezer vs shopping ───
-  const [mode, setMode] = useState("freezer");
+  // ─── MODE: home | freezer | shopping | calendar | more ───
+  const [mode, setMode] = useState("home");
 
   // ─── JEZIK ───
   const [lang, setLang] = useState(() => {
@@ -312,6 +334,14 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
   const existingLabels = useMemo(() => [...new Set([...items, ...archived].map(i => i.label).filter(Boolean))], [items, archived]);
 
   useEffect(() => { if (screen === "add" && inputRef.current) setTimeout(() => inputRef.current?.focus(), 120); }, [screen, addStep]);
+
+  // ─── NAVIGATION ───
+  const navigate = useCallback((tab) => {
+    setMode(tab);
+    setScreen("home");
+    setShowArchive(false);
+    setShowShopArchive(false);
+  }, []);
 
   // ─── FREEZER LOGIC ───
   const allF = selFrzs.length === 0;
@@ -541,6 +571,127 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
   }
 
   // ═══════════════════════════
+  // HOME SCREEN
+  // ═══════════════════════════
+  if (mode === "home") {
+    const expiredC = items.filter(i => getSt(i) === "expired").length;
+    const warningC = items.filter(i => getSt(i) === "warning").length;
+    const toBuyC = shopItems.filter(i => !i.checked).length;
+    const today = new Date().toLocaleDateString("sl-SI", { weekday: "long", day: "numeric", month: "long" });
+
+    return (
+      <div style={st.A}><div style={st.F1} /><div style={st.F2} />
+        <div style={{ position: "relative", zIndex: 1, padding: "16px 16px 100px" }}>
+
+          {/* Header */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", paddingTop: 12, marginBottom: 24 }}>
+            <div>
+              <div style={{ fontSize: 28, fontWeight: 900 }}>
+                <span style={{ background: "linear-gradient(135deg,#E2E8F0,#C4B5FD)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Cožy</span>
+              </div>
+              <div style={{ fontSize: 12, color: st.textSecondary, marginTop: 2, textTransform: "capitalize" }}>{today}</div>
+            </div>
+            <SettingsBtn />
+          </div>
+
+          {/* Quick stats */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
+            <div onClick={() => navigate("freezer")} style={{ background: st.cardBg, border: st.cardBorder, borderRadius: 18, padding: "16px", cursor: "pointer" }}>
+              <div style={{ fontSize: 28, marginBottom: 8 }}>❄️</div>
+              <div style={{ fontSize: 26, fontWeight: 800, color: st.textPrimary }}>{items.length}</div>
+              <div style={{ fontSize: 12, color: st.textSecondary, fontWeight: 600 }}>v zamrzovalniku</div>
+              {(expiredC > 0 || warningC > 0) && (
+                <div style={{ marginTop: 6, fontSize: 11, color: expiredC > 0 ? "#EF4444" : "#F59E0B", fontWeight: 700 }}>
+                  {expiredC > 0 ? `${expiredC} poteklo` : `${warningC} kmalu poteče`}
+                </div>
+              )}
+            </div>
+            <div onClick={() => navigate("shopping")} style={{ background: st.cardBg, border: st.cardBorder, borderRadius: 18, padding: "16px", cursor: "pointer" }}>
+              <div style={{ fontSize: 28, marginBottom: 8 }}>🛒</div>
+              <div style={{ fontSize: 26, fontWeight: 800, color: st.textPrimary }}>{toBuyC}</div>
+              <div style={{ fontSize: 12, color: st.textSecondary, fontWeight: 600 }}>za kupiti</div>
+              {toBuyC === 0 && <div style={{ marginTop: 6, fontSize: 11, color: "#22C55E", fontWeight: 700 }}>Vse kupljeno ✓</div>}
+            </div>
+          </div>
+
+          {/* Coming soon modules */}
+          <div style={{ fontSize: 11, fontWeight: 700, color: st.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>Prihaja kmalu</div>
+          {[
+            { icon: "📅", title: "Koledar", desc: "Skupni urnik & kdaj sta prosta", color: "#6366F1" },
+            { icon: "🍽️", title: "Jedilnik", desc: "Tedenski jedilnik & recepti", color: "#F59E0B" },
+            { icon: "✅", title: "Opravila", desc: "Skupne naloge gospodinjstva", color: "#22C55E" },
+          ].map(m => (
+            <div key={m.title} style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 16px", background: st.cardBg, border: st.cardBorder, borderRadius: 16, marginBottom: 8, opacity: 0.65 }}>
+              <span style={{ fontSize: 26 }}>{m.icon}</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: st.textPrimary }}>{m.title}</div>
+                <div style={{ fontSize: 12, color: st.textSecondary }}>{m.desc}</div>
+              </div>
+              <div style={{ fontSize: 11, color: m.color, fontWeight: 700, background: m.color + "18", padding: "4px 10px", borderRadius: 20, border: `1px solid ${m.color}35`, whiteSpace: "nowrap" }}>Kmalu</div>
+            </div>
+          ))}
+        </div>
+        <BottomNav mode={mode} onNavigate={navigate} />
+        <SettingsModal />
+        <ConfirmModal action={confirmAction} onClose={() => setConfirmAction(null)} isDark={isDark} />
+      </div>
+    );
+  }
+
+  // ═══════════════════════════
+  // CALENDAR (placeholder)
+  // ═══════════════════════════
+  if (mode === "calendar") {
+    return (
+      <div style={st.A}><div style={st.F1} /><div style={st.F2} />
+        <div style={{ position: "relative", zIndex: 1, padding: "16px 16px 100px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 12, marginBottom: 24 }}>
+            <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0 }}>📅 Koledar</h1>
+          </div>
+          <div style={{ textAlign: "center", padding: "60px 20px" }}>
+            <div style={{ fontSize: 72, marginBottom: 20 }}>📅</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: st.textPrimary, marginBottom: 8 }}>Prihaja kmalu</div>
+            <div style={{ fontSize: 14, color: st.textSecondary, lineHeight: 1.6 }}>Skupni urnik za gospodinjstvo,{"\n"}kdaj sta oba prosta & sinhronizacija z Google Kalendarjem.</div>
+          </div>
+        </div>
+        <BottomNav mode={mode} onNavigate={navigate} />
+      </div>
+    );
+  }
+
+  // ═══════════════════════════
+  // MORE (placeholder)
+  // ═══════════════════════════
+  if (mode === "more") {
+    return (
+      <div style={st.A}><div style={st.F1} /><div style={st.F2} />
+        <div style={{ position: "relative", zIndex: 1, padding: "16px 16px 100px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 12, marginBottom: 24 }}>
+            <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0 }}>··· Več</h1>
+            <SettingsBtn />
+          </div>
+          {[
+            { icon: "🍽️", title: "Jedilnik", desc: "Tedenski jedilnik & recepti", color: "#F59E0B" },
+            { icon: "✅", title: "Opravila", desc: "Skupne naloge gospodinjstva", color: "#22C55E" },
+          ].map(m => (
+            <div key={m.title} style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px", background: st.cardBg, border: st.cardBorder, borderRadius: 16, marginBottom: 10, opacity: 0.65 }}>
+              <span style={{ fontSize: 28 }}>{m.icon}</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: st.textPrimary }}>{m.title}</div>
+                <div style={{ fontSize: 12, color: st.textSecondary }}>{m.desc}</div>
+              </div>
+              <div style={{ fontSize: 11, color: m.color, fontWeight: 700, background: m.color + "18", padding: "4px 10px", borderRadius: 20, border: `1px solid ${m.color}35` }}>Kmalu</div>
+            </div>
+          ))}
+        </div>
+        <BottomNav mode={mode} onNavigate={navigate} />
+        <SettingsModal />
+        <ConfirmModal action={confirmAction} onClose={() => setConfirmAction(null)} isDark={isDark} />
+      </div>
+    );
+  }
+
+  // ═══════════════════════════
   // SHOPPING LIST
   // ═══════════════════════════
   if (mode === "shopping") {
@@ -554,7 +705,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
       });
       return (
         <div style={st.A}><div style={st.F1} /><div style={st.F2} />
-          <div style={{ position: "relative", zIndex: 1, padding: "16px 16px 40px" }}>
+          <div style={{ position: "relative", zIndex: 1, padding: "16px 16px 100px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12, paddingTop: 12, marginBottom: 20 }}>
               <button onClick={() => setShowShopArchive(false)} style={{ background: "rgba(30,41,59,0.8)", border: "1px solid rgba(71,85,105,0.3)", borderRadius: 12, padding: "10px 16px", color: "#94A3B8", fontSize: 14, cursor: "pointer", fontWeight: 600 }}>← Nazaj</button>
               <h2 style={{ fontSize: 20, fontWeight: 800, margin: 0 }}>🧾 Zgodovina nakupov</h2>
@@ -575,6 +726,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
               </div>
             ))}
           </div>
+        <BottomNav mode={mode} onNavigate={navigate} />
         </div>
       );
     }
@@ -654,7 +806,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
 
     return (
       <div style={st.A}><div style={st.F1} /><div style={{ ...F2, background: "radial-gradient(circle,rgba(245,158,11,0.06) 0%,transparent 70%)" }} />
-        <div style={{ position: "relative", zIndex: 1, padding: "16px 16px 40px" }}>
+        <div style={{ position: "relative", zIndex: 1, padding: "16px 16px 100px" }}>
 
           {/* Header */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", paddingTop: 12, marginBottom: 14 }}>
@@ -845,6 +997,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
             <Btn onClick={addNewStore} disabled={!newStore.name}>Dodaj trgovino</Btn>
           </Modal>
         )}
+        <BottomNav mode={mode} onNavigate={navigate} />
         <SettingsModal />
         <ConfirmModal action={confirmAction} onClose={() => setConfirmAction(null)} isDark={isDark} />
       </div>
@@ -913,7 +1066,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
           </div>
         )}
 
-        <div style={{ position: "relative", zIndex: 1, padding: "16px 16px 40px" }}>
+        <div style={{ position: "relative", zIndex: 1, padding: "16px 16px 100px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, paddingTop: 12, marginBottom: 16 }}>
             <button onClick={() => setShowArchive(false)} style={{ background: "rgba(30,41,59,0.8)", border: "1px solid rgba(71,85,105,0.3)", borderRadius: 12, padding: "10px 16px", color: "#94A3B8", fontSize: 14, cursor: "pointer", fontWeight: 600 }}>{t('nazaj')}</button>
             <h2 style={{ fontSize: 20, fontWeight: 800, margin: 0 }}>{t('arhiv')}</h2>
@@ -1038,6 +1191,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
             );
           })}
         </div>
+        <BottomNav mode={mode} onNavigate={navigate} />
         <ConfirmModal action={confirmAction} onClose={() => setConfirmAction(null)} isDark={isDark} />
       </div>
     );
@@ -1105,7 +1259,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
           {filtered.length === 0 && <div style={{ textAlign: "center", padding: "48px 0", color: "#475569" }}><div style={{ fontSize: 48, marginBottom: 12 }}>{items.length === 0 ? "❄️" : "🔍"}</div><p>{items.length === 0 ? "Zamrzovalnik je prazen!" : "Ni zadetkov"}</p></div>}
         </div>
 
-        <button onClick={() => { const df = selFrzs.length === 1 ? selFrzs[0] : "home"; setAddData({ name: "", cat: "", qty: "", packets: 1, label: "", frozen: new Date().toISOString().split("T")[0], expiry: "", freezer: df }); setAddStep(0); setSuggestions([]); setScreen("add"); }} style={{ position: "fixed", bottom: 28, left: "50%", transform: "translateX(-50%)", width: 62, height: 62, borderRadius: "50%", border: "none", background: "linear-gradient(135deg,#0EA5E9,#6366F1)", color: "#fff", fontSize: 30, fontWeight: 300, cursor: "pointer", boxShadow: "0 8px 32px rgba(14,165,233,0.4),0 0 0 4px rgba(14,165,233,0.1)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }}>+</button>
+        <button onClick={() => { const df = selFrzs.length === 1 ? selFrzs[0] : "home"; setAddData({ name: "", cat: "", qty: "", packets: 1, label: "", frozen: new Date().toISOString().split("T")[0], expiry: "", freezer: df }); setAddStep(0); setSuggestions([]); setScreen("add"); }} style={{ position: "fixed", bottom: 88, left: "50%", transform: "translateX(-50%)", width: 62, height: 62, borderRadius: "50%", border: "none", background: "linear-gradient(135deg,#0EA5E9,#6366F1)", color: "#fff", fontSize: 30, fontWeight: 300, cursor: "pointer", boxShadow: "0 8px 32px rgba(14,165,233,0.4),0 0 0 4px rgba(14,165,233,0.1)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }}>+</button>
 
         {/* DETAIL MODAL - REDESIGNED */}
         {showDetail && (() => {
@@ -1187,6 +1341,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
             </Modal>
           );
         })()}
+        <BottomNav mode={mode} onNavigate={navigate} />
         <SettingsModal />
         <ConfirmModal action={confirmAction} onClose={() => setConfirmAction(null)} isDark={isDark} />
       </div>
@@ -1200,7 +1355,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
 
   return (
     <div style={st.A}><div style={st.F1} /><div style={st.F2} />
-      <div style={{ position: "relative", zIndex: 1, padding: "16px 16px 40px", minHeight: "100vh" }}>
+      <div style={{ position: "relative", zIndex: 1, padding: "16px 16px 100px", minHeight: "100vh" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
           <button onClick={() => { if (addStep === 0) setScreen("home"); else setAddStep(addStep - 1); }} style={{ background: "rgba(30,41,59,0.8)", border: "1px solid rgba(71,85,105,0.3)", borderRadius: 12, padding: "10px 16px", color: "#94A3B8", fontSize: 14, cursor: "pointer", fontWeight: 600 }}>{t('nazaj')}</button>
           <h2 style={{ fontSize: 18, fontWeight: 800, margin: 0 }}>{t('dodajVZamrzovalnik')}</h2>
@@ -1297,6 +1452,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
           </div>
         )}
       </div>
+      <BottomNav mode={mode} onNavigate={navigate} />
     </div>
   );
 }

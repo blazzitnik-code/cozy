@@ -21,10 +21,9 @@ export default function Home() {
     return (
       <div style={A}>
         <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: 64, marginBottom: 16 }}>❄️</div>
+          <div style={{ fontSize: 64, marginBottom: 16 }}>🏠</div>
           <div style={{ fontSize: 28, fontWeight: 900 }}>
-            <span style={{ background: "linear-gradient(135deg,#E2E8F0,#38BDF8)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>ZMRZK</span>
-            <span style={{ color: "#38BDF8" }}>❄️</span>
+            <span style={{ background: "linear-gradient(135deg,#E2E8F0,#C4B5FD)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Cožy</span>
           </div>
           <div style={{ color: "#475569", marginTop: 8, fontSize: 14 }}>Nalagam...</div>
         </div>
@@ -37,12 +36,11 @@ export default function Home() {
     return (
       <div style={A}>
         <div style={{ textAlign: "center", padding: "0 32px", width: "100%" }}>
-          <div style={{ fontSize: 72, marginBottom: 16 }}>❄️</div>
+          <div style={{ fontSize: 72, marginBottom: 16 }}>🏠</div>
           <div style={{ fontSize: 36, fontWeight: 900, marginBottom: 8 }}>
-            <span style={{ background: "linear-gradient(135deg,#E2E8F0,#38BDF8)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>ZMRZK</span>
-            <span style={{ color: "#38BDF8" }}>❄️</span>
+            <span style={{ background: "linear-gradient(135deg,#E2E8F0,#C4B5FD)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Cožy</span>
           </div>
-          <p style={{ color: "#64748B", fontSize: 15, marginBottom: 32 }}>Zamrzovalnik & nakupovalni seznam</p>
+          <p style={{ color: "#64748B", fontSize: 15, marginBottom: 32 }}>Domača aplikacija za gospodinjstvo</p>
           
           <button onClick={signInWithGoogle} style={{
             width: "100%", padding: "16px 24px", borderRadius: 16, border: "1px solid rgba(71,85,105,0.3)",

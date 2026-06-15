@@ -1,8 +1,8 @@
 import './globals.css';
 
 export const metadata = {
-  title: 'ZMRZK❄️',
-  description: 'Upravljaj svoj zamrzovalnik',
+  title: 'Cožy',
+  description: 'Domača aplikacija za gospodinjstvo',
   manifest: '/manifest.json',
   themeColor: '#0B1120',
   viewport: {
@@ -16,7 +16,7 @@ export const metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'ZMRZKO',
+    title: 'Cožy',
   },
 };
 

@@ -135,6 +135,27 @@ function ConfirmModal({ action, onClose, isDark = true }) {
   );
 }
 
+// ─── BOTTOM NAV ───
+const NAV_TABS = [
+  { id: "home",     icon: "🏠", label: "Dom" },
+  { id: "freezer",  icon: "❄️", label: "Zmrzko" },
+  { id: "shopping", icon: "🛒", label: "Nakupi" },
+  { id: "calendar", icon: "📅", label: "Koledar" },
+  { id: "more",     icon: "···", label: "Več" },
+];
+
+function BottomNav({ mode, onNavigate }) {
+  return (
+    <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 430, background: "rgba(11,17,32,0.97)", backdropFilter: "blur(16px)", borderTop: "1px solid rgba(71,85,105,0.2)", display: "flex", paddingBottom: "env(safe-area-inset-bottom)", zIndex: 80 }}>
+      {NAV_TABS.map(tab => (
+        <button key={tab.id} onClick={() => onNavigate(tab.id)} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "14px 4px", background: "none", border: "none", cursor: "pointer", color: mode === tab.id ? "#C4B5FD" : "#475569", transition: "color 0.15s" }}>
+          <span style={{ fontSize: 24, lineHeight: 1, filter: mode === tab.id ? "none" : "grayscale(0.3)" }}>{tab.icon}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 // ─── SWIPEABLE CARD ───
 function SwipeCard({ children, onSwipeLeft, onClick }) {
   const [offsetX, setOffsetX] = useState(0);
@@ -232,8 +253,8 @@ function LabelInp({ value, onChange, labels, placeholder }) {
 export default function ZmrzkoApp({ user, household, members, signOut }) {
   const householdId = household?.id;
   
-  // ─── MODE: freezer vs shopping ───
-  const [mode, setMode] = useState("freezer");
+  // ─── MODE: home | freezer | shopping | calendar | more ───
+  const [mode, setMode] = useState("home");
 
   // ─── JEZIK ───
   const [lang, setLang] = useState(() => {
@@ -260,7 +281,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
   const { items: shopItems, loading: shopLoading, addItem: dbShopAdd, updateItem: dbShopUpdate, deleteItem: dbShopDelete } = useShoppingItems(householdId);
   const { archived: shopArchive, archiveChecked: dbShopArchiveChecked } = useShoppingArchived(householdId);
   const { favourites: shopFavourites, toggleFavourite: dbShopToggleFav } = useShoppingFavourites(householdId);
-  const { stores: shopStores, addStore: dbAddStore } = useShoppingStores(householdId);
+  const { stores: shopStores, addStore: dbAddStore, deleteStore: dbDeleteStore } = useShoppingStores(householdId);
 
   // ─── SETTINGS ───
   const [showSettings, setShowSettings] = useState(false);
@@ -293,7 +314,8 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
   const [shopSugg, setShopSugg] = useState([]);
   const [showShopArchive, setShowShopArchive] = useState(false);
   const [shopDetail, setShopDetail] = useState(null);
-  const [showNewStore, setShowNewStore] = useState(false);
+  const [showManageStores, setShowManageStores] = useState(false);
+  const [showAddStoreForm, setShowAddStoreForm] = useState(false);
   const [newStore, setNewStore] = useState({ name: "", icon: "🔵" });
   const shopInputRef = useRef(null);
   const [editingId, setEditingId] = useState(null);
@@ -312,6 +334,14 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
   const existingLabels = useMemo(() => [...new Set([...items, ...archived].map(i => i.label).filter(Boolean))], [items, archived]);
 
   useEffect(() => { if (screen === "add" && inputRef.current) setTimeout(() => inputRef.current?.focus(), 120); }, [screen, addStep]);
+
+  // ─── NAVIGATION ───
+  const navigate = useCallback((tab) => {
+    setMode(tab);
+    setScreen("home");
+    setShowArchive(false);
+    setShowShopArchive(false);
+  }, []);
 
   // ─── FREEZER LOGIC ───
   const allF = selFrzs.length === 0;
@@ -417,7 +447,6 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
     if (!newStore.name) return;
     await dbAddStore(newStore);
     setNewStore({ name: "", icon: "🔵" });
-    setShowNewStore(false);
   }
 
   const checkedCount = (activeStore === "all" ? shopItems : shopItems.filter(i => i.store === activeStore)).filter(i => i.checked).length;
@@ -541,6 +570,127 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
   }
 
   // ═══════════════════════════
+  // HOME SCREEN
+  // ═══════════════════════════
+  if (mode === "home") {
+    const expiredC = items.filter(i => getSt(i) === "expired").length;
+    const warningC = items.filter(i => getSt(i) === "warning").length;
+    const toBuyC = shopItems.filter(i => !i.checked).length;
+    const today = new Date().toLocaleDateString("sl-SI", { weekday: "long", day: "numeric", month: "long" });
+
+    return (
+      <div style={st.A}><div style={st.F1} /><div style={st.F2} />
+        <div style={{ position: "relative", zIndex: 1, padding: "16px 16px 100px" }}>
+
+          {/* Header */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", paddingTop: 12, marginBottom: 24 }}>
+            <div>
+              <div style={{ fontSize: 28, fontWeight: 900 }}>
+                <span style={{ background: "linear-gradient(135deg,#E2E8F0,#C4B5FD)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Cožy</span>
+              </div>
+              <div style={{ fontSize: 12, color: st.textSecondary, marginTop: 2, textTransform: "capitalize" }}>{today}</div>
+            </div>
+            <SettingsBtn />
+          </div>
+
+          {/* Quick stats */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
+            <div onClick={() => navigate("freezer")} style={{ background: st.cardBg, border: st.cardBorder, borderRadius: 18, padding: "16px", cursor: "pointer" }}>
+              <div style={{ fontSize: 28, marginBottom: 8 }}>❄️</div>
+              <div style={{ fontSize: 26, fontWeight: 800, color: st.textPrimary }}>{items.length}</div>
+              <div style={{ fontSize: 12, color: st.textSecondary, fontWeight: 600 }}>v zamrzovalniku</div>
+              {(expiredC > 0 || warningC > 0) && (
+                <div style={{ marginTop: 6, fontSize: 11, color: expiredC > 0 ? "#EF4444" : "#F59E0B", fontWeight: 700 }}>
+                  {expiredC > 0 ? `${expiredC} poteklo` : `${warningC} kmalu poteče`}
+                </div>
+              )}
+            </div>
+            <div onClick={() => navigate("shopping")} style={{ background: st.cardBg, border: st.cardBorder, borderRadius: 18, padding: "16px", cursor: "pointer" }}>
+              <div style={{ fontSize: 28, marginBottom: 8 }}>🛒</div>
+              <div style={{ fontSize: 26, fontWeight: 800, color: st.textPrimary }}>{toBuyC}</div>
+              <div style={{ fontSize: 12, color: st.textSecondary, fontWeight: 600 }}>za kupiti</div>
+              {toBuyC === 0 && <div style={{ marginTop: 6, fontSize: 11, color: "#22C55E", fontWeight: 700 }}>Vse kupljeno ✓</div>}
+            </div>
+          </div>
+
+          {/* Coming soon modules */}
+          <div style={{ fontSize: 11, fontWeight: 700, color: st.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>Prihaja kmalu</div>
+          {[
+            { icon: "📅", title: "Koledar", desc: "Skupni urnik & kdaj sta prosta", color: "#6366F1" },
+            { icon: "🍽️", title: "Jedilnik", desc: "Tedenski jedilnik & recepti", color: "#F59E0B" },
+            { icon: "✅", title: "Opravila", desc: "Skupne naloge gospodinjstva", color: "#22C55E" },
+          ].map(m => (
+            <div key={m.title} style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 16px", background: st.cardBg, border: st.cardBorder, borderRadius: 16, marginBottom: 8, opacity: 0.65 }}>
+              <span style={{ fontSize: 26 }}>{m.icon}</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: st.textPrimary }}>{m.title}</div>
+                <div style={{ fontSize: 12, color: st.textSecondary }}>{m.desc}</div>
+              </div>
+              <div style={{ fontSize: 11, color: m.color, fontWeight: 700, background: m.color + "18", padding: "4px 10px", borderRadius: 20, border: `1px solid ${m.color}35`, whiteSpace: "nowrap" }}>Kmalu</div>
+            </div>
+          ))}
+        </div>
+        <BottomNav mode={mode} onNavigate={navigate} />
+        <SettingsModal />
+        <ConfirmModal action={confirmAction} onClose={() => setConfirmAction(null)} isDark={isDark} />
+      </div>
+    );
+  }
+
+  // ═══════════════════════════
+  // CALENDAR (placeholder)
+  // ═══════════════════════════
+  if (mode === "calendar") {
+    return (
+      <div style={st.A}><div style={st.F1} /><div style={st.F2} />
+        <div style={{ position: "relative", zIndex: 1, padding: "16px 16px 100px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 12, marginBottom: 24 }}>
+            <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0 }}>📅 Koledar</h1>
+          </div>
+          <div style={{ textAlign: "center", padding: "60px 20px" }}>
+            <div style={{ fontSize: 72, marginBottom: 20 }}>📅</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: st.textPrimary, marginBottom: 8 }}>Prihaja kmalu</div>
+            <div style={{ fontSize: 14, color: st.textSecondary, lineHeight: 1.6 }}>Skupni urnik za gospodinjstvo,{"\n"}kdaj sta oba prosta & sinhronizacija z Google Kalendarjem.</div>
+          </div>
+        </div>
+        <BottomNav mode={mode} onNavigate={navigate} />
+      </div>
+    );
+  }
+
+  // ═══════════════════════════
+  // MORE (placeholder)
+  // ═══════════════════════════
+  if (mode === "more") {
+    return (
+      <div style={st.A}><div style={st.F1} /><div style={st.F2} />
+        <div style={{ position: "relative", zIndex: 1, padding: "16px 16px 100px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 12, marginBottom: 24 }}>
+            <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0 }}>··· Več</h1>
+            <SettingsBtn />
+          </div>
+          {[
+            { icon: "🍽️", title: "Jedilnik", desc: "Tedenski jedilnik & recepti", color: "#F59E0B" },
+            { icon: "✅", title: "Opravila", desc: "Skupne naloge gospodinjstva", color: "#22C55E" },
+          ].map(m => (
+            <div key={m.title} style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px", background: st.cardBg, border: st.cardBorder, borderRadius: 16, marginBottom: 10, opacity: 0.65 }}>
+              <span style={{ fontSize: 28 }}>{m.icon}</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: st.textPrimary }}>{m.title}</div>
+                <div style={{ fontSize: 12, color: st.textSecondary }}>{m.desc}</div>
+              </div>
+              <div style={{ fontSize: 11, color: m.color, fontWeight: 700, background: m.color + "18", padding: "4px 10px", borderRadius: 20, border: `1px solid ${m.color}35` }}>Kmalu</div>
+            </div>
+          ))}
+        </div>
+        <BottomNav mode={mode} onNavigate={navigate} />
+        <SettingsModal />
+        <ConfirmModal action={confirmAction} onClose={() => setConfirmAction(null)} isDark={isDark} />
+      </div>
+    );
+  }
+
+  // ═══════════════════════════
   // SHOPPING LIST
   // ═══════════════════════════
   if (mode === "shopping") {
@@ -554,7 +704,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
       });
       return (
         <div style={st.A}><div style={st.F1} /><div style={st.F2} />
-          <div style={{ position: "relative", zIndex: 1, padding: "16px 16px 40px" }}>
+          <div style={{ position: "relative", zIndex: 1, padding: "16px 16px 100px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12, paddingTop: 12, marginBottom: 20 }}>
               <button onClick={() => setShowShopArchive(false)} style={{ background: "rgba(30,41,59,0.8)", border: "1px solid rgba(71,85,105,0.3)", borderRadius: 12, padding: "10px 16px", color: "#94A3B8", fontSize: 14, cursor: "pointer", fontWeight: 600 }}>← Nazaj</button>
               <h2 style={{ fontSize: 20, fontWeight: 800, margin: 0 }}>🧾 Zgodovina nakupov</h2>
@@ -575,6 +725,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
               </div>
             ))}
           </div>
+        <BottomNav mode={mode} onNavigate={navigate} />
         </div>
       );
     }
@@ -654,7 +805,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
 
     return (
       <div style={st.A}><div style={st.F1} /><div style={{ ...F2, background: "radial-gradient(circle,rgba(245,158,11,0.06) 0%,transparent 70%)" }} />
-        <div style={{ position: "relative", zIndex: 1, padding: "16px 16px 40px" }}>
+        <div style={{ position: "relative", zIndex: 1, padding: "16px 16px 100px" }}>
 
           {/* Header */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", paddingTop: 12, marginBottom: 14 }}>
@@ -665,26 +816,34 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
             </div>
           </div>
 
-          {/* Store tabs */}
-          <div style={{ display: "flex", gap: 6, marginBottom: 14, flexWrap: "wrap" }}>
-            <button onClick={() => setActiveStore("all")} style={{
-              padding: "8px 14px", borderRadius: 14, border: "1px solid",
-              borderColor: activeStore === "all" ? "rgba(245,158,11,0.4)" : "rgba(71,85,105,0.25)",
-              background: activeStore === "all" ? "rgba(245,158,11,0.12)" : "rgba(30,41,59,0.4)",
-              color: activeStore === "all" ? "#F59E0B" : "#64748B", fontSize: 13, fontWeight: 700, cursor: "pointer",
-            }}>Vse ({shopItems.filter(i => !i.checked).length})</button>
-            {shopStores.map(s => {
-              const cnt = shopItems.filter(i => i.store === s.id && !i.checked).length;
-              return (
-                <button key={s.id} onClick={() => { setActiveStore(s.id); setLastStore(s.id); }} style={{
-                  padding: "8px 14px", borderRadius: 14, border: "1px solid",
-                  borderColor: activeStore === s.id ? "rgba(245,158,11,0.4)" : "rgba(71,85,105,0.25)",
-                  background: activeStore === s.id ? "rgba(245,158,11,0.12)" : "rgba(30,41,59,0.4)",
-                  color: activeStore === s.id ? "#F59E0B" : "#64748B", fontSize: 13, fontWeight: 700, cursor: "pointer",
-                }}>{s.icon} {s.name} ({cnt})</button>
-              );
-            })}
-            <button onClick={() => setShowNewStore(true)} style={{ width: 34, height: 34, borderRadius: 12, border: "1px dashed rgba(71,85,105,0.4)", background: "transparent", color: "#475569", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+          {/* Store tabs — scrollable row + pinned ··· button */}
+          <div style={{ position: "relative", marginBottom: 14 }}>
+            <div style={{ display: "flex", gap: 6, overflowX: "auto", WebkitOverflowScrolling: "touch", scrollbarWidth: "none", msOverflowStyle: "none", paddingRight: 44 }}>
+              <button onClick={() => setActiveStore("all")} style={{
+                padding: "8px 14px", borderRadius: 14, border: "1px solid", flexShrink: 0,
+                borderColor: activeStore === "all" ? "rgba(245,158,11,0.4)" : "rgba(71,85,105,0.25)",
+                background: activeStore === "all" ? "rgba(245,158,11,0.12)" : "rgba(30,41,59,0.4)",
+                color: activeStore === "all" ? "#F59E0B" : "#64748B", fontSize: 13, fontWeight: 700, cursor: "pointer",
+              }}>Vse ({shopItems.filter(i => !i.checked).length})</button>
+              {shopStores.map(s => {
+                const cnt = shopItems.filter(i => i.store === s.id && !i.checked).length;
+                return (
+                  <button key={s.id} onClick={() => { setActiveStore(s.id); setLastStore(s.id); }} style={{
+                    padding: "8px 14px", borderRadius: 14, border: "1px solid", flexShrink: 0,
+                    borderColor: activeStore === s.id ? "rgba(245,158,11,0.4)" : "rgba(71,85,105,0.25)",
+                    background: activeStore === s.id ? "rgba(245,158,11,0.12)" : "rgba(30,41,59,0.4)",
+                    color: activeStore === s.id ? "#F59E0B" : "#64748B", fontSize: 13, fontWeight: 700, cursor: "pointer",
+                  }}>{s.icon} {s.name} ({cnt})</button>
+                );
+              })}
+            </div>
+            <button onClick={() => setShowManageStores(true)} style={{
+              position: "absolute", right: 0, top: 0, bottom: 0,
+              width: 38, borderRadius: 12, border: "1px solid rgba(71,85,105,0.3)",
+              background: "linear-gradient(to left, rgba(11,17,32,1) 60%, rgba(11,17,32,0))",
+              color: "#64748B", fontSize: 15, fontWeight: 700, cursor: "pointer",
+              display: "flex", alignItems: "center", justifyContent: "flex-end", paddingRight: 4,
+            }}>···</button>
           </div>
 
           {/* Input - always visible */}
@@ -830,21 +989,60 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
           </Modal>
         )}
 
-        {/* New store modal */}
-        {showNewStore && (
-          <Modal isDark={isDark} onClose={() => setShowNewStore(false)}>
-            <h3 style={{ fontSize: 18, fontWeight: 800, margin: "0 0 20px", textAlign: "center" }}>Nova trgovina</h3>
-            <label style={st.LBL}>Ime</label>
-            <input value={newStore.name} onChange={e => setNewStore(s => ({ ...s, name: e.target.value }))} placeholder="npr. Hofer, Spar..." style={{ ...INP, marginBottom: 14 }} />
-            <label style={st.LBL}>Ikona</label>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 20 }}>
-              {["🟢", "🟣", "🔵", "🟠", "🔴", "🟡", "⚫", "🏪"].map(ic => (
-                <button key={ic} onClick={() => setNewStore(s => ({ ...s, icon: ic }))} style={{ width: 44, height: 44, borderRadius: 12, fontSize: 22, border: "2px solid " + (newStore.icon === ic ? "#F59E0B" : "rgba(71,85,105,0.3)"), background: newStore.icon === ic ? "rgba(245,158,11,0.12)" : "rgba(30,41,59,0.5)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>{ic}</button>
-              ))}
+        {/* Manage stores modal */}
+        {showManageStores && (
+          <Modal isDark={isDark} onClose={() => { setShowManageStores(false); setShowAddStoreForm(false); setNewStore({ name: "", icon: "🔵" }); }}>
+            <h3 style={{ fontSize: 18, fontWeight: 800, margin: "0 0 16px", textAlign: "center" }}>Trgovine</h3>
+
+            {/* All stores — select or delete */}
+            {shopStores.map(s => {
+              const cnt = shopItems.filter(i => i.store === s.id && !i.checked).length;
+              return (
+                <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                  <button onClick={() => { setActiveStore(s.id); setLastStore(s.id); setShowManageStores(false); setShowAddStoreForm(false); }} style={{
+                    flex: 1, display: "flex", alignItems: "center", gap: 10, padding: "12px 14px",
+                    background: activeStore === s.id ? "rgba(245,158,11,0.12)" : "rgba(30,41,59,0.5)",
+                    border: "1px solid " + (activeStore === s.id ? "rgba(245,158,11,0.4)" : "rgba(71,85,105,0.25)"),
+                    borderRadius: 14, cursor: "pointer", textAlign: "left",
+                  }}>
+                    <span style={{ fontSize: 20 }}>{s.icon}</span>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: activeStore === s.id ? "#F59E0B" : "#E2E8F0" }}>{s.name}</span>
+                    {cnt > 0 && <span style={{ fontSize: 12, color: "#64748B", marginLeft: "auto" }}>{cnt}</span>}
+                  </button>
+                  <button onClick={() => setConfirmAction({
+                    message: `Izbriši trgovino ${s.name}?`,
+                    onConfirm: async () => {
+                      await dbDeleteStore(s.id);
+                      if (activeStore === s.id) setActiveStore("all");
+                    },
+                  })} style={{ width: 40, height: 40, borderRadius: 12, border: "1px solid rgba(239,68,68,0.2)", background: "rgba(239,68,68,0.06)", color: "#EF4444", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>🗑</button>
+                </div>
+              );
+            })}
+
+            {/* Add new store — collapsed by default */}
+            <div style={{ borderTop: "1px solid rgba(71,85,105,0.2)", marginTop: 12, paddingTop: 12 }}>
+              {!showAddStoreForm ? (
+                <button onClick={() => setShowAddStoreForm(true)} style={{ width: "100%", padding: "12px", borderRadius: 14, border: "1px dashed rgba(71,85,105,0.4)", background: "transparent", color: "#64748B", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>+ Nova trgovina</button>
+              ) : (
+                <div>
+                  <label style={st.LBL}>Nova trgovina</label>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 12 }}>
+                    {["🟢", "🟣", "🔵", "🟠", "🔴", "🟡", "⚫", "🏪"].map(ic => (
+                      <button key={ic} onClick={() => setNewStore(s => ({ ...s, icon: ic }))} style={{ aspectRatio: "1", borderRadius: 10, fontSize: 22, border: "2px solid " + (newStore.icon === ic ? "#F59E0B" : "rgba(71,85,105,0.3)"), background: newStore.icon === ic ? "rgba(245,158,11,0.12)" : "rgba(30,41,59,0.5)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>{ic}</button>
+                    ))}
+                  </div>
+                  <input autoFocus value={newStore.name} onChange={e => setNewStore(s => ({ ...s, name: e.target.value }))} onKeyDown={e => { if (e.key === "Enter" && newStore.name) addNewStore(); }} placeholder="npr. Hofer, Spar..." style={{ ...INP, marginBottom: 10 }} />
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <Btn onClick={addNewStore} disabled={!newStore.name}>Dodaj</Btn>
+                    <Btn v="ghost" onClick={() => { setShowAddStoreForm(false); setNewStore({ name: "", icon: "🔵" }); }}>Prekliči</Btn>
+                  </div>
+                </div>
+              )}
             </div>
-            <Btn onClick={addNewStore} disabled={!newStore.name}>Dodaj trgovino</Btn>
           </Modal>
         )}
+        <BottomNav mode={mode} onNavigate={navigate} />
         <SettingsModal />
         <ConfirmModal action={confirmAction} onClose={() => setConfirmAction(null)} isDark={isDark} />
       </div>
@@ -913,7 +1111,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
           </div>
         )}
 
-        <div style={{ position: "relative", zIndex: 1, padding: "16px 16px 40px" }}>
+        <div style={{ position: "relative", zIndex: 1, padding: "16px 16px 100px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, paddingTop: 12, marginBottom: 16 }}>
             <button onClick={() => setShowArchive(false)} style={{ background: "rgba(30,41,59,0.8)", border: "1px solid rgba(71,85,105,0.3)", borderRadius: 12, padding: "10px 16px", color: "#94A3B8", fontSize: 14, cursor: "pointer", fontWeight: 600 }}>{t('nazaj')}</button>
             <h2 style={{ fontSize: 20, fontWeight: 800, margin: 0 }}>{t('arhiv')}</h2>
@@ -1038,6 +1236,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
             );
           })}
         </div>
+        <BottomNav mode={mode} onNavigate={navigate} />
         <ConfirmModal action={confirmAction} onClose={() => setConfirmAction(null)} isDark={isDark} />
       </div>
     );
@@ -1105,7 +1304,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
           {filtered.length === 0 && <div style={{ textAlign: "center", padding: "48px 0", color: "#475569" }}><div style={{ fontSize: 48, marginBottom: 12 }}>{items.length === 0 ? "❄️" : "🔍"}</div><p>{items.length === 0 ? "Zamrzovalnik je prazen!" : "Ni zadetkov"}</p></div>}
         </div>
 
-        <button onClick={() => { const df = selFrzs.length === 1 ? selFrzs[0] : "home"; setAddData({ name: "", cat: "", qty: "", packets: 1, label: "", frozen: new Date().toISOString().split("T")[0], expiry: "", freezer: df }); setAddStep(0); setSuggestions([]); setScreen("add"); }} style={{ position: "fixed", bottom: 28, left: "50%", transform: "translateX(-50%)", width: 62, height: 62, borderRadius: "50%", border: "none", background: "linear-gradient(135deg,#0EA5E9,#6366F1)", color: "#fff", fontSize: 30, fontWeight: 300, cursor: "pointer", boxShadow: "0 8px 32px rgba(14,165,233,0.4),0 0 0 4px rgba(14,165,233,0.1)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }}>+</button>
+        <button onClick={() => { const df = selFrzs.length === 1 ? selFrzs[0] : "home"; setAddData({ name: "", cat: "", qty: "", packets: 1, label: "", frozen: new Date().toISOString().split("T")[0], expiry: "", freezer: df }); setAddStep(0); setSuggestions([]); setScreen("add"); }} style={{ position: "fixed", bottom: 74, left: "50%", transform: "translateX(-50%)", width: 62, height: 62, borderRadius: "50%", border: "none", background: "linear-gradient(135deg,#0EA5E9,#6366F1)", color: "#fff", fontSize: 30, fontWeight: 300, cursor: "pointer", boxShadow: "0 8px 32px rgba(14,165,233,0.4),0 0 0 4px rgba(14,165,233,0.1)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }}>+</button>
 
         {/* DETAIL MODAL - REDESIGNED */}
         {showDetail && (() => {
@@ -1187,6 +1386,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
             </Modal>
           );
         })()}
+        <BottomNav mode={mode} onNavigate={navigate} />
         <SettingsModal />
         <ConfirmModal action={confirmAction} onClose={() => setConfirmAction(null)} isDark={isDark} />
       </div>
@@ -1200,7 +1400,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
 
   return (
     <div style={st.A}><div style={st.F1} /><div style={st.F2} />
-      <div style={{ position: "relative", zIndex: 1, padding: "16px 16px 40px", minHeight: "100vh" }}>
+      <div style={{ position: "relative", zIndex: 1, padding: "16px 16px 100px", minHeight: "100vh" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
           <button onClick={() => { if (addStep === 0) setScreen("home"); else setAddStep(addStep - 1); }} style={{ background: "rgba(30,41,59,0.8)", border: "1px solid rgba(71,85,105,0.3)", borderRadius: 12, padding: "10px 16px", color: "#94A3B8", fontSize: 14, cursor: "pointer", fontWeight: 600 }}>{t('nazaj')}</button>
           <h2 style={{ fontSize: 18, fontWeight: 800, margin: 0 }}>{t('dodajVZamrzovalnik')}</h2>
@@ -1297,6 +1497,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
           </div>
         )}
       </div>
+      <BottomNav mode={mode} onNavigate={navigate} />
     </div>
   );
 }

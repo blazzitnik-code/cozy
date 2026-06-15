@@ -315,6 +315,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
   const [showShopArchive, setShowShopArchive] = useState(false);
   const [shopDetail, setShopDetail] = useState(null);
   const [showManageStores, setShowManageStores] = useState(false);
+  const [showAddStoreForm, setShowAddStoreForm] = useState(false);
   const [newStore, setNewStore] = useState({ name: "", icon: "🔵" });
   const shopInputRef = useRef(null);
   const [editingId, setEditingId] = useState(null);
@@ -982,7 +983,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
 
         {/* Manage stores modal */}
         {showManageStores && (
-          <Modal isDark={isDark} onClose={() => { setShowManageStores(false); setNewStore({ name: "", icon: "🔵" }); }}>
+          <Modal isDark={isDark} onClose={() => { setShowManageStores(false); setShowAddStoreForm(false); setNewStore({ name: "", icon: "🔵" }); }}>
             <h3 style={{ fontSize: 18, fontWeight: 800, margin: "0 0 16px", textAlign: "center" }}>Trgovine</h3>
 
             {/* All stores — select or delete */}
@@ -990,7 +991,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
               const cnt = shopItems.filter(i => i.store === s.id && !i.checked).length;
               return (
                 <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                  <button onClick={() => { setActiveStore(s.id); setLastStore(s.id); setShowManageStores(false); }} style={{
+                  <button onClick={() => { setActiveStore(s.id); setLastStore(s.id); setShowManageStores(false); setShowAddStoreForm(false); }} style={{
                     flex: 1, display: "flex", alignItems: "center", gap: 10, padding: "12px 14px",
                     background: activeStore === s.id ? "rgba(245,158,11,0.12)" : "rgba(30,41,59,0.5)",
                     border: "1px solid " + (activeStore === s.id ? "rgba(245,158,11,0.4)" : "rgba(71,85,105,0.25)"),
@@ -1011,16 +1012,25 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
               );
             })}
 
-            {/* Add new store */}
-            <div style={{ borderTop: "1px solid rgba(71,85,105,0.2)", marginTop: 12, paddingTop: 16 }}>
-              <label style={st.LBL}>Nova trgovina</label>
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
-                {["🟢", "🟣", "🔵", "🟠", "🔴", "🟡", "⚫", "🏪"].map(ic => (
-                  <button key={ic} onClick={() => setNewStore(s => ({ ...s, icon: ic }))} style={{ width: 40, height: 40, borderRadius: 10, fontSize: 20, border: "2px solid " + (newStore.icon === ic ? "#F59E0B" : "rgba(71,85,105,0.3)"), background: newStore.icon === ic ? "rgba(245,158,11,0.12)" : "rgba(30,41,59,0.5)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>{ic}</button>
-                ))}
-              </div>
-              <input value={newStore.name} onChange={e => setNewStore(s => ({ ...s, name: e.target.value }))} onKeyDown={e => { if (e.key === "Enter" && newStore.name) addNewStore(); }} placeholder="npr. Hofer, Spar..." style={{ ...INP, marginBottom: 10 }} />
-              <Btn onClick={addNewStore} disabled={!newStore.name}>+ Dodaj</Btn>
+            {/* Add new store — collapsed by default */}
+            <div style={{ borderTop: "1px solid rgba(71,85,105,0.2)", marginTop: 12, paddingTop: 12 }}>
+              {!showAddStoreForm ? (
+                <button onClick={() => setShowAddStoreForm(true)} style={{ width: "100%", padding: "12px", borderRadius: 14, border: "1px dashed rgba(71,85,105,0.4)", background: "transparent", color: "#64748B", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>+ Nova trgovina</button>
+              ) : (
+                <div>
+                  <label style={st.LBL}>Nova trgovina</label>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 12 }}>
+                    {["🟢", "🟣", "🔵", "🟠", "🔴", "🟡", "⚫", "🏪"].map(ic => (
+                      <button key={ic} onClick={() => setNewStore(s => ({ ...s, icon: ic }))} style={{ aspectRatio: "1", borderRadius: 10, fontSize: 22, border: "2px solid " + (newStore.icon === ic ? "#F59E0B" : "rgba(71,85,105,0.3)"), background: newStore.icon === ic ? "rgba(245,158,11,0.12)" : "rgba(30,41,59,0.5)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>{ic}</button>
+                    ))}
+                  </div>
+                  <input autoFocus value={newStore.name} onChange={e => setNewStore(s => ({ ...s, name: e.target.value }))} onKeyDown={e => { if (e.key === "Enter" && newStore.name) addNewStore(); }} placeholder="npr. Hofer, Spar..." style={{ ...INP, marginBottom: 10 }} />
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <Btn onClick={addNewStore} disabled={!newStore.name}>Dodaj</Btn>
+                    <Btn v="ghost" onClick={() => { setShowAddStoreForm(false); setNewStore({ name: "", icon: "🔵" }); }}>Prekliči</Btn>
+                  </div>
+                </div>
+              )}
             </div>
           </Modal>
         )}

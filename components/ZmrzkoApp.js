@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import { useItems, useArchived, useFreezers, useCategories, useShoppingItems, useShoppingArchived, useShoppingFavourites, useShoppingStores, normalizujNiz } from '@/lib/hooks';
+import { useItems, useArchived, useFreezers, useCategories, useShoppingItems, useShoppingArchived, useShoppingFavourites, useShoppingStores, useCalendarConnections, normalizujNiz } from '@/lib/hooks';
 import { useT } from '@/lib/i18n';
 import { supabase } from '@/lib/supabase';
 
@@ -247,6 +247,27 @@ function LabelInp({ value, onChange, labels, placeholder }) {
   return <div style={{ position: "relative" }}><input value={value} onChange={e => onChange(e.target.value)} onFocus={() => setFocused(true)} onBlur={() => setTimeout(() => setFocused(false), 150)} placeholder={placeholder} style={INP} />{sug.length > 0 && <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, background: "#1E293B", border: "1px solid rgba(71,85,105,0.4)", borderRadius: 12, padding: 4, zIndex: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}>{sug.map((s, i) => <button key={i} onMouseDown={() => onChange(s)} style={{ width: "100%", padding: "10px 14px", border: "none", borderRadius: 8, background: "transparent", color: "#CBD5E1", fontSize: 14, cursor: "pointer", textAlign: "left", fontWeight: 500 }}>📎 {s}</button>)}</div>}</div>;
 }
 
+// ─── CALENDAR UTILS ───
+const SL_DAYS = ['Ne', 'Po', 'To', 'Sr', 'Če', 'Pe', 'So'];
+const SL_MONTHS = ['januar', 'februar', 'marec', 'april', 'maj', 'junij', 'julij', 'avgust', 'september', 'oktober', 'november', 'december'];
+
+function detectEventType(title) {
+  const t = (title || '').toLowerCase();
+  if (/sestanek|meeting|standup|konferenc|seja|intervju|sync|review|call/.test(t)) return '💼';
+  if (/zdravnik|doktor|zobozdravnik|bolnica|fizioter|psiholog|pregled/.test(t)) return '🏥';
+  if (/tek|gym|trening|fitnes|plavanje|kolesarjenje|yoga|pilates|šport/.test(t)) return '🏃';
+  if (/letalo|vlak|avtobus|potovanje|dopust|hotel|airport|flight/.test(t)) return '✈️';
+  if (/večerja|kosilo|zajtrk|zabava|rojstni|poroka|party|piknik|kino/.test(t)) return '🎉';
+  if (/dom|čiščenje|servis|popravilo|dostava/.test(t)) return '🏠';
+  return '📅';
+}
+
+function fmtTime(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  return d.toLocaleTimeString('sl-SI', { hour: '2-digit', minute: '2-digit' });
+}
+
 // ═══════════════════════════
 // MAIN APP
 // ═══════════════════════════
@@ -282,10 +303,16 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
   const { archived: shopArchive, archiveChecked: dbShopArchiveChecked } = useShoppingArchived(householdId);
   const { favourites: shopFavourites, toggleFavourite: dbShopToggleFav } = useShoppingFavourites(householdId);
   const { stores: shopStores, addStore: dbAddStore, deleteStore: dbDeleteStore } = useShoppingStores(householdId);
+  const { myConnection: calConnection, isConnected: calConnected, saveConnection: saveCalConnection, removeConnection: removeCalConnection } = useCalendarConnections(householdId, user.id);
 
   // ─── SETTINGS ───
   const [showSettings, setShowSettings] = useState(false);
   const [confirmAction, setConfirmAction] = useState(null); // { message, onConfirm }
+
+  // ─── CALENDAR STATE ───
+  const [calDate, setCalDate] = useState(new Date());
+  const [calEvents, setCalEvents] = useState([]);
+  const [calLoading, setCalLoading] = useState(false);
 
   // ─── FREEZER UI STATE ───
   const [screen, setScreen] = useState("home");
@@ -342,6 +369,53 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
     setShowArchive(false);
     setShowShopArchive(false);
   }, []);
+
+  // ─── CALENDAR LOGIC ───
+  const fetchCalEvents = useCallback(async (date, token) => {
+    if (!token) return;
+    setCalLoading(true);
+    try {
+      const start = new Date(date); start.setHours(0, 0, 0, 0);
+      const end = new Date(date); end.setHours(23, 59, 59, 999);
+      const res = await fetch(
+        `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${start.toISOString()}&timeMax=${end.toISOString()}&singleEvents=true&orderBy=startTime`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (res.ok) { const data = await res.json(); setCalEvents(data.items || []); }
+      else setCalEvents([]);
+    } catch { setCalEvents([]); }
+    setCalLoading(false);
+  }, []);
+
+  useEffect(() => {
+    if (mode === 'calendar' && calConnected && calConnection?.access_token) {
+      fetchCalEvents(calDate, calConnection.access_token);
+    }
+  }, [mode, calDate, calConnected, calConnection?.access_token, fetchCalEvents]);
+
+  const connectCalendar = useCallback(() => {
+    const init = () => {
+      const tokenClient = window.google.accounts.oauth2.initTokenClient({
+        client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
+        scope: 'https://www.googleapis.com/auth/calendar.readonly',
+        callback: async (resp) => {
+          if (resp.error || !resp.access_token) return;
+          const info = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+            headers: { Authorization: `Bearer ${resp.access_token}` },
+          }).then(r => r.json());
+          await saveCalConnection({ accessToken: resp.access_token, expiresIn: resp.expires_in, email: info.email });
+        },
+      });
+      tokenClient.requestAccessToken();
+    };
+    if (window.google?.accounts?.oauth2) { init(); }
+    else {
+      const s = document.createElement('script');
+      s.src = 'https://accounts.google.com/gsi/client';
+      s.onload = init;
+      document.head.appendChild(s);
+    }
+  }, [saveCalConnection]);
 
   // ─── FREEZER LOGIC ───
   const allF = selFrzs.length === 0;
@@ -560,6 +634,24 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
           ))}
         </div>
 
+        {/* Google Calendar */}
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "#94A3B8", marginBottom: 10 }}>📅 Google Koledar</div>
+          {calConnected ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.2)", borderRadius: 14 }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#22C55E" }}>✓ Povezan</div>
+                <div style={{ fontSize: 11, color: "#64748B", marginTop: 2 }}>{calConnection?.google_email}</div>
+              </div>
+              <button onClick={() => setConfirmAction({ message: "Odklopi Google Koledar?", onConfirm: () => removeCalConnection(calConnection.id) })} style={{ fontSize: 12, color: "#EF4444", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 10, padding: "6px 10px", cursor: "pointer", fontWeight: 600 }}>Odklopi</button>
+            </div>
+          ) : (
+            <button onClick={() => { setShowSettings(false); connectCalendar(); }} style={{ width: "100%", padding: "14px", borderRadius: 14, border: "1px solid rgba(99,102,241,0.3)", background: "rgba(99,102,241,0.08)", color: "#818CF8", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
+              📅 Poveži Google Koledar
+            </button>
+          )}
+        </div>
+
         <button onClick={signOut} style={{
           width: "100%", padding: "14px", borderRadius: 14, border: "1px solid rgba(239,68,68,0.2)",
           background: "rgba(239,68,68,0.05)", color: "#EF4444", fontSize: 15, fontWeight: 700,
@@ -616,7 +708,6 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
           {/* Coming soon modules */}
           <div style={{ fontSize: 11, fontWeight: 700, color: st.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>Prihaja kmalu</div>
           {[
-            { icon: "📅", title: "Koledar", desc: "Skupni urnik & kdaj sta prosta", color: "#6366F1" },
             { icon: "🍽️", title: "Jedilnik", desc: "Tedenski jedilnik & recepti", color: "#F59E0B" },
             { icon: "✅", title: "Opravila", desc: "Skupne naloge gospodinjstva", color: "#22C55E" },
           ].map(m => (
@@ -638,22 +729,103 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
   }
 
   // ═══════════════════════════
-  // CALENDAR (placeholder)
+  // CALENDAR
   // ═══════════════════════════
   if (mode === "calendar") {
+    // Build 7-day strip centred on today
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const days = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(today); d.setDate(today.getDate() - 3 + i); return d;
+    });
+    const selDay = new Date(calDate); selDay.setHours(0, 0, 0, 0);
+    const isToday = (d) => d.toDateString() === today.toDateString();
+    const isSel = (d) => d.toDateString() === selDay.toDateString();
+
     return (
       <div style={st.A}><div style={st.F1} /><div style={st.F2} />
         <div style={{ position: "relative", zIndex: 1, padding: "16px 16px 100px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 12, marginBottom: 24 }}>
-            <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0 }}>📅 Koledar</h1>
+
+          {/* Header */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 12, marginBottom: 20 }}>
+            <div>
+              <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0 }}>📅 Koledar</h1>
+              <div style={{ fontSize: 12, color: st.textSecondary, marginTop: 2, textTransform: "capitalize" }}>
+                {SL_MONTHS[selDay.getMonth()]} {selDay.getFullYear()}
+              </div>
+            </div>
+            <button onClick={() => { setShowSettings(true); }} style={{ background: "rgba(30,41,59,0.6)", border: "1px solid rgba(71,85,105,0.2)", borderRadius: 10, padding: "8px 10px", color: "#64748B", fontSize: 14, cursor: "pointer" }}>⚙️</button>
           </div>
-          <div style={{ textAlign: "center", padding: "60px 20px" }}>
-            <div style={{ fontSize: 72, marginBottom: 20 }}>📅</div>
-            <div style={{ fontSize: 20, fontWeight: 800, color: st.textPrimary, marginBottom: 8 }}>Prihaja kmalu</div>
-            <div style={{ fontSize: 14, color: st.textSecondary, lineHeight: 1.6 }}>Skupni urnik za gospodinjstvo,{"\n"}kdaj sta oba prosta & sinhronizacija z Google Kalendarjem.</div>
+
+          {/* Week strip */}
+          <div style={{ display: "flex", gap: 6, marginBottom: 20 }}>
+            {days.map((d, i) => (
+              <button key={i} onClick={() => setCalDate(new Date(d))} style={{
+                flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
+                padding: "10px 4px", borderRadius: 14, border: "1px solid",
+                borderColor: isSel(d) ? "rgba(99,102,241,0.5)" : "rgba(71,85,105,0.2)",
+                background: isSel(d) ? "rgba(99,102,241,0.15)" : "transparent",
+                cursor: "pointer",
+              }}>
+                <span style={{ fontSize: 10, fontWeight: 600, color: isToday(d) ? "#818CF8" : st.textMuted }}>{SL_DAYS[d.getDay()]}</span>
+                <span style={{ fontSize: 16, fontWeight: 800, color: isSel(d) ? "#818CF8" : isToday(d) ? "#E2E8F0" : st.textSecondary }}>{d.getDate()}</span>
+                {isToday(d) && <span style={{ width: 4, height: 4, borderRadius: "50%", background: "#818CF8" }} />}
+              </button>
+            ))}
           </div>
+
+          {/* Not connected */}
+          {!calConnected && (
+            <div style={{ textAlign: "center", padding: "48px 20px" }}>
+              <div style={{ fontSize: 56, marginBottom: 16 }}>📅</div>
+              <div style={{ fontSize: 17, fontWeight: 700, color: st.textPrimary, marginBottom: 8 }}>Poveži Google Koledar</div>
+              <div style={{ fontSize: 13, color: st.textSecondary, marginBottom: 24 }}>Poveži v nastavitvah da vidiš svoje dogodke</div>
+              <button onClick={connectCalendar} style={{ padding: "14px 24px", borderRadius: 14, border: "none", background: "linear-gradient(135deg,#6366F1,#818CF8)", color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>
+                Poveži Google Koledar
+              </button>
+            </div>
+          )}
+
+          {/* Events */}
+          {calConnected && (
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: st.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 12 }}>
+                {isToday(selDay) ? "Danes" : selDay.toLocaleDateString("sl-SI", { weekday: "long", day: "numeric", month: "long" })}
+              </div>
+
+              {calLoading && <div style={{ textAlign: "center", padding: "32px 0", color: st.textSecondary }}>Nalagam...</div>}
+
+              {!calLoading && calEvents.length === 0 && (
+                <div style={{ textAlign: "center", padding: "40px 0", color: st.textSecondary }}>
+                  <div style={{ fontSize: 36, marginBottom: 8 }}>✨</div>
+                  <div style={{ fontSize: 14 }}>Ni dogodkov ta dan</div>
+                </div>
+              )}
+
+              {!calLoading && calEvents.map((ev, i) => {
+                const isAllDay = !!ev.start?.date;
+                const start = isAllDay ? '' : fmtTime(ev.start?.dateTime);
+                const end = isAllDay ? '' : fmtTime(ev.end?.dateTime);
+                const icon = detectEventType(ev.summary);
+                return (
+                  <div key={ev.id || i} style={{ display: "flex", gap: 12, padding: "12px 14px", background: st.cardBg, border: st.cardBorder, borderRadius: 16, marginBottom: 8 }}>
+                    <div style={{ fontSize: 22, flexShrink: 0, marginTop: 2 }}>{icon}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: st.textPrimary, marginBottom: 2 }}>{ev.summary || "Brez naslova"}</div>
+                      {isAllDay
+                        ? <div style={{ fontSize: 12, color: st.textSecondary }}>Ves dan</div>
+                        : <div style={{ fontSize: 12, color: st.textSecondary }}>{start}{end ? ` – ${end}` : ''}</div>
+                      }
+                      {ev.location && <div style={{ fontSize: 11, color: st.textMuted, marginTop: 2 }}>📍 {ev.location}</div>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
         <BottomNav mode={mode} onNavigate={navigate} />
+        <SettingsModal />
+        <ConfirmModal action={confirmAction} onClose={() => setConfirmAction(null)} isDark={isDark} />
       </div>
     );
   }

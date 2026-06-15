@@ -817,7 +817,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
           </div>
 
           {/* Store tabs — max 3 visible + ··· */}
-          <div style={{ display: "flex", gap: 6, marginBottom: 14, alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 6, marginBottom: 14, alignItems: "center", overflowX: "auto", WebkitOverflowScrolling: "touch", scrollbarWidth: "none", msOverflowStyle: "none", paddingBottom: 2 }}>
             <button onClick={() => setActiveStore("all")} style={{
               padding: "8px 14px", borderRadius: 14, border: "1px solid",
               borderColor: activeStore === "all" ? "rgba(245,158,11,0.4)" : "rgba(71,85,105,0.25)",

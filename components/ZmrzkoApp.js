@@ -393,7 +393,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
     }
   }, [mode, calDate, calConnected, calConnection?.access_token, fetchCalEvents]);
 
-  const connectCalendar = useCallback(() => {
+  const connectCalendar = useCallback((silent = false) => {
     const init = () => {
       const tokenClient = window.google.accounts.oauth2.initTokenClient({
         client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
@@ -406,7 +406,8 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
           await saveCalConnection({ accessToken: resp.access_token, expiresIn: resp.expires_in, email: info.email });
         },
       });
-      tokenClient.requestAccessToken();
+      // silent = no popup, uses existing Google browser session
+      tokenClient.requestAccessToken(silent ? { prompt: '' } : {});
     };
     if (window.google?.accounts?.oauth2) { init(); }
     else {
@@ -416,6 +417,15 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
       document.head.appendChild(s);
     }
   }, [saveCalConnection]);
+
+  // Auto-refresh token 5 min before expiry; silent so no popup appears
+  useEffect(() => {
+    if (!calConnection?.expires_at) return;
+    const msLeft = new Date(calConnection.expires_at) - Date.now();
+    const delay = Math.max(0, msLeft - 5 * 60 * 1000);
+    const t = setTimeout(() => connectCalendar(true), delay);
+    return () => clearTimeout(t);
+  }, [calConnection?.expires_at, connectCalendar]);
 
   // ─── FREEZER LOGIC ───
   const allF = selFrzs.length === 0;

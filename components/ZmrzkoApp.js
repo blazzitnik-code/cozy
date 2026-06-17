@@ -429,9 +429,11 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
   }, [saveCalConnection]);
 
   // Auto-refresh token 5 min before expiry; silent so no popup appears
+  // Only schedule if token is still valid (not already expired)
   useEffect(() => {
     if (!calConnection?.expires_at) return;
     const msLeft = new Date(calConnection.expires_at) - Date.now();
+    if (msLeft <= 0) return; // already expired — user must reconnect manually
     const delay = Math.max(0, msLeft - 5 * 60 * 1000);
     const t = setTimeout(() => connectCalendar(true), delay);
     return () => clearTimeout(t);

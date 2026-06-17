@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import { useItems, useArchived, useFreezers, useCategories, useShoppingItems, useShoppingArchived, useShoppingFavourites, useShoppingStores, useCalendarConnections, normalizujNiz } from '@/lib/hooks';
+import { useItems, useArchived, useFreezers, useCategories, useShoppingItems, useShoppingArchived, useShoppingFavourites, useShoppingStores, useCalendarConnections, useCalendarEvents, normalizujNiz } from '@/lib/hooks';
 import { useT } from '@/lib/i18n';
 import { supabase } from '@/lib/supabase';
 
@@ -303,7 +303,9 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
   const { archived: shopArchive, archiveChecked: dbShopArchiveChecked } = useShoppingArchived(householdId);
   const { favourites: shopFavourites, toggleFavourite: dbShopToggleFav } = useShoppingFavourites(householdId);
   const { stores: shopStores, addStore: dbAddStore, deleteStore: dbDeleteStore } = useShoppingStores(householdId);
-  const { myConnection: calConnection, isConnected: calConnected, saveConnection: saveCalConnection, removeConnection: removeCalConnection } = useCalendarConnections(householdId, user.id);
+  const { connections: calConnections, myConnection: calConnection, isConnected: calConnected, saveConnection: saveCalConnection, removeConnection: removeCalConnection, saveEvents: saveCalEvents } = useCalendarConnections(householdId, user.id);
+  const calDateStr = calDate.toISOString().split('T')[0];
+  const { events: allCalEvents, loading: calEventsLoading, refetch: refetchCalEvents } = useCalendarEvents(householdId, calDateStr);
 
   // ─── SETTINGS ───
   const [showSettings, setShowSettings] = useState(false);
@@ -311,7 +313,6 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
 
   // ─── CALENDAR STATE ───
   const [calDate, setCalDate] = useState(new Date());
-  const [calEvents, setCalEvents] = useState([]);
   const [calLoading, setCalLoading] = useState(false);
 
   // ─── FREEZER UI STATE ───
@@ -375,17 +376,22 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
     if (!token) return;
     setCalLoading(true);
     try {
+      const dateStr = date instanceof Date ? date.toISOString().split('T')[0] : date;
       const start = new Date(date); start.setHours(0, 0, 0, 0);
       const end = new Date(date); end.setHours(23, 59, 59, 999);
       const res = await fetch(
         `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${start.toISOString()}&timeMax=${end.toISOString()}&singleEvents=true&orderBy=startTime`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      if (res.ok) { const data = await res.json(); setCalEvents(data.items || []); }
-      else setCalEvents([]);
-    } catch { setCalEvents([]); }
+      if (res.ok) {
+        const data = await res.json();
+        const items = data.items || [];
+        await saveCalEvents(items, dateStr);
+        await refetchCalEvents();
+      }
+    } catch (e) { console.error('Calendar fetch error:', e); }
     setCalLoading(false);
-  }, []);
+  }, [saveCalEvents, refetchCalEvents]);
 
   useEffect(() => {
     if (mode === 'calendar' && calConnected && calConnection?.access_token) {
@@ -742,7 +748,6 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
   // CALENDAR
   // ═══════════════════════════
   if (mode === "calendar") {
-    // Build 7-day strip centred on today
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const days = Array.from({ length: 7 }, (_, i) => {
       const d = new Date(today); d.setDate(today.getDate() - 3 + i); return d;
@@ -751,85 +756,118 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
     const isToday = (d) => d.toDateString() === today.toDateString();
     const isSel = (d) => d.toDateString() === selDay.toDateString();
 
+    // Person colors — current user = indigo, partner = pink
+    const COLORS = ['#6366F1', '#EC4899', '#F59E0B', '#22C55E'];
+    const colorMap = {};
+    calConnections.forEach((c, i) => { colorMap[c.user_id] = COLORS[i % COLORS.length]; });
+    const myColor = colorMap[user.id] || '#6366F1';
+
+    // Split events by user
+    const myEvents = allCalEvents.filter(e => e.user_id === user.id);
+    const partnerConn = calConnections.find(c => c.user_id !== user.id);
+    const partnerEvents = allCalEvents.filter(e => e.user_id !== user.id);
+    const partnerColor = partnerConn ? (colorMap[partnerConn.user_id] || '#EC4899') : '#EC4899';
+
+    // Hours 7–22
+    const HOURS = Array.from({ length: 16 }, (_, i) => i + 7);
+    const eventsAtHour = (list, hour) =>
+      list.filter(e => e.start_time && new Date(e.start_time).getHours() === hour);
+
+    const EventBlock = ({ ev, color }) => (
+      <div style={{ background: color + '18', border: `1px solid ${color}40`, borderRadius: 10, padding: "6px 8px", marginBottom: 4 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color, lineHeight: 1.3 }}>{detectEventType(ev.title)} {ev.title}</div>
+        {!ev.is_all_day && ev.start_time && (
+          <div style={{ fontSize: 10, color: st.textMuted, marginTop: 2 }}>{fmtTime(ev.start_time)}{ev.end_time ? `–${fmtTime(ev.end_time)}` : ''}</div>
+        )}
+      </div>
+    );
+
     return (
       <div style={st.A}><div style={st.F1} /><div style={st.F2} />
         <div style={{ position: "relative", zIndex: 1, padding: "16px 16px 100px" }}>
 
           {/* Header */}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 12, marginBottom: 20 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 12, marginBottom: 16 }}>
             <div>
               <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0 }}>📅 Koledar</h1>
-              <div style={{ fontSize: 12, color: st.textSecondary, marginTop: 2, textTransform: "capitalize" }}>
-                {SL_MONTHS[selDay.getMonth()]} {selDay.getFullYear()}
-              </div>
+              <div style={{ fontSize: 12, color: st.textSecondary, marginTop: 2, textTransform: "capitalize" }}>{SL_MONTHS[selDay.getMonth()]} {selDay.getFullYear()}</div>
             </div>
-            <button onClick={() => { setShowSettings(true); }} style={{ background: "rgba(30,41,59,0.6)", border: "1px solid rgba(71,85,105,0.2)", borderRadius: 10, padding: "8px 10px", color: "#64748B", fontSize: 14, cursor: "pointer" }}>⚙️</button>
+            <button onClick={() => setShowSettings(true)} style={{ background: "rgba(30,41,59,0.6)", border: "1px solid rgba(71,85,105,0.2)", borderRadius: 10, padding: "8px 10px", color: "#64748B", fontSize: 14, cursor: "pointer" }}>⚙️</button>
           </div>
 
           {/* Week strip */}
-          <div style={{ display: "flex", gap: 6, marginBottom: 20 }}>
+          <div style={{ display: "flex", gap: 4, marginBottom: 16 }}>
             {days.map((d, i) => (
               <button key={i} onClick={() => setCalDate(new Date(d))} style={{
-                flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
-                padding: "10px 4px", borderRadius: 14, border: "1px solid",
-                borderColor: isSel(d) ? "rgba(99,102,241,0.5)" : "rgba(71,85,105,0.2)",
-                background: isSel(d) ? "rgba(99,102,241,0.15)" : "transparent",
-                cursor: "pointer",
+                flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 3,
+                padding: "8px 2px", borderRadius: 12, border: "1px solid",
+                borderColor: isSel(d) ? "rgba(99,102,241,0.5)" : "rgba(71,85,105,0.15)",
+                background: isSel(d) ? "rgba(99,102,241,0.15)" : "transparent", cursor: "pointer",
               }}>
-                <span style={{ fontSize: 10, fontWeight: 600, color: isToday(d) ? "#818CF8" : st.textMuted }}>{SL_DAYS[d.getDay()]}</span>
-                <span style={{ fontSize: 16, fontWeight: 800, color: isSel(d) ? "#818CF8" : isToday(d) ? "#E2E8F0" : st.textSecondary }}>{d.getDate()}</span>
-                {isToday(d) && <span style={{ width: 4, height: 4, borderRadius: "50%", background: "#818CF8" }} />}
+                <span style={{ fontSize: 9, fontWeight: 600, color: isToday(d) ? "#818CF8" : st.textMuted }}>{SL_DAYS[d.getDay()]}</span>
+                <span style={{ fontSize: 15, fontWeight: 800, color: isSel(d) ? "#818CF8" : isToday(d) ? "#E2E8F0" : st.textSecondary }}>{d.getDate()}</span>
+                {isToday(d) && <span style={{ width: 3, height: 3, borderRadius: "50%", background: "#818CF8" }} />}
               </button>
             ))}
           </div>
 
-          {/* Not connected */}
+          {/* Not connected CTA */}
           {!calConnected && (
-            <div style={{ textAlign: "center", padding: "48px 20px" }}>
-              <div style={{ fontSize: 56, marginBottom: 16 }}>📅</div>
-              <div style={{ fontSize: 17, fontWeight: 700, color: st.textPrimary, marginBottom: 8 }}>Poveži Google Koledar</div>
-              <div style={{ fontSize: 13, color: st.textSecondary, marginBottom: 24 }}>Poveži v nastavitvah da vidiš svoje dogodke</div>
-              <button onClick={connectCalendar} style={{ padding: "14px 24px", borderRadius: 14, border: "none", background: "linear-gradient(135deg,#6366F1,#818CF8)", color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>
-                Poveži Google Koledar
-              </button>
+            <div style={{ textAlign: "center", padding: "40px 20px" }}>
+              <div style={{ fontSize: 48, marginBottom: 12 }}>📅</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: st.textPrimary, marginBottom: 6 }}>Poveži Google Koledar</div>
+              <div style={{ fontSize: 13, color: st.textSecondary, marginBottom: 20 }}>Poveži v nastavitvah</div>
+              <button onClick={connectCalendar} style={{ padding: "13px 24px", borderRadius: 14, border: "none", background: "linear-gradient(135deg,#6366F1,#818CF8)", color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>Poveži Google Koledar</button>
             </div>
           )}
 
-          {/* Events */}
+          {/* Two-lane view */}
           {calConnected && (
             <div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: st.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 12 }}>
-                {isToday(selDay) ? "Danes" : selDay.toLocaleDateString("sl-SI", { weekday: "long", day: "numeric", month: "long" })}
+              {/* Lane headers */}
+              <div style={{ display: "grid", gridTemplateColumns: "40px 1fr 1fr", gap: "0 6px", marginBottom: 8 }}>
+                <div />
+                <div style={{ display: "flex", alignItems: "center", gap: 6, paddingLeft: 8 }}>
+                  <div style={{ width: 8, height: 8, borderRadius: "50%", background: myColor, flexShrink: 0 }} />
+                  <span style={{ fontSize: 11, fontWeight: 700, color: st.textSecondary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {calConnection?.google_email?.split('@')[0] || 'Ti'}
+                  </span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, paddingLeft: 8 }}>
+                  <div style={{ width: 8, height: 8, borderRadius: "50%", background: partnerColor, flexShrink: 0 }} />
+                  <span style={{ fontSize: 11, fontWeight: 700, color: st.textSecondary, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {partnerConn?.google_email?.split('@')[0] || 'Partner'}
+                  </span>
+                </div>
               </div>
 
-              {calLoading && <div style={{ textAlign: "center", padding: "32px 0", color: st.textSecondary }}>Nalagam...</div>}
+              {/* Loading */}
+              {(calLoading || calEventsLoading) && <div style={{ textAlign: "center", padding: "24px 0", color: st.textSecondary, fontSize: 13 }}>Nalagam...</div>}
 
-              {!calLoading && calEvents.length === 0 && (
-                <div style={{ textAlign: "center", padding: "40px 0", color: st.textSecondary }}>
-                  <div style={{ fontSize: 36, marginBottom: 8 }}>✨</div>
-                  <div style={{ fontSize: 14 }}>Ni dogodkov ta dan</div>
-                </div>
-              )}
-
-              {!calLoading && calEvents.map((ev, i) => {
-                const isAllDay = !!ev.start?.date;
-                const start = isAllDay ? '' : fmtTime(ev.start?.dateTime);
-                const end = isAllDay ? '' : fmtTime(ev.end?.dateTime);
-                const icon = detectEventType(ev.summary);
+              {/* Hour grid */}
+              {!calLoading && !calEventsLoading && HOURS.map(hour => {
+                const mine = eventsAtHour(myEvents, hour);
+                const theirs = eventsAtHour(partnerEvents, hour);
+                const bothFree = mine.length === 0 && theirs.length === 0;
                 return (
-                  <div key={ev.id || i} style={{ display: "flex", gap: 12, padding: "12px 14px", background: st.cardBg, border: st.cardBorder, borderRadius: 16, marginBottom: 8 }}>
-                    <div style={{ fontSize: 22, flexShrink: 0, marginTop: 2 }}>{icon}</div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 14, fontWeight: 700, color: st.textPrimary, marginBottom: 2 }}>{ev.summary || "Brez naslova"}</div>
-                      {isAllDay
-                        ? <div style={{ fontSize: 12, color: st.textSecondary }}>Ves dan</div>
-                        : <div style={{ fontSize: 12, color: st.textSecondary }}>{start}{end ? ` – ${end}` : ''}</div>
-                      }
-                      {ev.location && <div style={{ fontSize: 11, color: st.textMuted, marginTop: 2 }}>📍 {ev.location}</div>}
+                  <div key={hour} style={{ display: "grid", gridTemplateColumns: "40px 1fr 1fr", gap: "0 6px", minHeight: 36, background: bothFree ? "rgba(34,197,94,0.04)" : "transparent", borderRadius: 8, marginBottom: 2 }}>
+                    <div style={{ fontSize: 10, color: bothFree ? "#22C55E" : st.textMuted, textAlign: "right", paddingTop: 10, paddingRight: 4, fontWeight: 500 }}>{hour}:00</div>
+                    <div style={{ borderLeft: `2px solid ${myColor}25`, paddingLeft: 6, paddingTop: 4, paddingBottom: 4 }}>
+                      {mine.map((ev, i) => <EventBlock key={ev.id || i} ev={ev} color={myColor} />)}
+                    </div>
+                    <div style={{ borderLeft: `2px solid ${partnerColor}25`, paddingLeft: 6, paddingTop: 4, paddingBottom: 4 }}>
+                      {theirs.map((ev, i) => <EventBlock key={ev.id || i} ev={ev} color={partnerColor} />)}
                     </div>
                   </div>
                 );
               })}
+
+              {/* Partner not connected note */}
+              {!partnerConn && (
+                <div style={{ textAlign: "center", padding: "16px", fontSize: 12, color: st.textMuted, marginTop: 8 }}>
+                  Partner še ni povezal svojega koledarja
+                </div>
+              )}
             </div>
           )}
         </div>

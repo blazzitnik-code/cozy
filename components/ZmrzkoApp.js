@@ -387,11 +387,11 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
         const data = await res.json();
         const items = data.items || [];
         await saveCalEvents(items, dateStr);
-        await refetchCalEvents();
+        refetchCalEvents();
       }
     } catch (e) { console.error('Calendar fetch error:', e); }
     setCalLoading(false);
-  }, [saveCalEvents, refetchCalEvents]);
+  }, [saveCalEvents]);
 
   useEffect(() => {
     if (mode === 'calendar' && calConnected && calConnection?.access_token) {

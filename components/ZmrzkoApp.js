@@ -302,6 +302,10 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
   const { items: shopItems, loading: shopLoading, addItem: dbShopAdd, updateItem: dbShopUpdate, deleteItem: dbShopDelete } = useShoppingItems(householdId);
   const { archived: shopArchive, archiveChecked: dbShopArchiveChecked } = useShoppingArchived(householdId);
   const { favourites: shopFavourites, toggleFavourite: dbShopToggleFav } = useShoppingFavourites(householdId);
+  // ─── CALENDAR STATE ───
+  const [calDate, setCalDate] = useState(new Date());
+  const [calLoading, setCalLoading] = useState(false);
+
   const { stores: shopStores, addStore: dbAddStore, deleteStore: dbDeleteStore } = useShoppingStores(householdId);
   const { connections: calConnections, myConnection: calConnection, isConnected: calConnected, saveConnection: saveCalConnection, removeConnection: removeCalConnection, saveEvents: saveCalEvents } = useCalendarConnections(householdId, user.id);
   const calDateStr = calDate.toISOString().split('T')[0];
@@ -310,10 +314,6 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
   // ─── SETTINGS ───
   const [showSettings, setShowSettings] = useState(false);
   const [confirmAction, setConfirmAction] = useState(null); // { message, onConfirm }
-
-  // ─── CALENDAR STATE ───
-  const [calDate, setCalDate] = useState(new Date());
-  const [calLoading, setCalLoading] = useState(false);
 
   // ─── FREEZER UI STATE ───
   const [screen, setScreen] = useState("home");
@@ -387,11 +387,11 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
         const data = await res.json();
         const items = data.items || [];
         await saveCalEvents(items, dateStr);
-        await refetchCalEvents();
+        refetchCalEvents();
       }
     } catch (e) { console.error('Calendar fetch error:', e); }
     setCalLoading(false);
-  }, [saveCalEvents, refetchCalEvents]);
+  }, [saveCalEvents]);
 
   useEffect(() => {
     if (mode === 'calendar' && calConnected && calConnection?.access_token) {

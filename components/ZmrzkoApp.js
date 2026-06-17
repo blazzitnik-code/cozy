@@ -847,11 +847,11 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
                 </div>
               </div>
 
-              {/* Loading */}
-              {(calLoading || calEventsLoading) && <div style={{ textAlign: "center", padding: "24px 0", color: st.textSecondary, fontSize: 13 }}>Nalagam...</div>}
+              {/* Loading — only block on Google API fetch, not DB */}
+              {calLoading && <div style={{ textAlign: "center", padding: "24px 0", color: st.textSecondary, fontSize: 13 }}>Nalagam...</div>}
 
               {/* Hour grid */}
-              {!calLoading && !calEventsLoading && HOURS.map(hour => {
+              {!calLoading && HOURS.map(hour => {
                 const mine = eventsAtHour(myEvents, hour);
                 const theirs = eventsAtHour(partnerEvents, hour);
                 const bothFree = mine.length === 0 && theirs.length === 0;

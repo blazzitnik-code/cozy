@@ -309,9 +309,12 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
   const { stores: shopStores, addStore: dbAddStore, deleteStore: dbDeleteStore } = useShoppingStores(householdId);
   const { connections: calConnections, myConnection: calConnection, isConnected: calConnected, saveConnection: saveCalConnection, removeConnection: removeCalConnection, saveEvents: saveCalEvents } = useCalendarConnections(householdId, user.id);
   const calDateStr = calDate.toISOString().split('T')[0];
-  const { events: allCalEvents, loading: calEventsLoading, refetch: refetchCalEvents } = useCalendarEvents(householdId, calDateStr);
+  const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
+  const { events: allCalEvents, refetch: refetchCalEvents } = useCalendarEvents(householdId, calDateStr);
+  const { events: todayCalEvents, updateEvent: updateCalEvent } = useCalendarEvents(householdId, todayStr);
 
   const [myFetchedEvents, setMyFetchedEvents] = useState([]);
+  const [calEventDetail, setCalEventDetail] = useState(null);
 
   // ─── SETTINGS ───
   const [showSettings, setShowSettings] = useState(false);
@@ -397,11 +400,20 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
   }, [saveCalEvents]);
 
   useEffect(() => {
-    setMyFetchedEvents([]); // clear stale events when date/mode changes
+    setMyFetchedEvents([]);
     if (mode === 'calendar' && calConnected && calConnection?.access_token) {
       fetchCalEvents(calDate, calConnection.access_token);
     }
   }, [mode, calDate, calConnected, calConnection?.access_token, fetchCalEvents]);
+
+  // Sync today's events once per session for home screen display
+  const homeSyncDone = useRef(false);
+  useEffect(() => {
+    if (calConnected && calConnection?.access_token && !homeSyncDone.current) {
+      homeSyncDone.current = true;
+      fetchCalEvents(new Date(), calConnection.access_token);
+    }
+  }, [calConnected, calConnection?.access_token, fetchCalEvents]);
 
   const connectCalendar = useCallback((silent = false) => {
     const init = () => {
@@ -727,6 +739,31 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
             </div>
           </div>
 
+          {/* Today's calendar events */}
+          {calConnected && todayCalEvents.length > 0 && (
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: st.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>Danes</div>
+              {todayCalEvents.sort((a, b) => (a.start_time || '').localeCompare(b.start_time || '')).map(ev => {
+                const isMe = ev.user_id === user.id;
+                const color = isMe ? '#6366F1' : '#EC4899';
+                return (
+                  <div key={ev.id} onClick={() => navigate('calendar')} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: st.cardBg, border: `1px solid ${ev.is_important ? color + '60' : st.cardBorder.replace('1px solid ', '')}`, borderRadius: 14, marginBottom: 6, cursor: "pointer" }}>
+                    <div style={{ width: 3, height: 36, borderRadius: 2, background: color, flexShrink: 0 }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: st.textPrimary, display: "flex", alignItems: "center", gap: 4 }}>
+                        {ev.is_important && <span style={{ fontSize: 11 }}>⭐</span>}
+                        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ev.title}</span>
+                      </div>
+                      {ev.label && <div style={{ fontSize: 11, color, fontWeight: 600, marginTop: 1 }}>{ev.label}</div>}
+                      {!ev.is_all_day && ev.start_time && <div style={{ fontSize: 11, color: st.textMuted }}>{fmtTime(ev.start_time)}{ev.end_time ? ` – ${fmtTime(ev.end_time)}` : ''}</div>}
+                    </div>
+                    {ev.is_all_day && <div style={{ fontSize: 10, color: st.textMuted }}>Ves dan</div>}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
           {/* Coming soon modules */}
           <div style={{ fontSize: 11, fontWeight: 700, color: st.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>Prihaja kmalu</div>
           {[
@@ -782,8 +819,9 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
       list.filter(e => e.start_time && new Date(e.start_time).getHours() === hour);
 
     const EventBlock = ({ ev, color }) => (
-      <div style={{ background: color + '18', border: `1px solid ${color}40`, borderRadius: 10, padding: "6px 8px", marginBottom: 4 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color, lineHeight: 1.3 }}>{detectEventType(ev.title)} {ev.title}</div>
+      <div onClick={() => setCalEventDetail({ ...ev })} style={{ background: color + '18', border: `1px solid ${ev.is_important ? color + '80' : color + '40'}`, borderRadius: 10, padding: "6px 8px", marginBottom: 4, cursor: "pointer" }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color, lineHeight: 1.3 }}>{ev.is_important ? '⭐ ' : ''}{detectEventType(ev.title)} {ev.title}</div>
+        {ev.label && <div style={{ fontSize: 10, color, fontWeight: 600, marginTop: 1 }}>{ev.label}</div>}
         {!ev.is_all_day && ev.start_time && (
           <div style={{ fontSize: 10, color: st.textMuted, marginTop: 2 }}>{fmtTime(ev.start_time)}{ev.end_time ? `–${fmtTime(ev.end_time)}` : ''}</div>
         )}
@@ -879,6 +917,26 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
             </div>
           )}
         </div>
+
+        {/* Event detail modal */}
+        {calEventDetail && (
+          <Modal isDark={isDark} onClose={() => setCalEventDetail(null)}>
+            <div style={{ fontSize: 20, marginBottom: 4 }}>{detectEventType(calEventDetail.title)}</div>
+            <h3 style={{ fontSize: 17, fontWeight: 800, margin: "0 0 4px" }}>{calEventDetail.title}</h3>
+            {!calEventDetail.is_all_day && calEventDetail.start_time && (
+              <div style={{ fontSize: 13, color: st.textSecondary, marginBottom: 16 }}>
+                {fmtTime(calEventDetail.start_time)}{calEventDetail.end_time ? ` – ${fmtTime(calEventDetail.end_time)}` : ''}
+              </div>
+            )}
+            <button onClick={() => setCalEventDetail(d => ({ ...d, is_important: !d.is_important }))} style={{ width: "100%", padding: "12px", borderRadius: 14, border: `1px solid ${calEventDetail.is_important ? "rgba(245,158,11,0.4)" : "rgba(71,85,105,0.25)"}`, background: calEventDetail.is_important ? "rgba(245,158,11,0.12)" : "rgba(30,41,59,0.4)", color: calEventDetail.is_important ? "#F59E0B" : "#64748B", fontSize: 14, fontWeight: 700, cursor: "pointer", marginBottom: 12 }}>
+              {calEventDetail.is_important ? "⭐ Pomemben" : "☆ Označi kot pomemben"}
+            </button>
+            <label style={st.LBL}>Oznaka</label>
+            <input value={calEventDetail.label || ''} onChange={e => setCalEventDetail(d => ({ ...d, label: e.target.value }))} placeholder="Dodaj oznako..." style={{ ...INP, marginBottom: 16 }} />
+            <Btn onClick={async () => { await updateCalEvent(calEventDetail.id, { label: calEventDetail.label || null, is_important: calEventDetail.is_important || false }); setCalEventDetail(null); }}>Shrani</Btn>
+          </Modal>
+        )}
+
         <BottomNav mode={mode} onNavigate={navigate} />
         <SettingsModal />
         <ConfirmModal action={confirmAction} onClose={() => setConfirmAction(null)} isDark={isDark} />

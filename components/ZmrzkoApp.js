@@ -311,6 +311,8 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
   const calDateStr = calDate.toISOString().split('T')[0];
   const { events: allCalEvents, loading: calEventsLoading, refetch: refetchCalEvents } = useCalendarEvents(householdId, calDateStr);
 
+  const [myFetchedEvents, setMyFetchedEvents] = useState([]);
+
   // ─── SETTINGS ───
   const [showSettings, setShowSettings] = useState(false);
   const [confirmAction, setConfirmAction] = useState(null); // { message, onConfirm }
@@ -386,7 +388,8 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
       if (res.ok) {
         const data = await res.json();
         const items = data.items || [];
-        await saveCalEvents(items, dateStr);
+        setMyFetchedEvents(items); // show immediately, no DB dependency
+        await saveCalEvents(items, dateStr); // save for partner to see
         refetchCalEvents();
       }
     } catch (e) { console.error('Calendar fetch error:', e); }
@@ -394,6 +397,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
   }, [saveCalEvents]);
 
   useEffect(() => {
+    setMyFetchedEvents([]); // clear stale events when date/mode changes
     if (mode === 'calendar' && calConnected && calConnection?.access_token) {
       fetchCalEvents(calDate, calConnection.access_token);
     }
@@ -757,16 +761,18 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
     const isSel = (d) => d.toDateString() === selDay.toDateString();
 
     // Person colors — current user = indigo, partner = pink
-    const COLORS = ['#6366F1', '#EC4899', '#F59E0B', '#22C55E'];
-    const colorMap = {};
-    calConnections.forEach((c, i) => { colorMap[c.user_id] = COLORS[i % COLORS.length]; });
-    const myColor = colorMap[user.id] || '#6366F1';
+    const myColor = '#6366F1';
+    const partnerColor = '#EC4899';
 
-    // Split events by user
-    const myEvents = allCalEvents.filter(e => e.user_id === user.id);
+    // Own events: directly from API (instant); partner events: from shared DB
+    const myEvents = myFetchedEvents.map(ev => ({
+      id: ev.id, title: ev.summary || 'Brez naslova',
+      start_time: ev.start?.dateTime || ev.start?.date || null,
+      end_time: ev.end?.dateTime || ev.end?.date || null,
+      is_all_day: !!ev.start?.date, location: ev.location,
+    }));
     const partnerConn = calConnections.find(c => c.user_id !== user.id);
     const partnerEvents = allCalEvents.filter(e => e.user_id !== user.id);
-    const partnerColor = partnerConn ? (colorMap[partnerConn.user_id] || '#EC4899') : '#EC4899';
 
     // Hours 7–22
     const HOURS = Array.from({ length: 16 }, (_, i) => i + 7);
@@ -863,7 +869,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
               })}
 
               {/* Partner not connected note */}
-              {!partnerConn && (
+              {calConnections.length > 1 && !partnerConn && (
                 <div style={{ textAlign: "center", padding: "16px", fontSize: 12, color: st.textMuted, marginTop: 8 }}>
                   Partner še ni povezal svojega koledarja
                 </div>

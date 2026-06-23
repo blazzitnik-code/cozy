@@ -737,7 +737,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
 
     return (
       <div style={st.A}><div style={st.F1} /><div style={st.F2} />
-        <div style={{ position: "relative", zIndex: 1, padding: "16px 16px 100px" }}>
+        <div style={{ position: "relative", zIndex: 1, padding: "16px 16px calc(100px + env(safe-area-inset-bottom))" }}>
 
           {/* Header */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", paddingTop: 12, marginBottom: 24 }}>
@@ -870,7 +870,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
 
     return (
       <div style={st.A}><div style={st.F1} /><div style={st.F2} />
-        <div style={{ position: "relative", zIndex: 1, padding: "16px 16px 100px" }}>
+        <div style={{ position: "relative", zIndex: 1, padding: "16px 16px calc(100px + env(safe-area-inset-bottom))" }}>
 
           {/* Header */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 12, marginBottom: 16 }}>
@@ -1012,7 +1012,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
       });
       return (
         <div style={st.A}><div style={st.F1} /><div style={st.F2} />
-          <div style={{ position: "relative", zIndex: 1, padding: "16px 16px 100px" }}>
+          <div style={{ position: "relative", zIndex: 1, padding: "16px 16px calc(100px + env(safe-area-inset-bottom))" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12, paddingTop: 12, marginBottom: 20 }}>
               <button onClick={() => setShowShopArchive(false)} style={{ background: "rgba(30,41,59,0.8)", border: "1px solid rgba(71,85,105,0.3)", borderRadius: 12, padding: "10px 16px", color: "#94A3B8", fontSize: 14, cursor: "pointer", fontWeight: 600 }}>← Nazaj</button>
               <h2 style={{ fontSize: 20, fontWeight: 800, margin: 0 }}>🧾 Zgodovina nakupov</h2>
@@ -1113,7 +1113,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
 
     return (
       <div style={st.A}><div style={st.F1} /><div style={{ ...F2, background: "radial-gradient(circle,rgba(245,158,11,0.06) 0%,transparent 70%)" }} />
-        <div style={{ position: "relative", zIndex: 1, padding: "16px 16px 100px" }}>
+        <div style={{ position: "relative", zIndex: 1, padding: "16px 16px calc(100px + env(safe-area-inset-bottom))" }}>
 
           {/* Header */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", paddingTop: 12, marginBottom: 14 }}>
@@ -1419,7 +1419,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
           </div>
         )}
 
-        <div style={{ position: "relative", zIndex: 1, padding: "16px 16px 100px" }}>
+        <div style={{ position: "relative", zIndex: 1, padding: "16px 16px calc(100px + env(safe-area-inset-bottom))" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, paddingTop: 12, marginBottom: 16 }}>
             <button onClick={() => setShowArchive(false)} style={{ background: "rgba(30,41,59,0.8)", border: "1px solid rgba(71,85,105,0.3)", borderRadius: 12, padding: "10px 16px", color: "#94A3B8", fontSize: 14, cursor: "pointer", fontWeight: 600 }}>{t('nazaj')}</button>
             <h2 style={{ fontSize: 20, fontWeight: 800, margin: 0 }}>{t('arhiv')}</h2>
@@ -1556,7 +1556,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
   if (screen === "home") {
     return (
       <div style={st.A}><div style={st.F1} /><div style={st.F2} />
-        <div style={{ position: "relative", zIndex: 1, padding: "16px 16px 100px" }}>
+        <div style={{ position: "relative", zIndex: 1, padding: "16px 16px calc(100px + env(safe-area-inset-bottom))" }}>
 
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", paddingTop: 12, marginBottom: 14 }}>
             <LogoToggle />
@@ -1612,7 +1612,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
           {filtered.length === 0 && <div style={{ textAlign: "center", padding: "48px 0", color: "#475569" }}><div style={{ fontSize: 48, marginBottom: 12 }}>{items.length === 0 ? "❄️" : "🔍"}</div><p>{items.length === 0 ? "Zamrzovalnik je prazen!" : "Ni zadetkov"}</p></div>}
         </div>
 
-        <button onClick={() => { const df = selFrzs.length === 1 ? selFrzs[0] : "home"; setAddData({ name: "", cat: "", qty: "", packets: 1, label: "", frozen: new Date().toISOString().split("T")[0], expiry: "", freezer: df }); setAddStep(0); setSuggestions([]); setScreen("add"); }} style={{ position: "fixed", bottom: 74, left: "50%", transform: "translateX(-50%)", width: 62, height: 62, borderRadius: "50%", border: "none", background: "linear-gradient(135deg,#0EA5E9,#6366F1)", color: "#fff", fontSize: 30, fontWeight: 300, cursor: "pointer", boxShadow: "0 8px 32px rgba(14,165,233,0.4),0 0 0 4px rgba(14,165,233,0.1)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }}>+</button>
+        <button onClick={() => { const df = selFrzs.length === 1 ? selFrzs[0] : "home"; setAddData({ name: "", cat: "", qty: "", packets: 1, label: "", frozen: new Date().toISOString().split("T")[0], expiry: "", freezer: df }); setAddStep(0); setSuggestions([]); setScreen("add"); }} style={{ position: "fixed", bottom: "calc(74px + env(safe-area-inset-bottom))", left: "50%", transform: "translateX(-50%)", width: 62, height: 62, borderRadius: "50%", border: "none", background: "linear-gradient(135deg,#0EA5E9,#6366F1)", color: "#fff", fontSize: 30, fontWeight: 300, cursor: "pointer", boxShadow: "0 8px 32px rgba(14,165,233,0.4),0 0 0 4px rgba(14,165,233,0.1)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }}>+</button>
 
         {/* DETAIL MODAL - REDESIGNED */}
         {showDetail && (() => {
@@ -1708,7 +1708,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
 
   return (
     <div style={st.A}><div style={st.F1} /><div style={st.F2} />
-      <div style={{ position: "relative", zIndex: 1, padding: "16px 16px 100px", minHeight: "100vh" }}>
+      <div style={{ position: "relative", zIndex: 1, padding: "16px 16px calc(100px + env(safe-area-inset-bottom))", minHeight: "100vh" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
           <button onClick={() => { if (addStep === 0) setScreen("home"); else setAddStep(addStep - 1); }} style={{ background: "rgba(30,41,59,0.8)", border: "1px solid rgba(71,85,105,0.3)", borderRadius: 12, padding: "10px 16px", color: "#94A3B8", fontSize: 14, cursor: "pointer", fontWeight: 600 }}>{t('nazaj')}</button>
           <h2 style={{ fontSize: 18, fontWeight: 800, margin: 0 }}>{t('dodajVZamrzovalnik')}</h2>

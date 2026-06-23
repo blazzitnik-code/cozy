@@ -15,7 +15,7 @@ html, body {
   font-family: 'Outfit', 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   -webkit-font-smoothing: antialiased;
   overscroll-behavior: none;
-  /* PrepreÄi resize ko se tipkovnica odpre */
+  overflow-x: hidden;
   height: 100%;
 }
 
@@ -24,10 +24,9 @@ html, body {
   min-height: -webkit-fill-available;
 }
 
-/* PWA safe areas */
+/* PWA safe areas — top only; bottom handled per-component via env(safe-area-inset-bottom) */
 body {
   padding-top: env(safe-area-inset-top);
-  padding-bottom: env(safe-area-inset-bottom);
 }
 
 input[type="date"]::-webkit-calendar-picker-indicator {

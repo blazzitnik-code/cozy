@@ -62,7 +62,7 @@ export default function TodoApp({ user, householdId, members, lang, isDark }) {
   // ─── ARCHIVE ───
   if (screen === 'archive') return (
     <div style={A}>
-      <div style={{ padding: '20px 16px 100px' }}>
+      <div style={{ padding: '20px 16px calc(100px + env(safe-area-inset-bottom))' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24 }}>
           <button onClick={() => setScreen('home')} style={{ background: st.cardBg, border: st.cardBorder, borderRadius: 12, padding: '10px 16px', color: st.textSecondary, fontSize: 14, cursor: 'pointer', fontWeight: 600 }}>← Nazaj</button>
           <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: st.textPrimary }}>📦 Arhiv list</h2>
@@ -89,7 +89,7 @@ export default function TodoApp({ user, householdId, members, lang, isDark }) {
   // ─── HOME ───
   return (
     <div style={A}>
-      <div style={{ padding: '20px 16px 100px' }}>
+      <div style={{ padding: '20px 16px calc(100px + env(safe-area-inset-bottom))' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
           <h1 style={{ fontSize: 26, fontWeight: 800, margin: 0 }}>{lang === 'en' ? '✅ To-do' : '✅ Opravila'}</h1>
           <button onClick={() => setScreen('archive')} style={{ background: st.cardBg, border: st.cardBorder, borderRadius: 10, padding: '8px 12px', color: st.textSecondary, fontSize: 14, cursor: 'pointer', fontWeight: 600 }}>📦</button>
@@ -112,7 +112,7 @@ export default function TodoApp({ user, householdId, members, lang, isDark }) {
       </div>
 
       {/* FAB */}
-      <button onClick={() => setShowNewList(true)} style={{ position: 'fixed', bottom: 88, right: 20, width: 56, height: 56, borderRadius: 28, background: 'linear-gradient(135deg,#A855F7,#6366F1)', border: 'none', color: '#fff', fontSize: 24, cursor: 'pointer', boxShadow: '0 4px 12px rgba(168,85,247,0.35)', zIndex: 50 }}>+</button>
+      <button onClick={() => setShowNewList(true)} style={{ position: 'fixed', bottom: 'calc(88px + env(safe-area-inset-bottom))', right: 20, width: 56, height: 56, borderRadius: 28, background: 'linear-gradient(135deg,#A855F7,#6366F1)', border: 'none', color: '#fff', fontSize: 24, cursor: 'pointer', boxShadow: '0 4px 12px rgba(168,85,247,0.35)', zIndex: 50 }}>+</button>
 
       {/* New list modal */}
       {showNewList && (
@@ -201,7 +201,7 @@ function TodoListScreen({ list, householdId, members, user, isDark, st, A, onBac
 
   return (
     <div style={A} onClick={() => assignPicker && setAssignPicker(null)}>
-      <div style={{ padding: '20px 16px 100px' }}>
+      <div style={{ padding: '20px 16px calc(100px + env(safe-area-inset-bottom))' }}>
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <button onClick={onBack} style={{ background: st.cardBg, border: st.cardBorder, borderRadius: 12, padding: '10px 16px', color: st.textSecondary, fontSize: 14, cursor: 'pointer', fontWeight: 600 }}>← Nazaj</button>

@@ -177,6 +177,7 @@ function TodoListScreen({ list, householdId, members, user, isDark, st, A, onBac
   const { items, addItem, toggleItem, deleteItem, updateItem } = useTodoItems(householdId, list.id);
   const [newItem, setNewItem] = useState('');
   const [assignPicker, setAssignPicker] = useState(null); // item id
+  const [itemDetail, setItemDetail] = useState(null); // item being edited
   const inputRef = useRef(null);
 
   const done = items.filter(i => i.checked).length;
@@ -243,6 +244,7 @@ function TodoListScreen({ list, householdId, members, user, isDark, st, A, onBac
               {openItems.map((item, idx) => (
                 <TodoItemRow key={item.id} item={item} isLast={idx === openItems.length - 1} member={getMember(item.assigned_to)} members={members} isDark={isDark} st={st} showPicker={assignPicker === item.id}
                   onToggle={() => toggleItem(item.id)} onDelete={() => deleteItem(item.id)}
+                  onTap={() => setItemDetail({ ...item })}
                   onPickerOpen={e => { e.stopPropagation(); setAssignPicker(item.id); }}
                   onAssign={userId => { updateItem(item.id, { assigned_to: userId }); setAssignPicker(null); }} />
               ))}
@@ -258,6 +260,7 @@ function TodoListScreen({ list, householdId, members, user, isDark, st, A, onBac
               {doneItems.map((item, idx) => (
                 <TodoItemRow key={item.id} item={item} isLast={idx === doneItems.length - 1} member={getMember(item.assigned_to)} members={members} isDark={isDark} st={st} showPicker={assignPicker === item.id}
                   onToggle={() => toggleItem(item.id)} onDelete={() => deleteItem(item.id)}
+                  onTap={() => setItemDetail({ ...item })}
                   onPickerOpen={e => { e.stopPropagation(); setAssignPicker(item.id); }}
                   onAssign={userId => { updateItem(item.id, { assigned_to: userId }); setAssignPicker(null); }} />
               ))}
@@ -265,21 +268,57 @@ function TodoListScreen({ list, householdId, members, user, isDark, st, A, onBac
           </>
         )}
       </div>
+
+      {/* Item detail modal */}
+      {itemDetail && (
+        <Modal isDark={isDark} onClose={() => setItemDetail(null)}>
+          <h3 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 16px', color: st.textPrimary }}>Uredi opravilo</h3>
+          <label style={{ fontSize: 12, fontWeight: 700, color: st.textSecondary, display: 'block', marginBottom: 6 }}>Naslov</label>
+          <input
+            autoFocus
+            value={itemDetail.title}
+            onChange={e => setItemDetail(d => ({ ...d, title: e.target.value }))}
+            style={{ ...st.INP, marginBottom: 14 }}
+          />
+          <label style={{ fontSize: 12, fontWeight: 700, color: st.textSecondary, display: 'block', marginBottom: 6 }}>Opombe</label>
+          <textarea
+            value={itemDetail.notes || ''}
+            onChange={e => setItemDetail(d => ({ ...d, notes: e.target.value }))}
+            placeholder="Dodaj podrobnosti, opombe..."
+            rows={4}
+            style={{ ...st.INP, resize: 'none', lineHeight: 1.5, marginBottom: 20 }}
+          />
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              onClick={async () => {
+                if (!itemDetail.title.trim()) return;
+                await updateItem(itemDetail.id, { title: itemDetail.title.trim(), notes: itemDetail.notes || null });
+                setItemDetail(null);
+              }}
+              style={{ flex: 1, padding: 14, borderRadius: 14, border: 'none', background: 'linear-gradient(135deg,#A855F7,#6366F1)', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}
+            >Shrani</button>
+            <button onClick={() => setItemDetail(null)} style={{ flex: 1, padding: 14, borderRadius: 14, border: st.cardBorder, background: 'transparent', color: st.textSecondary, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>Prekliči</button>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
 
 // ─── ITEM ROW ───
-function TodoItemRow({ item, isLast, member, members, isDark, st, showPicker, onToggle, onDelete, onPickerOpen, onAssign }) {
+function TodoItemRow({ item, isLast, member, members, isDark, st, showPicker, onToggle, onDelete, onTap, onPickerOpen, onAssign }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 0', borderBottom: isLast ? 'none' : '1px solid ' + (isDark ? 'rgba(71,85,105,0.15)' : 'rgba(99,102,241,0.08)') }}>
       <button onClick={onToggle} style={{ width: 24, height: 24, borderRadius: 7, border: '1.5px solid ' + (item.checked ? '#22C55E' : isDark ? 'rgba(71,85,105,0.5)' : 'rgba(99,102,241,0.3)'), background: item.checked ? '#22C55E' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, color: '#fff', fontSize: 13, transition: 'all 0.15s' }}>
         {item.checked && '✓'}
       </button>
 
-      <span style={{ flex: 1, fontSize: 15, fontWeight: 500, color: item.checked ? st.textSecondary : st.textPrimary, textDecoration: item.checked ? 'line-through' : 'none' }}>
-        {item.title}
-      </span>
+      <div onClick={onTap} style={{ flex: 1, cursor: 'pointer', minWidth: 0 }}>
+        <div style={{ fontSize: 15, fontWeight: 500, color: item.checked ? st.textSecondary : st.textPrimary, textDecoration: item.checked ? 'line-through' : 'none' }}>
+          {item.title}
+        </div>
+        {item.notes && <div style={{ fontSize: 11, color: st.textSecondary, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>📝 {item.notes}</div>}
+      </div>
 
       {/* Assign picker */}
       <div style={{ position: 'relative', flexShrink: 0 }}>

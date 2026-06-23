@@ -3,6 +3,8 @@ import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useItems, useArchived, useFreezers, useCategories, useShoppingItems, useShoppingArchived, useShoppingFavourites, useShoppingStores, useCalendarConnections, useCalendarEvents, normalizujNiz } from '@/lib/hooks';
 import { useT } from '@/lib/i18n';
 import { supabase } from '@/lib/supabase';
+import TodoApp from './TodoApp';
+import { useTodoLists, useTodoItems } from '@/lib/hooks';
 
 // ─── CATEGORIES ───
 const CATS = {
@@ -141,7 +143,7 @@ const NAV_TABS = [
   { id: "freezer",  icon: "❄️", label: "Zmrzko" },
   { id: "shopping", icon: "🛒", label: "Nakupi" },
   { id: "calendar", icon: "📅", label: "Koledar" },
-  { id: "more",     icon: "···", label: "Več" },
+  { id: "todo",     icon: "✅", label: "Opravila" },
 ];
 
 function BottomNav({ mode, onNavigate }) {
@@ -268,6 +270,34 @@ function fmtTime(dateStr) {
   return d.toLocaleTimeString('sl-SI', { hour: '2-digit', minute: '2-digit' });
 }
 
+// ─── TODO HOME CARD (used in Home screen preview) ───
+function TodoListHomeCard({ list, householdId, st, isDark, onNavigate }) {
+  const { items } = useTodoItems(householdId, list.id);
+  const done = items.filter(i => i.checked).length;
+  const total = items.length;
+  const pct = total > 0 ? (done / total) * 100 : 0;
+  const dueDate = list.due_date ? new Date(list.due_date) : null;
+  const daysLeft = dueDate ? Math.ceil((dueDate - new Date()) / 864e5) : null;
+  const isPast = daysLeft !== null && daysLeft < 0;
+  const isUrgent = daysLeft !== null && daysLeft >= 0 && daysLeft <= 7;
+  const accent = isPast ? '#EF4444' : isUrgent ? '#F59E0B' : '#A855F7';
+  return (
+    <div onClick={onNavigate} style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", background: st.cardBg, border: st.cardBorder, borderRadius: 14, marginBottom: 8, cursor: "pointer" }}>
+      <span style={{ fontSize: 20, flexShrink: 0 }}>{list.emoji}</span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: st.textPrimary, marginBottom: total > 0 ? 4 : 0 }}>{list.title}</div>
+        {total > 0 && (
+          <div style={{ height: 3, background: isDark ? 'rgba(71,85,105,0.3)' : 'rgba(99,102,241,0.1)', borderRadius: 2 }}>
+            <div style={{ height: '100%', borderRadius: 2, width: pct + '%', background: accent, transition: 'width 0.3s' }} />
+          </div>
+        )}
+      </div>
+      {total > 0 && <span style={{ fontSize: 11, color: st.textSecondary, flexShrink: 0 }}>{done}/{total}</span>}
+      {dueDate && <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 7px', borderRadius: 7, background: accent + '20', color: accent, flexShrink: 0 }}>{isPast ? '🔴' : dueDate.toLocaleDateString('sl-SI', { day: 'numeric', month: 'short' })}</span>}
+    </div>
+  );
+}
+
 // ═══════════════════════════
 // MAIN APP
 // ═══════════════════════════
@@ -302,6 +332,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
   const { items: shopItems, loading: shopLoading, addItem: dbShopAdd, updateItem: dbShopUpdate, deleteItem: dbShopDelete } = useShoppingItems(householdId);
   const { archived: shopArchive, archiveChecked: dbShopArchiveChecked } = useShoppingArchived(householdId);
   const { favourites: shopFavourites, toggleFavourite: dbShopToggleFav } = useShoppingFavourites(householdId);
+  const { lists: todoLists } = useTodoLists(householdId);
   // ─── CALENDAR STATE ───
   const [calDate, setCalDate] = useState(new Date());
   const [calLoading, setCalLoading] = useState(false);
@@ -764,11 +795,20 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
             </div>
           )}
 
+          {/* Active todo lists preview */}
+          {todoLists.length > 0 && (
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: st.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>Opravila</div>
+              {todoLists.slice(0, 3).map(list => (
+                <TodoListHomeCard key={list.id} list={list} householdId={householdId} st={st} isDark={isDark} onNavigate={() => navigate("todo")} />
+              ))}
+            </div>
+          )}
+
           {/* Coming soon modules */}
           <div style={{ fontSize: 11, fontWeight: 700, color: st.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>Prihaja kmalu</div>
           {[
             { icon: "🍽️", title: "Jedilnik", desc: "Tedenski jedilnik & recepti", color: "#F59E0B" },
-            { icon: "✅", title: "Opravila", desc: "Skupne naloge gospodinjstva", color: "#22C55E" },
           ].map(m => (
             <div key={m.title} style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 16px", background: st.cardBg, border: st.cardBorder, borderRadius: 16, marginBottom: 8, opacity: 0.65 }}>
               <span style={{ fontSize: 26 }}>{m.icon}</span>
@@ -947,31 +987,13 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
   // ═══════════════════════════
   // MORE (placeholder)
   // ═══════════════════════════
-  if (mode === "more") {
+  // TODO
+  // ═══════════════════════════
+  if (mode === "todo") {
     return (
-      <div style={st.A}><div style={st.F1} /><div style={st.F2} />
-        <div style={{ position: "relative", zIndex: 1, padding: "16px 16px 100px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 12, marginBottom: 24 }}>
-            <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0 }}>··· Več</h1>
-            <SettingsBtn />
-          </div>
-          {[
-            { icon: "🍽️", title: "Jedilnik", desc: "Tedenski jedilnik & recepti", color: "#F59E0B" },
-            { icon: "✅", title: "Opravila", desc: "Skupne naloge gospodinjstva", color: "#22C55E" },
-          ].map(m => (
-            <div key={m.title} style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px", background: st.cardBg, border: st.cardBorder, borderRadius: 16, marginBottom: 10, opacity: 0.65 }}>
-              <span style={{ fontSize: 28 }}>{m.icon}</span>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 15, fontWeight: 700, color: st.textPrimary }}>{m.title}</div>
-                <div style={{ fontSize: 12, color: st.textSecondary }}>{m.desc}</div>
-              </div>
-              <div style={{ fontSize: 11, color: m.color, fontWeight: 700, background: m.color + "18", padding: "4px 10px", borderRadius: 20, border: `1px solid ${m.color}35` }}>Kmalu</div>
-            </div>
-          ))}
-        </div>
+      <div style={{ position: "relative" }}>
+        <TodoApp user={user} householdId={householdId} members={members} lang={lang} isDark={isDark} />
         <BottomNav mode={mode} onNavigate={navigate} />
-        <SettingsModal />
-        <ConfirmModal action={confirmAction} onClose={() => setConfirmAction(null)} isDark={isDark} />
       </div>
     );
   }

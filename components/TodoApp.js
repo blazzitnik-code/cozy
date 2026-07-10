@@ -32,7 +32,7 @@ function Modal({ children, onClose, isDark }) {
 export default function TodoApp({ user, householdId, members, lang, isDark }) {
   const st = getStyles(isDark);
   const { lists, addList, updateList, archiveList, deleteList } = useTodoLists(householdId);
-  const { lists: archivedLists, } = useTodoArchivedLists(householdId);
+  const { lists: archivedLists, unarchiveList } = useTodoArchivedLists(householdId);
 
   const [screen, setScreen] = useState('home'); // 'home' | 'list' | 'archive' | 'archivedList'
   const [activeList, setActiveList] = useState(null);
@@ -58,6 +58,7 @@ export default function TodoApp({ user, householdId, members, lang, isDark }) {
       onBack={() => setScreen('archive')}
       onArchive={null}
       onUpdateList={null}
+      onUnarchive={async () => { await unarchiveList(activeArchivedList.id); setScreen('home'); }}
       readOnly
     />
   );
@@ -93,6 +94,7 @@ export default function TodoApp({ user, householdId, members, lang, isDark }) {
               <div style={{ fontSize: 15, fontWeight: 600, color: st.textPrimary }}>{list.title}</div>
               <div style={{ fontSize: 12, color: st.textSecondary }}>Arhivirano: {new Date(list.archived_at).toLocaleDateString('sl-SI')}</div>
             </div>
+            <button onClick={e => { e.stopPropagation(); unarchiveList(list.id); }} style={{ height: 32, paddingInline: 10, borderRadius: 8, background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.2)', color: '#6366F1', cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>↩ Obnovi</button>
             <button onClick={e => { e.stopPropagation(); deleteList(list.id); }} style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.2)', color: '#EF4444', cursor: 'pointer', fontSize: 14 }}>🗑</button>
           </div>
         ))}
@@ -187,7 +189,7 @@ function TodoListCard({ list, householdId, isDark, st, onClick }) {
 }
 
 // ─── LIST DETAIL SCREEN ───
-function TodoListScreen({ list, householdId, members, user, isDark, st, A, onBack, onArchive, onUpdateList, readOnly }) {
+function TodoListScreen({ list, householdId, members, user, isDark, st, A, onBack, onArchive, onUpdateList, onUnarchive, readOnly }) {
   const { items, addItem, toggleItem, deleteItem, updateItem } = useTodoItems(householdId, list.id);
   const [newItem, setNewItem] = useState('');
   const [assignPicker, setAssignPicker] = useState(null); // item id
@@ -222,7 +224,7 @@ function TodoListScreen({ list, householdId, members, user, isDark, st, A, onBac
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <button onClick={onBack} style={{ background: st.cardBg, border: st.cardBorder, borderRadius: 12, padding: '10px 16px', color: st.textSecondary, fontSize: 14, cursor: 'pointer', fontWeight: 600 }}>← Nazaj</button>
           {!readOnly && <button onClick={onArchive} style={{ background: st.cardBg, border: st.cardBorder, borderRadius: 12, padding: '10px 14px', color: st.textSecondary, fontSize: 13, cursor: 'pointer', fontWeight: 600 }}>📦 Zaključi</button>}
-          {readOnly && <span style={{ fontSize: 12, fontWeight: 600, color: st.textSecondary, padding: '6px 12px', background: st.cardBg, border: st.cardBorder, borderRadius: 10 }}>📦 Arhivirano</span>}
+          {readOnly && <button onClick={onUnarchive} style={{ background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: 12, padding: '10px 14px', color: '#6366F1', fontSize: 13, cursor: 'pointer', fontWeight: 700 }}>↩ Obnovi listo</button>}
         </div>
 
         {/* List info */}

@@ -88,14 +88,18 @@ export default function TodoApp({ user, householdId, members, lang, isDark }) {
             <p>Ni arhiviranih list</p>
           </div>
         ) : archivedLists.map(list => (
-          <div key={list.id} onClick={() => { setActiveArchivedList(list); setScreen('archivedList'); }} style={{ background: st.cardBg, border: st.cardBorder, borderRadius: 16, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8, cursor: 'pointer' }}>
-            <span style={{ fontSize: 24 }}>{list.emoji}</span>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 15, fontWeight: 600, color: st.textPrimary }}>{list.title}</div>
-              <div style={{ fontSize: 12, color: st.textSecondary }}>Arhivirano: {new Date(list.archived_at).toLocaleDateString('sl-SI')}</div>
+          <div key={list.id} onClick={() => { setActiveArchivedList(list); setScreen('archivedList'); }} style={{ background: st.cardBg, border: st.cardBorder, borderRadius: 16, padding: '14px 16px', marginBottom: 8, cursor: 'pointer' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+              <span style={{ fontSize: 22 }}>{list.emoji}</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 15, fontWeight: 600, color: st.textPrimary }}>{list.title}</div>
+                <div style={{ fontSize: 12, color: st.textSecondary }}>Arhivirano: {new Date(list.archived_at).toLocaleDateString('sl-SI')}</div>
+              </div>
             </div>
-            <button onClick={e => { e.stopPropagation(); unarchiveList(list.id); }} style={{ height: 32, paddingInline: 10, borderRadius: 8, background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.2)', color: '#6366F1', cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>↩ Obnovi</button>
-            <button onClick={e => { e.stopPropagation(); deleteList(list.id); }} style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.2)', color: '#EF4444', cursor: 'pointer', fontSize: 14 }}>🗑</button>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={e => { e.stopPropagation(); unarchiveList(list.id); }} style={{ flex: 1, height: 36, borderRadius: 10, background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.2)', color: '#6366F1', cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>↩ Vrni nazaj</button>
+              <button onClick={e => { e.stopPropagation(); deleteList(list.id); }} style={{ flex: 1, height: 36, borderRadius: 10, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#EF4444', cursor: 'pointer', fontSize: 13, fontWeight: 700 }}>🗑 Izbriši</button>
+            </div>
           </div>
         ))}
       </div>

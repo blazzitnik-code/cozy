@@ -31,11 +31,12 @@ function Modal({ children, onClose, isDark }) {
 // ─── MAIN TODO APP ───
 export default function TodoApp({ user, householdId, members, lang, isDark }) {
   const st = getStyles(isDark);
-  const { lists, addList, archiveList, deleteList } = useTodoLists(householdId);
+  const { lists, addList, updateList, archiveList, deleteList } = useTodoLists(householdId);
   const { lists: archivedLists, } = useTodoArchivedLists(householdId);
 
-  const [screen, setScreen] = useState('home'); // 'home' | 'list' | 'archive'
+  const [screen, setScreen] = useState('home'); // 'home' | 'list' | 'archive' | 'archivedList'
   const [activeList, setActiveList] = useState(null);
+  const [activeArchivedList, setActiveArchivedList] = useState(null);
   const [showNewList, setShowNewList] = useState(false);
   const [newListTitle, setNewListTitle] = useState('');
   const [newListEmoji, setNewListEmoji] = useState('📋');
@@ -49,6 +50,18 @@ export default function TodoApp({ user, householdId, members, lang, isDark }) {
     setNewListTitle(''); setNewListEmoji('📋'); setNewListDue(''); setShowNewList(false);
   };
 
+  // ─── ARCHIVED LIST VIEW (read-only) ───
+  if (screen === 'archivedList' && activeArchivedList) return (
+    <TodoListScreen
+      list={activeArchivedList} householdId={householdId} members={members} user={user}
+      isDark={isDark} st={st} A={A}
+      onBack={() => setScreen('archive')}
+      onArchive={null}
+      onUpdateList={null}
+      readOnly
+    />
+  );
+
   // ─── LIST DETAIL ───
   if (screen === 'list' && activeList) return (
     <TodoListScreen
@@ -56,6 +69,7 @@ export default function TodoApp({ user, householdId, members, lang, isDark }) {
       isDark={isDark} st={st} A={A}
       onBack={() => setScreen('home')}
       onArchive={async () => { await archiveList(activeList.id); setScreen('home'); }}
+      onUpdateList={async (id, updates) => { await updateList(id, updates); setActiveList(l => ({ ...l, ...updates })); }}
     />
   );
 
@@ -73,13 +87,13 @@ export default function TodoApp({ user, householdId, members, lang, isDark }) {
             <p>Ni arhiviranih list</p>
           </div>
         ) : archivedLists.map(list => (
-          <div key={list.id} style={{ background: st.cardBg, border: st.cardBorder, borderRadius: 16, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+          <div key={list.id} onClick={() => { setActiveArchivedList(list); setScreen('archivedList'); }} style={{ background: st.cardBg, border: st.cardBorder, borderRadius: 16, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8, cursor: 'pointer' }}>
             <span style={{ fontSize: 24 }}>{list.emoji}</span>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 15, fontWeight: 600, color: st.textPrimary }}>{list.title}</div>
               <div style={{ fontSize: 12, color: st.textSecondary }}>Arhivirano: {new Date(list.archived_at).toLocaleDateString('sl-SI')}</div>
             </div>
-            <button onClick={() => deleteList(list.id)} style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.2)', color: '#EF4444', cursor: 'pointer', fontSize: 14 }}>🗑</button>
+            <button onClick={e => { e.stopPropagation(); deleteList(list.id); }} style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.2)', color: '#EF4444', cursor: 'pointer', fontSize: 14 }}>🗑</button>
           </div>
         ))}
       </div>
@@ -173,11 +187,12 @@ function TodoListCard({ list, householdId, isDark, st, onClick }) {
 }
 
 // ─── LIST DETAIL SCREEN ───
-function TodoListScreen({ list, householdId, members, user, isDark, st, A, onBack, onArchive }) {
+function TodoListScreen({ list, householdId, members, user, isDark, st, A, onBack, onArchive, onUpdateList, readOnly }) {
   const { items, addItem, toggleItem, deleteItem, updateItem } = useTodoItems(householdId, list.id);
   const [newItem, setNewItem] = useState('');
   const [assignPicker, setAssignPicker] = useState(null); // item id
   const [itemDetail, setItemDetail] = useState(null); // item being edited
+  const [listEdit, setListEdit] = useState(null); // { title, emoji, due_date }
   const inputRef = useRef(null);
 
   const done = items.filter(i => i.checked).length;
@@ -206,13 +221,17 @@ function TodoListScreen({ list, householdId, members, user, isDark, st, A, onBac
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <button onClick={onBack} style={{ background: st.cardBg, border: st.cardBorder, borderRadius: 12, padding: '10px 16px', color: st.textSecondary, fontSize: 14, cursor: 'pointer', fontWeight: 600 }}>← Nazaj</button>
-          <button onClick={onArchive} style={{ background: st.cardBg, border: st.cardBorder, borderRadius: 12, padding: '10px 14px', color: st.textSecondary, fontSize: 13, cursor: 'pointer', fontWeight: 600 }}>📦 Zaključi</button>
+          {!readOnly && <button onClick={onArchive} style={{ background: st.cardBg, border: st.cardBorder, borderRadius: 12, padding: '10px 14px', color: st.textSecondary, fontSize: 13, cursor: 'pointer', fontWeight: 600 }}>📦 Zaključi</button>}
+          {readOnly && <span style={{ fontSize: 12, fontWeight: 600, color: st.textSecondary, padding: '6px 12px', background: st.cardBg, border: st.cardBorder, borderRadius: 10 }}>📦 Arhivirano</span>}
         </div>
 
         {/* List info */}
         <div style={{ textAlign: 'center', marginBottom: 20 }}>
-          <div style={{ fontSize: 44, marginBottom: 6 }}>{list.emoji}</div>
-          <h2 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 4px', color: st.textPrimary }}>{list.title}</h2>
+          <div onClick={() => setListEdit({ title: list.title, emoji: list.emoji, due_date: list.due_date || '' })} style={{ fontSize: 44, marginBottom: 6, cursor: 'pointer' }}>{list.emoji}</div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 4 }}>
+            <h2 style={{ fontSize: 22, fontWeight: 800, margin: 0, color: st.textPrimary }}>{list.title}</h2>
+            {!readOnly && <button onClick={() => setListEdit({ title: list.title, emoji: list.emoji, due_date: list.due_date || '' })} style={{ background: 'none', border: 'none', cursor: 'pointer', color: st.textSecondary, fontSize: 14, padding: 4 }}>✏️</button>}
+          </div>
           {dueDate && (
             <div style={{ fontSize: 13, fontWeight: 600, color: accentColor }}>
               rok: {dueDate.toLocaleDateString('sl-SI', { day: 'numeric', month: 'long' })}
@@ -231,10 +250,10 @@ function TodoListScreen({ list, householdId, members, user, isDark, st, A, onBac
         )}
 
         {/* Add item */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+        {!readOnly && <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
           <input ref={inputRef} value={newItem} onChange={e => setNewItem(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleAdd(); }} placeholder="Dodaj opravilo..." style={{ ...st.INP, flex: 1 }} />
           <button onClick={handleAdd} disabled={!newItem.trim()} style={{ width: 48, height: 48, borderRadius: 12, border: 'none', background: newItem.trim() ? 'linear-gradient(135deg,#A855F7,#6366F1)' : 'rgba(30,41,59,0.4)', color: '#fff', fontSize: 22, cursor: newItem.trim() ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>+</button>
-        </div>
+        </div>}
 
         {/* Open items */}
         {openItems.length > 0 && (
@@ -268,6 +287,26 @@ function TodoListScreen({ list, householdId, members, user, isDark, st, A, onBac
           </>
         )}
       </div>
+
+      {/* List edit modal */}
+      {listEdit && (
+        <Modal isDark={isDark} onClose={() => setListEdit(null)}>
+          <h3 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 16px', color: st.textPrimary }}>Uredi listo</h3>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 16 }}>
+            {LIST_EMOJIS.map(e => (
+              <button key={e} onClick={() => setListEdit(d => ({ ...d, emoji: e }))} style={{ fontSize: 22, padding: 7, borderRadius: 10, border: '1px solid ' + (listEdit.emoji === e ? 'rgba(168,85,247,0.5)' : 'rgba(71,85,105,0.2)'), background: listEdit.emoji === e ? 'rgba(168,85,247,0.15)' : 'transparent', cursor: 'pointer' }}>{e}</button>
+            ))}
+          </div>
+          <label style={{ fontSize: 12, fontWeight: 700, color: st.textSecondary, display: 'block', marginBottom: 6 }}>Naslov liste</label>
+          <input autoFocus value={listEdit.title} onChange={e => setListEdit(d => ({ ...d, title: e.target.value }))} style={{ ...st.INP, marginBottom: 12 }} />
+          <label style={{ fontSize: 12, fontWeight: 700, color: st.textSecondary, display: 'block', marginBottom: 6 }}>Rok (opcijsko)</label>
+          <input type="date" value={listEdit.due_date || ''} onChange={e => setListEdit(d => ({ ...d, due_date: e.target.value }))} style={{ ...st.INP, marginBottom: 20, colorScheme: isDark ? 'dark' : 'light' }} />
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={async () => { if (!listEdit.title.trim()) return; await onUpdateList(list.id, { title: listEdit.title.trim(), emoji: listEdit.emoji, due_date: listEdit.due_date || null }); setListEdit(null); }} style={{ flex: 1, padding: 14, borderRadius: 14, border: 'none', background: 'linear-gradient(135deg,#A855F7,#6366F1)', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>Shrani</button>
+            <button onClick={() => setListEdit(null)} style={{ flex: 1, padding: 14, borderRadius: 14, border: st.cardBorder, background: 'transparent', color: st.textSecondary, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>Prekliči</button>
+          </div>
+        </Modal>
+      )}
 
       {/* Item detail modal */}
       {itemDetail && (

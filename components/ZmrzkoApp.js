@@ -4,6 +4,7 @@ import { useItems, useArchived, useFreezers, useCategories, useShoppingItems, us
 import { useT } from '@/lib/i18n';
 import { supabase } from '@/lib/supabase';
 import TodoApp from './TodoApp';
+import HomeModule from './HomeModule';
 import { useTodoLists, useTodoItems } from '@/lib/hooks';
 
 // ─── CATEGORIES ───
@@ -804,6 +805,9 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
               ))}
             </div>
           )}
+
+          {/* Home module: traffic, shortcuts, bus, bikes */}
+          <HomeModule user={user} householdId={householdId} isDark={isDark} />
 
           {/* Coming soon modules */}
           <div style={{ fontSize: 11, fontWeight: 700, color: st.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>Prihaja kmalu</div>

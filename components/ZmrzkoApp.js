@@ -338,7 +338,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
   const [calDate, setCalDate] = useState(new Date());
   const [calLoading, setCalLoading] = useState(false);
 
-  const { stores: shopStores, addStore: dbAddStore, deleteStore: dbDeleteStore } = useShoppingStores(householdId);
+  const { stores: shopStores, addStore: dbAddStore, updateStore: dbUpdateStore, deleteStore: dbDeleteStore } = useShoppingStores(householdId);
   const { connections: calConnections, myConnection: calConnection, isConnected: calConnected, saveConnection: saveCalConnection, removeConnection: removeCalConnection, saveEvents: saveCalEvents } = useCalendarConnections(householdId, user.id);
   const calDateStr = calDate.toISOString().split('T')[0];
   const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
@@ -382,6 +382,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
   const [showManageStores, setShowManageStores] = useState(false);
   const [showAddStoreForm, setShowAddStoreForm] = useState(false);
   const [newStore, setNewStore] = useState({ name: "", icon: "🔵" });
+  const [editingStore, setEditingStore] = useState(null); // { id, name, icon }
   const shopInputRef = useRef(null);
   const [editingId, setEditingId] = useState(null);
   const [editingName, setEditingName] = useState("");
@@ -1303,31 +1304,47 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
 
         {/* Manage stores modal */}
         {showManageStores && (
-          <Modal isDark={isDark} onClose={() => { setShowManageStores(false); setShowAddStoreForm(false); setNewStore({ name: "", icon: "🔵" }); }}>
+          <Modal isDark={isDark} onClose={() => { setShowManageStores(false); setShowAddStoreForm(false); setEditingStore(null); setNewStore({ name: "", icon: "🔵" }); }}>
             <h3 style={{ fontSize: 18, fontWeight: 800, margin: "0 0 16px", textAlign: "center" }}>Trgovine</h3>
 
-            {/* All stores — select or delete */}
+            {/* All stores — select, edit or delete */}
             {shopStores.map(s => {
               const cnt = shopItems.filter(i => i.store === s.id && !i.checked).length;
+              const isEditing = editingStore?.id === s.id;
               return (
-                <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                  <button onClick={() => { setActiveStore(s.id); setLastStore(s.id); setShowManageStores(false); setShowAddStoreForm(false); }} style={{
-                    flex: 1, display: "flex", alignItems: "center", gap: 10, padding: "12px 14px",
-                    background: activeStore === s.id ? "rgba(245,158,11,0.12)" : "rgba(30,41,59,0.5)",
-                    border: "1px solid " + (activeStore === s.id ? "rgba(245,158,11,0.4)" : "rgba(71,85,105,0.25)"),
-                    borderRadius: 14, cursor: "pointer", textAlign: "left",
-                  }}>
-                    <span style={{ fontSize: 20 }}>{s.icon}</span>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: activeStore === s.id ? "#F59E0B" : "#E2E8F0" }}>{s.name}</span>
-                    {cnt > 0 && <span style={{ fontSize: 12, color: "#64748B", marginLeft: "auto" }}>{cnt}</span>}
-                  </button>
-                  <button onClick={() => setConfirmAction({
-                    message: `Izbriši trgovino ${s.name}?`,
-                    onConfirm: async () => {
-                      await dbDeleteStore(s.id);
-                      if (activeStore === s.id) setActiveStore("all");
-                    },
-                  })} style={{ width: 40, height: 40, borderRadius: 12, border: "1px solid rgba(239,68,68,0.2)", background: "rgba(239,68,68,0.06)", color: "#EF4444", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>🗑</button>
+                <div key={s.id} style={{ marginBottom: 8 }}>
+                  {isEditing ? (
+                    <div style={{ background: "rgba(30,41,59,0.5)", border: "1px solid rgba(71,85,105,0.25)", borderRadius: 14, padding: "12px 14px" }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 10 }}>
+                        {["🟢", "🟣", "🔵", "🟠", "🔴", "🟡", "⚫", "🏪"].map(ic => (
+                          <button key={ic} onClick={() => setEditingStore(e => ({ ...e, icon: ic }))} style={{ aspectRatio: "1", borderRadius: 10, fontSize: 22, border: "2px solid " + (editingStore.icon === ic ? "#F59E0B" : "rgba(71,85,105,0.3)"), background: editingStore.icon === ic ? "rgba(245,158,11,0.12)" : "rgba(30,41,59,0.5)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>{ic}</button>
+                        ))}
+                      </div>
+                      <input autoFocus value={editingStore.name} onChange={e => setEditingStore(es => ({ ...es, name: e.target.value }))} style={{ ...INP, marginBottom: 10 }} />
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <Btn onClick={async () => { await dbUpdateStore(editingStore.id, { name: editingStore.name, icon: editingStore.icon }); setEditingStore(null); }} disabled={!editingStore.name}>Shrani</Btn>
+                        <Btn v="ghost" onClick={() => setEditingStore(null)}>Prekliči</Btn>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <button onClick={() => { setActiveStore(s.id); setLastStore(s.id); setShowManageStores(false); setShowAddStoreForm(false); }} style={{
+                        flex: 1, display: "flex", alignItems: "center", gap: 10, padding: "12px 14px",
+                        background: activeStore === s.id ? "rgba(245,158,11,0.12)" : "rgba(30,41,59,0.5)",
+                        border: "1px solid " + (activeStore === s.id ? "rgba(245,158,11,0.4)" : "rgba(71,85,105,0.25)"),
+                        borderRadius: 14, cursor: "pointer", textAlign: "left",
+                      }}>
+                        <span style={{ fontSize: 20 }}>{s.icon}</span>
+                        <span style={{ fontSize: 14, fontWeight: 700, color: activeStore === s.id ? "#F59E0B" : "#E2E8F0" }}>{s.name}</span>
+                        {cnt > 0 && <span style={{ fontSize: 12, color: "#64748B", marginLeft: "auto" }}>{cnt}</span>}
+                      </button>
+                      <button onClick={() => { setEditingStore({ id: s.id, name: s.name, icon: s.icon }); setShowAddStoreForm(false); }} style={{ width: 40, height: 40, borderRadius: 12, border: "1px solid rgba(71,85,105,0.25)", background: "rgba(30,41,59,0.5)", color: "#94A3B8", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>✏️</button>
+                      <button onClick={() => setConfirmAction({
+                        message: `Izbriši trgovino ${s.name}?`,
+                        onConfirm: async () => { await dbDeleteStore(s.id); if (activeStore === s.id) setActiveStore("all"); },
+                      })} style={{ width: 40, height: 40, borderRadius: 12, border: "1px solid rgba(239,68,68,0.2)", background: "rgba(239,68,68,0.06)", color: "#EF4444", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>🗑</button>
+                    </div>
+                  )}
                 </div>
               );
             })}

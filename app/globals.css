@@ -17,6 +17,7 @@
   --bg: linear-gradient(180deg, #0B1120 0%, #111827 40%, #0F172A 100%);
   --glow-1: radial-gradient(circle, rgba(56, 189, 248, 0.08) 0%, transparent 70%);
   --glow-2: radial-gradient(circle, rgba(99, 102, 241, 0.06) 0%, transparent 70%);
+  --glow-amber: radial-gradient(circle, rgba(245, 158, 11, 0.06) 0%, transparent 70%);
 
   --surface: rgba(30, 41, 59, 0.6);
   --surface-2: rgba(30, 41, 59, 0.5);
@@ -65,6 +66,7 @@
   --grad-violet: linear-gradient(135deg, #A855F7, #6366F1);
   --grad-indigo: linear-gradient(135deg, #6366F1, #818CF8);
   --grad-orange: linear-gradient(135deg, #F97316, #E85D04);
+  --grad-amber: linear-gradient(135deg, #F59E0B, #D97706);
   --grad-brand-freeze: linear-gradient(135deg, var(--text-1), #38BDF8);
   --grad-brand-shop: linear-gradient(135deg, var(--text-1), #F59E0B);
   --grad-brand-app: linear-gradient(135deg, var(--text-1), #C4B5FD);
@@ -76,6 +78,7 @@
   --bg: linear-gradient(180deg, #F0F4FF 0%, #E8EEFF 40%, #EEF2FF 100%);
   --glow-1: radial-gradient(circle, rgba(56, 189, 248, 0.15) 0%, transparent 70%);
   --glow-2: radial-gradient(circle, rgba(99, 102, 241, 0.1) 0%, transparent 70%);
+  --glow-amber: radial-gradient(circle, rgba(245, 158, 11, 0.12) 0%, transparent 70%);
 
   --surface: rgba(255, 255, 255, 0.8);
   --surface-2: rgba(255, 255, 255, 0.7);
@@ -196,12 +199,16 @@
 @utility bg-modal { background: var(--modal-bg); }
 @utility bg-glow-1 { background: var(--glow-1); }
 @utility bg-glow-2 { background: var(--glow-2); }
+@utility bg-glow-amber { background: var(--glow-amber); }
+/* Horizontal fade into the page background (pinned scroll-row buttons) */
+@utility bg-fade-page { background: linear-gradient(to left, var(--page-bg) 60%, transparent); }
 @utility bg-grad-primary { background-image: var(--grad-primary); }
 @utility bg-grad-success { background-image: var(--grad-success); }
 @utility bg-grad-danger { background-image: var(--grad-danger); }
 @utility bg-grad-violet { background-image: var(--grad-violet); }
 @utility bg-grad-indigo { background-image: var(--grad-indigo); }
 @utility bg-grad-orange { background-image: var(--grad-orange); }
+@utility bg-grad-amber  { background-image: var(--grad-amber); }
 @utility bg-grad-brand-freeze { background-image: var(--grad-brand-freeze); }
 @utility bg-grad-brand-shop { background-image: var(--grad-brand-shop); }
 @utility bg-grad-brand-app { background-image: var(--grad-brand-app); }

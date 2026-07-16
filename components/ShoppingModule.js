@@ -1,11 +1,16 @@
 'use client';
 import { useState, useRef, useMemo } from 'react';
 import { SHOP_SUGG } from '@/lib/constants';
-import { F2, INP } from '@/lib/styles';
-import { Btn, Modal, ConfirmModal, LogoToggle } from './ui';
+import { cx } from '@/lib/utils';
+import { Screen, Btn, Modal, ConfirmModal, LogoToggle, Input, Label, IconButton, EmptyState } from './ui';
+
+const STORE_ICONS = ["🟢", "🟣", "🔵", "🟠", "🔴", "🟡", "⚫", "🏪"];
+
+// Amber-accent selectable chips (store tabs, quantity/store pickers)
+const CHIP_ON = "border-amber/40 bg-amber/12 text-amber";
+const CHIP_OFF = "border-line-strong bg-surface-2 text-ink-3";
 
 export default function ShoppingModule({
-  isDark, st,
   shopItems, dbShopAdd, dbShopUpdate, dbShopDelete,
   shopArchive, dbShopArchiveChecked,
   shopFavourites, dbShopToggleFav,
@@ -137,29 +142,29 @@ export default function ShoppingModule({
       byDate[k].push(a);
     });
     return (
-      <div style={st.A}><div style={st.F1} /><div style={st.F2} />
-        <div style={{ position: "relative", zIndex: 1, padding: "16px 16px calc(100px + env(safe-area-inset-bottom))" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, paddingTop: 12, marginBottom: 20 }}>
-            <button onClick={() => setShowShopArchive(false)} style={{ background: "rgba(30,41,59,0.8)", border: "1px solid rgba(71,85,105,0.3)", borderRadius: 12, padding: "10px 16px", color: "#94A3B8", fontSize: 14, cursor: "pointer", fontWeight: 600 }}>← Nazaj</button>
-            <h2 style={{ fontSize: 20, fontWeight: 800, margin: 0 }}>🧾 Zgodovina nakupov</h2>
+      <Screen glow2="bg-glow-amber">
+        <div className="relative z-1 pt-4 px-4 pb-[calc(100px+env(safe-area-inset-bottom))]">
+          <div className="flex items-center gap-3 pt-3 mb-5">
+            <button onClick={() => setShowShopArchive(false)} className="bg-field border border-line-strong rounded-12 py-2.5 px-4 text-ink-2 text-14 cursor-pointer font-semibold">← Nazaj</button>
+            <h2 className="text-20 font-extrabold">🧾 Zgodovina nakupov</h2>
           </div>
-          {shopArchive.length === 0 && <div style={{ textAlign: "center", padding: "48px 0", color: "#475569" }}><div style={{ fontSize: 48, marginBottom: 12 }}>🧾</div><p>Še ni opravljenih nakupov</p></div>}
+          {shopArchive.length === 0 && <EmptyState icon="🧾">Še ni opravljenih nakupov</EmptyState>}
           {Object.entries(byDate).map(([date, ditems]) => (
-            <div key={date} style={{ marginBottom: 16 }}>
-              <h3 style={{ fontSize: 14, fontWeight: 700, color: "#94A3B8", margin: "0 0 8px" }}>{date}</h3>
+            <div key={date} className="mb-4">
+              <h3 className="text-14 font-bold text-ink-2 mb-2">{date}</h3>
               {ditems.map((it, i) => {
                 const store = shopStores.find(s => s.id === it.store);
                 return (
-                  <div key={it.id + "-" + i} style={{ padding: "8px 12px", background: "rgba(30,41,59,0.4)", borderRadius: 10, marginBottom: 3, fontSize: 14, color: "#CBD5E1", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div key={it.id + "-" + i} className="py-2 px-3 bg-surface-2 rounded-10 mb-[3px] text-14 text-ink flex justify-between items-center">
                     <span>{it.name}{it.qty ? " · " + it.qty : ""}</span>
-                    {store && <span style={{ fontSize: 11, color: "#475569" }}>{store.icon} {store.name}</span>}
+                    {store && <span className="text-11 text-ink-dim">{store.icon} {store.name}</span>}
                   </div>
                 );
               })}
             </div>
           ))}
         </div>
-      </div>
+      </Screen>
     );
   }
 
@@ -221,82 +226,71 @@ export default function ShoppingModule({
         onDrop={handleDrop}
         onTouchStart={e => handleTouchStart(e, item)}
         onTouchEnd={e => handleTouchEnd(e, allItems || sortedShop)}
-        style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", background: item.checked ? "rgba(30,41,59,0.2)" : "rgba(30,41,59,0.5)", border: "1px solid " + (item.checked ? "rgba(71,85,105,0.08)" : "rgba(71,85,105,0.2)"), borderRadius: 14, opacity: item.checked ? 0.5 : 1, transition: "all 0.2s", touchAction: "pan-y" }}
+        className={cx("flex items-center gap-2.5 py-3 px-3.5 border rounded-14 transition-all duration-200 touch-pan-y",
+          item.checked ? "bg-surface-2/40 border-line/40 opacity-50" : "bg-surface-2 border-line")}
       >
-        {!item.checked && <span style={{ fontSize: 14, color: "#334155", cursor: "grab", flexShrink: 0, userSelect: "none" }}>⠿</span>}
-        <button onClick={(e) => { e.stopPropagation(); shopToggle(item.id); }} style={{ width: 28, height: 28, borderRadius: 8, border: "2px solid " + (item.checked ? "#22C55E" : "rgba(71,85,105,0.4)"), background: item.checked ? "#22C55E" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, fontSize: 14, color: "#fff", transition: "all 0.15s" }}>
+        {!item.checked && <span className="text-14 text-ink-dim cursor-grab shrink-0 select-none">⠿</span>}
+        <button onClick={(e) => { e.stopPropagation(); shopToggle(item.id); }} className={cx("w-7 h-7 rounded-8 border-2 flex items-center justify-center cursor-pointer shrink-0 text-14 text-white transition-all duration-150", item.checked ? "border-success bg-success" : "border-line-strong bg-transparent")}>
           {item.checked && "✓"}
         </button>
-        <div onClick={() => setShopDetail(item)} style={{ flex: 1, minWidth: 0, cursor: "pointer" }}>
-          <span style={{ fontSize: 16, fontWeight: 600, color: item.checked ? "#475569" : "#E2E8F0", textDecoration: item.checked ? "line-through" : "none" }}>{item.name}</span>
-          {item.qty && <span style={{ fontSize: 13, color: item.checked ? "#374151" : "#64748B", marginLeft: 8 }}>{item.qty}</span>}
+        <div onClick={() => setShopDetail(item)} className="flex-1 min-w-0 cursor-pointer">
+          <span className={cx("text-16 font-semibold", item.checked ? "text-ink-dim line-through" : "text-ink")}>{item.name}</span>
+          {item.qty && <span className={cx("text-13 ml-2", item.checked ? "text-ink-dim" : "text-ink-3")}>{item.qty}</span>}
         </div>
-        {activeStore === "all" && store && <span style={{ fontSize: 12, flexShrink: 0 }}>{store.icon}</span>}
+        {activeStore === "all" && store && <span className="text-12 shrink-0">{store.icon}</span>}
       </div>
     );
   };
 
   return (
-    <div style={st.A}><div style={st.F1} /><div style={{ ...F2, background: "radial-gradient(circle,rgba(245,158,11,0.06) 0%,transparent 70%)" }} />
-      <div style={{ position: "relative", zIndex: 1, padding: "16px 16px calc(100px + env(safe-area-inset-bottom))" }}>
+    <Screen glow2="bg-glow-amber">
+      <div className="relative z-1 pt-4 px-4 pb-[calc(100px+env(safe-area-inset-bottom))]">
 
         {/* Header */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", paddingTop: 12, marginBottom: 14 }}>
+        <div className="flex justify-between items-start pt-3 mb-3.5">
           <LogoToggle mode="shopping" onToggle={onToggleMode} />
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <button onClick={() => setShowShopArchive(true)} style={{ background: "rgba(30,41,59,0.6)", border: "1px solid rgba(71,85,105,0.2)", borderRadius: 10, padding: "8px 10px", color: "#64748B", fontSize: 14, cursor: "pointer", fontWeight: 600, lineHeight: 1 }}>🧾</button>
-            <button onClick={onOpenSettings} style={{ background: "rgba(30,41,59,0.6)", border: "1px solid rgba(71,85,105,0.2)", borderRadius: 10, padding: "8px 10px", color: "#64748B", fontSize: 14, cursor: "pointer", fontWeight: 600, lineHeight: 1 }}>⚙️</button>
+          <div className="flex gap-2 items-center">
+            <IconButton onClick={() => setShowShopArchive(true)}>🧾</IconButton>
+            <IconButton onClick={onOpenSettings}>⚙️</IconButton>
           </div>
         </div>
 
         {/* Store tabs — scrollable row + pinned ··· button */}
-        <div style={{ position: "relative", marginBottom: 14 }}>
-          <div style={{ display: "flex", gap: 6, overflowX: "auto", WebkitOverflowScrolling: "touch", scrollbarWidth: "none", msOverflowStyle: "none", paddingRight: 44 }}>
-            <button onClick={() => setActiveStore("all")} style={{
-              padding: "8px 14px", borderRadius: 14, border: "1px solid", flexShrink: 0,
-              borderColor: activeStore === "all" ? "rgba(245,158,11,0.4)" : "rgba(71,85,105,0.25)",
-              background: activeStore === "all" ? "rgba(245,158,11,0.12)" : "rgba(30,41,59,0.4)",
-              color: activeStore === "all" ? "#F59E0B" : "#64748B", fontSize: 13, fontWeight: 700, cursor: "pointer",
-            }}>Vse ({shopItems.filter(i => !i.checked).length})</button>
+        <div className="relative mb-3.5">
+          <div className="flex gap-1.5 overflow-x-auto pr-11 hide-scrollbar [-webkit-overflow-scrolling:touch]">
+            <button onClick={() => setActiveStore("all")} className={cx("py-2 px-3.5 rounded-14 border shrink-0 text-13 font-bold cursor-pointer", activeStore === "all" ? CHIP_ON : CHIP_OFF)}>
+              Vse ({shopItems.filter(i => !i.checked).length})
+            </button>
             {shopStores.map(s => {
               const cnt = shopItems.filter(i => i.store === s.id && !i.checked).length;
               return (
-                <button key={s.id} onClick={() => { setActiveStore(s.id); setLastStore(s.id); }} style={{
-                  padding: "8px 14px", borderRadius: 14, border: "1px solid", flexShrink: 0,
-                  borderColor: activeStore === s.id ? "rgba(245,158,11,0.4)" : "rgba(71,85,105,0.25)",
-                  background: activeStore === s.id ? "rgba(245,158,11,0.12)" : "rgba(30,41,59,0.4)",
-                  color: activeStore === s.id ? "#F59E0B" : "#64748B", fontSize: 13, fontWeight: 700, cursor: "pointer",
-                }}>{s.icon} {s.name} ({cnt})</button>
+                <button key={s.id} onClick={() => { setActiveStore(s.id); setLastStore(s.id); }} className={cx("py-2 px-3.5 rounded-14 border shrink-0 text-13 font-bold cursor-pointer", activeStore === s.id ? CHIP_ON : CHIP_OFF)}>
+                  {s.icon} {s.name} ({cnt})
+                </button>
               );
             })}
           </div>
-          <button onClick={() => setShowManageStores(true)} style={{
-            position: "absolute", right: 0, top: 0, bottom: 0,
-            width: 38, borderRadius: 12, border: "1px solid rgba(71,85,105,0.3)",
-            background: "linear-gradient(to left, rgba(11,17,32,1) 60%, rgba(11,17,32,0))",
-            color: "#64748B", fontSize: 15, fontWeight: 700, cursor: "pointer",
-            display: "flex", alignItems: "center", justifyContent: "flex-end", paddingRight: 4,
-          }}>···</button>
+          <button onClick={() => setShowManageStores(true)} className="absolute right-0 inset-y-0 w-[38px] rounded-12 border border-line-strong bg-fade-page text-ink-3 text-15 font-bold cursor-pointer flex items-center justify-end pr-1">···</button>
         </div>
 
         {/* Input - always visible */}
-        <div style={{ position: "relative", marginBottom: 14 }}>
+        <div className="relative mb-3.5">
           <input
             ref={shopInputRef}
             value={shopInput}
             onChange={e => shopInputChange(e.target.value)}
             onKeyDown={e => { if (e.key === "Enter") shopAddItem(shopInput); }}
             placeholder={"Dodaj" + (activeStore !== "all" ? " v " + shopStores.find(s => s.id === activeStore)?.name : "") + "..."}
-            style={{ ...INP, paddingRight: 50, border: "1px solid rgba(245,158,11,0.3)", fontSize: 17 }}
+            className="w-full box-border py-3.5 pl-4 pr-[50px] bg-field border border-amber/30 rounded-14 text-ink outline-none font-medium text-17"
           />
           {shopInput && (
-            <button onClick={() => shopAddItem(shopInput)} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", width: 36, height: 36, borderRadius: 10, border: "none", background: "linear-gradient(135deg,#F59E0B,#D97706)", color: "#fff", fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+            <button onClick={() => shopAddItem(shopInput)} className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-10 border-none bg-grad-amber text-white text-18 cursor-pointer flex items-center justify-center">+</button>
           )}
           {shopSugg.length > 0 && shopInput && (
-            <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, background: "#1E293B", border: "1px solid rgba(71,85,105,0.4)", borderRadius: 14, padding: 4, zIndex: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}>
+            <div className="absolute top-[calc(100%+4px)] inset-x-0 bg-surface-solid border border-line-strong rounded-14 p-1 z-10 shadow-pop">
               {shopSugg.map((s, i) => (
-                <button key={i} onMouseDown={() => shopAddItem(s)} style={{ width: "100%", padding: "12px 14px", border: "none", borderRadius: 10, background: "transparent", color: "#E2E8F0", fontSize: 15, cursor: "pointer", textAlign: "left", fontWeight: 500, display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ color: "#F59E0B" }}>+</span> {s}
+                <button key={i} onMouseDown={() => shopAddItem(s)} className="w-full py-3 px-3.5 border-none rounded-10 bg-transparent text-ink text-15 cursor-pointer text-left font-medium flex items-center gap-2">
+                  <span className="text-amber">+</span> {s}
                 </button>
               ))}
             </div>
@@ -304,41 +298,41 @@ export default function ShoppingModule({
         </div>
 
         {/* Count + "Bought" button */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-          <span style={{ fontSize: 13, color: "#64748B" }}>{uncheckedCount} za kupiti{checkedCount > 0 ? ` · ${checkedCount} ✓` : ""}</span>
+        <div className="flex justify-between items-center mb-3">
+          <span className="text-13 text-ink-3">{uncheckedCount} za kupiti{checkedCount > 0 ? ` · ${checkedCount} ✓` : ""}</span>
           {checkedCount > 0 && (
-            <button onClick={shopClearChecked} style={{ fontSize: 13, color: "#22C55E", fontWeight: 700, background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.2)", borderRadius: 10, padding: "6px 14px", cursor: "pointer" }}>🛒 Kupljeno</button>
+            <button onClick={shopClearChecked} className="text-13 text-success font-bold bg-success/10 border border-success/20 rounded-10 py-1.5 px-3.5 cursor-pointer">🛒 Kupljeno</button>
           )}
         </div>
 
         {/* Items — always grouped by category */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <div className="flex flex-col gap-4">
           {shopByCategory.groups.map(group => (
             <div key={group.label}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: "#475569", marginBottom: 6, paddingLeft: 2, textTransform: "uppercase", letterSpacing: 1 }}>{group.label}</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <div className="text-12 font-bold text-ink-dim mb-1.5 pl-0.5 uppercase tracking-[1px]">{group.label}</div>
+              <div className="flex flex-col gap-1">
                 {group.items.map(item => <ShopItemRow key={item.id} item={item} allItems={group.items} />)}
               </div>
             </div>
           ))}
           {shopByCategory.checked.length > 0 && (
             <div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: "#374151", marginBottom: 6, paddingLeft: 2, textTransform: "uppercase", letterSpacing: 1 }}>✓ Kupljeno</div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <div className="text-12 font-bold text-ink-dim mb-1.5 pl-0.5 uppercase tracking-[1px]">✓ Kupljeno</div>
+              <div className="flex flex-col gap-1">
                 {shopByCategory.checked.map(item => <ShopItemRow key={item.id} item={item} allItems={shopByCategory.checked} />)}
               </div>
             </div>
           )}
         </div>
 
-        {shopItems.length === 0 && <div style={{ textAlign: "center", padding: "48px 0", color: "#475569" }}><div style={{ fontSize: 48, marginBottom: 12 }}>🛒</div><p>Seznam je prazen — dodaj prvi izdelek!</p></div>}
+        {shopItems.length === 0 && <EmptyState icon="🛒">Seznam je prazen — dodaj prvi izdelek!</EmptyState>}
       </div>
 
       {/* Shopping item detail modal */}
       {shopDetail && (
-        <Modal isDark={isDark} onClose={() => { setShopDetail(null); setEditingId(null); }}>
-          <div style={{ textAlign: "center", marginBottom: 20 }}>
-            <div style={{ fontSize: 48, marginBottom: 8 }}>🛒</div>
+        <Modal onClose={() => { setShopDetail(null); setEditingId(null); }}>
+          <div className="text-center mb-5">
+            <div className="text-48 mb-2">🛒</div>
             {editingId === shopDetail.id ? (
               <input
                 autoFocus
@@ -361,18 +355,18 @@ export default function ShoppingModule({
                   }
                   if (e.key === "Escape") setEditingId(null);
                 }}
-                style={{ fontSize: 22, fontWeight: 800, color: "#E2E8F0", background: "transparent", border: "none", borderBottom: "2px solid #F59E0B", outline: "none", textAlign: "center", width: "100%", padding: "4px 0" }}
+                className="text-22 font-extrabold text-ink bg-transparent border-0 border-b-2 border-amber outline-none text-center w-full py-1"
               />
             ) : (
-              <h2 onClick={() => { setEditingId(shopDetail.id); setEditingName(shopDetail.name); }} style={{ fontSize: 22, fontWeight: 800, margin: "0 0 4px", cursor: "pointer" }}>
-                {shopDetail.name} <span style={{ fontSize: 14, color: "#475569" }}>✎</span>
+              <h2 onClick={() => { setEditingId(shopDetail.id); setEditingName(shopDetail.name); }} className="text-22 font-extrabold mb-1 cursor-pointer">
+                {shopDetail.name} <span className="text-14 text-ink-dim">✎</span>
               </h2>
             )}
-            {shopDetail.favourite && <span style={{ fontSize: 13, color: "#F59E0B", fontWeight: 600 }}>⭐ Priljubljen</span>}
+            {shopDetail.favourite && <span className="text-13 text-amber font-semibold">⭐ Priljubljen</span>}
           </div>
 
-          <label style={st.LBL}>Količina</label>
-          <input
+          <Label>Količina</Label>
+          <Input
             value={shopDetail.qty}
             onChange={e => {
               const q = e.target.value;
@@ -380,37 +374,35 @@ export default function ShoppingModule({
               dbShopUpdate(shopDetail.id, { qty: q });
             }}
             placeholder="npr. 1kg, 3×, 500ml..."
-            style={{ ...INP, marginBottom: 8 }}
+            className="mb-2"
           />
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 20 }}>
+          <div className="flex gap-1.5 flex-wrap mb-5">
             {["1×", "2×", "3×", "100g", "250g", "500g", "1kg", "1L"].map(q => (
               <button key={q} onClick={() => {
                 setShopDetail(d => ({ ...d, qty: q }));
                 dbShopUpdate(shopDetail.id, { qty: q });
-              }} style={{ padding: "8px 12px", borderRadius: 12, border: "1px solid " + (shopDetail.qty === q ? "rgba(245,158,11,0.5)" : "rgba(71,85,105,0.3)"), background: shopDetail.qty === q ? "rgba(245,158,11,0.15)" : "rgba(30,41,59,0.5)", color: shopDetail.qty === q ? "#F59E0B" : "#94A3B8", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>{q}</button>
+              }} className={cx("py-2 px-3 rounded-12 border text-13 font-semibold cursor-pointer", shopDetail.qty === q ? "border-amber/50 bg-amber/15 text-amber" : "border-line-strong bg-surface-2 text-ink-2")}>{q}</button>
             ))}
           </div>
 
           {/* Store picker */}
-          <label style={st.LBL}>Trgovina</label>
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 16 }}>
+          <Label>Trgovina</Label>
+          <div className="flex gap-1.5 flex-wrap mb-4">
             {shopStores.map(s => (
               <button key={s.id} onClick={() => {
                 setShopDetail(d => ({ ...d, store: s.id }));
                 dbShopUpdate(shopDetail.id, { store: s.id });
-              }} style={{
-                padding: "9px 14px", borderRadius: 12, border: "1px solid " + (shopDetail.store === s.id ? "rgba(245,158,11,0.5)" : "rgba(71,85,105,0.3)"),
-                background: shopDetail.store === s.id ? "rgba(245,158,11,0.12)" : "rgba(30,41,59,0.5)",
-                color: shopDetail.store === s.id ? "#F59E0B" : "#94A3B8", fontSize: 13, fontWeight: 700, cursor: "pointer",
-              }}>{s.icon} {s.name}</button>
+              }} className={cx("py-2.25 px-3.5 rounded-12 border text-13 font-bold cursor-pointer", shopDetail.store === s.id ? "border-amber/50 bg-amber/12 text-amber" : "border-line-strong bg-surface-2 text-ink-2")}>
+                {s.icon} {s.name}
+              </button>
             ))}
           </div>
 
-          <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+          <div className="flex gap-2 mb-2">
             <button onClick={async () => {
               await shopToggleFav(shopDetail.id);
               setShopDetail(d => ({ ...d, favourite: !d.favourite }));
-            }} style={{ flex: 1, padding: "13px", borderRadius: 14, border: "1px solid " + (shopDetail.favourite ? "rgba(245,158,11,0.4)" : "rgba(71,85,105,0.3)"), background: shopDetail.favourite ? "rgba(245,158,11,0.1)" : "rgba(30,41,59,0.6)", color: shopDetail.favourite ? "#F59E0B" : "#94A3B8", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
+            }} className={cx("flex-1 p-3.25 rounded-14 border text-14 font-bold cursor-pointer", shopDetail.favourite ? "border-amber/40 bg-amber/10 text-amber" : "border-line-strong bg-surface text-ink-2")}>
               {shopDetail.favourite ? "⭐ Priljubljen" : "☆ Priljubljen"}
             </button>
           </div>
@@ -418,51 +410,46 @@ export default function ShoppingModule({
           <button onClick={async () => {
             await dbShopDelete(shopDetail.id);
             setShopDetail(null);
-          }} style={{ width: "100%", padding: "12px", borderRadius: 14, border: "1px solid rgba(239,68,68,0.2)", background: "rgba(239,68,68,0.05)", color: "#EF4444", fontSize: 14, fontWeight: 600, cursor: "pointer", opacity: 0.8 }}>🗑 Odstrani s seznama</button>
+          }} className="w-full p-3 rounded-14 border border-danger/20 bg-danger/5 text-danger text-14 font-semibold cursor-pointer opacity-80">🗑 Odstrani s seznama</button>
         </Modal>
       )}
 
       {/* Manage stores modal */}
       {showManageStores && (
-        <Modal isDark={isDark} onClose={() => { setShowManageStores(false); setShowAddStoreForm(false); setEditingStore(null); setNewStore({ name: "", icon: "🔵" }); }}>
-          <h3 style={{ fontSize: 18, fontWeight: 800, margin: "0 0 16px", textAlign: "center" }}>Trgovine</h3>
+        <Modal onClose={() => { setShowManageStores(false); setShowAddStoreForm(false); setEditingStore(null); setNewStore({ name: "", icon: "🔵" }); }}>
+          <h3 className="text-18 font-extrabold mb-4 text-center">Trgovine</h3>
 
           {/* All stores — select, edit or delete */}
           {shopStores.map(s => {
             const cnt = shopItems.filter(i => i.store === s.id && !i.checked).length;
             const isEditing = editingStore?.id === s.id;
             return (
-              <div key={s.id} style={{ marginBottom: 8 }}>
+              <div key={s.id} className="mb-2">
                 {isEditing ? (
-                  <div style={{ background: "rgba(30,41,59,0.5)", border: "1px solid rgba(71,85,105,0.25)", borderRadius: 14, padding: "12px 14px" }}>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 10 }}>
-                      {["🟢", "🟣", "🔵", "🟠", "🔴", "🟡", "⚫", "🏪"].map(ic => (
-                        <button key={ic} onClick={() => setEditingStore(e => ({ ...e, icon: ic }))} style={{ aspectRatio: "1", borderRadius: 10, fontSize: 22, border: "2px solid " + (editingStore.icon === ic ? "#F59E0B" : "rgba(71,85,105,0.3)"), background: editingStore.icon === ic ? "rgba(245,158,11,0.12)" : "rgba(30,41,59,0.5)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>{ic}</button>
+                  <div className="bg-surface-2 border border-line-strong rounded-14 py-3 px-3.5">
+                    <div className="grid grid-cols-4 gap-2 mb-2.5">
+                      {STORE_ICONS.map(ic => (
+                        <button key={ic} onClick={() => setEditingStore(e => ({ ...e, icon: ic }))} className={cx("aspect-square rounded-10 text-22 border-2 cursor-pointer flex items-center justify-center", editingStore.icon === ic ? "border-amber bg-amber/12" : "border-line-strong bg-surface-2")}>{ic}</button>
                       ))}
                     </div>
-                    <input autoFocus value={editingStore.name} onChange={e => setEditingStore(es => ({ ...es, name: e.target.value }))} style={{ ...INP, marginBottom: 10 }} />
-                    <div style={{ display: "flex", gap: 8 }}>
+                    <Input autoFocus value={editingStore.name} onChange={e => setEditingStore(es => ({ ...es, name: e.target.value }))} className="mb-2.5" />
+                    <div className="flex gap-2">
                       <Btn onClick={async () => { await dbUpdateStore(editingStore.id, { name: editingStore.name, icon: editingStore.icon }); setEditingStore(null); }} disabled={!editingStore.name}>Shrani</Btn>
                       <Btn v="ghost" onClick={() => setEditingStore(null)}>Prekliči</Btn>
                     </div>
                   </div>
                 ) : (
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <button onClick={() => { setActiveStore(s.id); setLastStore(s.id); setShowManageStores(false); setShowAddStoreForm(false); }} style={{
-                      flex: 1, display: "flex", alignItems: "center", gap: 10, padding: "12px 14px",
-                      background: activeStore === s.id ? "rgba(245,158,11,0.12)" : "rgba(30,41,59,0.5)",
-                      border: "1px solid " + (activeStore === s.id ? "rgba(245,158,11,0.4)" : "rgba(71,85,105,0.25)"),
-                      borderRadius: 14, cursor: "pointer", textAlign: "left",
-                    }}>
-                      <span style={{ fontSize: 20 }}>{s.icon}</span>
-                      <span style={{ fontSize: 14, fontWeight: 700, color: activeStore === s.id ? "#F59E0B" : "#E2E8F0" }}>{s.name}</span>
-                      {cnt > 0 && <span style={{ fontSize: 12, color: "#64748B", marginLeft: "auto" }}>{cnt}</span>}
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => { setActiveStore(s.id); setLastStore(s.id); setShowManageStores(false); setShowAddStoreForm(false); }} className={cx("flex-1 flex items-center gap-2.5 py-3 px-3.5 border rounded-14 cursor-pointer text-left", activeStore === s.id ? "bg-amber/12 border-amber/40" : "bg-surface-2 border-line-strong")}>
+                      <span className="text-20">{s.icon}</span>
+                      <span className={cx("text-14 font-bold", activeStore === s.id ? "text-amber" : "text-ink")}>{s.name}</span>
+                      {cnt > 0 && <span className="text-12 text-ink-3 ml-auto">{cnt}</span>}
                     </button>
-                    <button onClick={() => { setEditingStore({ id: s.id, name: s.name, icon: s.icon }); setShowAddStoreForm(false); }} style={{ width: 40, height: 40, borderRadius: 12, border: "1px solid rgba(71,85,105,0.25)", background: "rgba(30,41,59,0.5)", color: "#94A3B8", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>✏️</button>
+                    <button onClick={() => { setEditingStore({ id: s.id, name: s.name, icon: s.icon }); setShowAddStoreForm(false); }} className="w-10 h-10 rounded-12 border border-line-strong bg-surface-2 text-ink-2 text-16 cursor-pointer flex items-center justify-center shrink-0">✏️</button>
                     <button onClick={() => setConfirmAction({
                       message: `Izbriši trgovino ${s.name}?`,
                       onConfirm: async () => { await dbDeleteStore(s.id); if (activeStore === s.id) setActiveStore("all"); },
-                    })} style={{ width: 40, height: 40, borderRadius: 12, border: "1px solid rgba(239,68,68,0.2)", background: "rgba(239,68,68,0.06)", color: "#EF4444", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>🗑</button>
+                    })} className="w-10 h-10 rounded-12 border border-danger/20 bg-danger/6 text-danger text-16 cursor-pointer flex items-center justify-center shrink-0">🗑</button>
                   </div>
                 )}
               </div>
@@ -470,19 +457,19 @@ export default function ShoppingModule({
           })}
 
           {/* Add new store — collapsed by default */}
-          <div style={{ borderTop: "1px solid rgba(71,85,105,0.2)", marginTop: 12, paddingTop: 12 }}>
+          <div className="border-t border-line mt-3 pt-3">
             {!showAddStoreForm ? (
-              <button onClick={() => setShowAddStoreForm(true)} style={{ width: "100%", padding: "12px", borderRadius: 14, border: "1px dashed rgba(71,85,105,0.4)", background: "transparent", color: "#64748B", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>+ Nova trgovina</button>
+              <button onClick={() => setShowAddStoreForm(true)} className="w-full p-3 rounded-14 border border-dashed border-line-strong bg-transparent text-ink-3 text-14 font-semibold cursor-pointer">+ Nova trgovina</button>
             ) : (
               <div>
-                <label style={st.LBL}>Nova trgovina</label>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 12 }}>
-                  {["🟢", "🟣", "🔵", "🟠", "🔴", "🟡", "⚫", "🏪"].map(ic => (
-                    <button key={ic} onClick={() => setNewStore(s => ({ ...s, icon: ic }))} style={{ aspectRatio: "1", borderRadius: 10, fontSize: 22, border: "2px solid " + (newStore.icon === ic ? "#F59E0B" : "rgba(71,85,105,0.3)"), background: newStore.icon === ic ? "rgba(245,158,11,0.12)" : "rgba(30,41,59,0.5)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>{ic}</button>
+                <Label>Nova trgovina</Label>
+                <div className="grid grid-cols-4 gap-2 mb-3">
+                  {STORE_ICONS.map(ic => (
+                    <button key={ic} onClick={() => setNewStore(s => ({ ...s, icon: ic }))} className={cx("aspect-square rounded-10 text-22 border-2 cursor-pointer flex items-center justify-center", newStore.icon === ic ? "border-amber bg-amber/12" : "border-line-strong bg-surface-2")}>{ic}</button>
                   ))}
                 </div>
-                <input autoFocus value={newStore.name} onChange={e => setNewStore(s => ({ ...s, name: e.target.value }))} onKeyDown={e => { if (e.key === "Enter" && newStore.name) addNewStore(); }} placeholder="npr. Hofer, Spar..." style={{ ...INP, marginBottom: 10 }} />
-                <div style={{ display: "flex", gap: 8 }}>
+                <Input autoFocus value={newStore.name} onChange={e => setNewStore(s => ({ ...s, name: e.target.value }))} onKeyDown={e => { if (e.key === "Enter" && newStore.name) addNewStore(); }} placeholder="npr. Hofer, Spar..." className="mb-2.5" />
+                <div className="flex gap-2">
                   <Btn onClick={addNewStore} disabled={!newStore.name}>Dodaj</Btn>
                   <Btn v="ghost" onClick={() => { setShowAddStoreForm(false); setNewStore({ name: "", icon: "🔵" }); }}>Prekliči</Btn>
                 </div>
@@ -492,7 +479,7 @@ export default function ShoppingModule({
         </Modal>
       )}
 
-      <ConfirmModal action={confirmAction} onClose={() => setConfirmAction(null)} isDark={isDark} />
-    </div>
+      <ConfirmModal action={confirmAction} onClose={() => setConfirmAction(null)} />
+    </Screen>
   );
 }

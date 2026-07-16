@@ -282,7 +282,6 @@ export default function AppShell({ user, household, members, signOut }) {
     return (
       <>
         <ShoppingModule
-          isDark={isDark} st={st}
           shopItems={shopItems} dbShopAdd={dbShopAdd} dbShopUpdate={dbShopUpdate} dbShopDelete={dbShopDelete}
           shopArchive={shopArchive} dbShopArchiveChecked={dbShopArchiveChecked}
           shopFavourites={shopFavourites} dbShopToggleFav={dbShopToggleFav}

@@ -22,6 +22,78 @@ import {
 
 const STORE_ICONS = ['🟢', '🟣', '🔵', '🟠', '🔴', '🟡', '⚫', '🏪'];
 
+// Module scope on purpose: defined inside ShoppingModule its identity would
+// change every render, remounting all rows (and killing their transitions).
+function ShopItemRow({
+  item,
+  allItems,
+  store,
+  activeStore,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onTouchStart,
+  onTouchEnd,
+  onToggle,
+  onOpenDetail,
+}) {
+  return (
+    <div
+      draggable={!item.checked}
+      onDragStart={(e) => onDragStart(e, item)}
+      onDragOver={(e) => onDragOver(e, item)}
+      onDrop={onDrop}
+      onTouchStart={(e) => onTouchStart(e, item)}
+      onTouchEnd={(e) => onTouchEnd(e, allItems)}
+      className={cx(
+        'flex touch-pan-y items-center gap-2.5 rounded-xl border px-3.5 py-3 transition-all duration-200',
+        item.checked
+          ? 'border-indigo-500/6 bg-white/30 opacity-50 dark:border-slate-600/8 dark:bg-slate-800/20'
+          : 'border-indigo-500/15 bg-white/70 dark:border-slate-600/20 dark:bg-slate-800/50',
+      )}
+    >
+      {!item.checked && (
+        <span className="shrink-0 cursor-grab text-sm text-slate-300 select-none dark:text-slate-600">⠿</span>
+      )}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggle(item.id);
+        }}
+        className={cx(
+          'flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-lg border-2 text-sm text-white transition-all duration-150',
+          item.checked
+            ? 'border-green-500 bg-green-500'
+            : 'border-indigo-500/20 bg-transparent dark:border-slate-600/30',
+        )}
+      >
+        {item.checked && '✓'}
+      </button>
+      <div onClick={() => onOpenDetail(item)} className="min-w-0 flex-1 cursor-pointer">
+        <span
+          className={cx(
+            'text-base font-semibold',
+            item.checked ? 'text-slate-300 line-through dark:text-slate-600' : 'text-slate-800 dark:text-slate-200',
+          )}
+        >
+          {item.name}
+        </span>
+        {item.qty && (
+          <span
+            className={cx(
+              'ml-2 text-sm',
+              item.checked ? 'text-slate-300 dark:text-slate-600' : 'text-slate-400 dark:text-slate-500',
+            )}
+          >
+            {item.qty}
+          </span>
+        )}
+      </div>
+      {activeStore === 'all' && store && <span className="shrink-0 text-xs">{store.icon}</span>}
+    </div>
+  );
+}
+
 export default function ShoppingModule({
   shopItems,
   dbShopAdd,
@@ -252,7 +324,6 @@ export default function ShoppingModule({
     );
   }
 
-  // Render a single shop item row
   const handleDragStart = (e, item) => {
     dragItem.current = item;
     e.dataTransfer.effectAllowed = 'move';
@@ -303,63 +374,16 @@ export default function ShoppingModule({
     ]);
   };
 
-  const ShopItemRow = ({ item, allItems }) => {
-    const store = shopStores.find((s) => s.id === item.store);
-    return (
-      <div
-        draggable={!item.checked}
-        onDragStart={(e) => handleDragStart(e, item)}
-        onDragOver={(e) => handleDragOver(e, item)}
-        onDrop={handleDrop}
-        onTouchStart={(e) => handleTouchStart(e, item)}
-        onTouchEnd={(e) => handleTouchEnd(e, allItems || sortedShop)}
-        className={cx(
-          'flex touch-pan-y items-center gap-2.5 rounded-xl border px-3.5 py-3 transition-all duration-200',
-          item.checked
-            ? 'border-indigo-500/6 bg-white/30 opacity-50 dark:border-slate-600/8 dark:bg-slate-800/20'
-            : 'border-indigo-500/15 bg-white/70 dark:border-slate-600/20 dark:bg-slate-800/50',
-        )}
-      >
-        {!item.checked && (
-          <span className="shrink-0 cursor-grab text-sm text-slate-300 select-none dark:text-slate-600">⠿</span>
-        )}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            shopToggle(item.id);
-          }}
-          className={cx(
-            'flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-lg border-2 text-sm text-white transition-all duration-150',
-            item.checked
-              ? 'border-green-500 bg-green-500'
-              : 'border-indigo-500/20 bg-transparent dark:border-slate-600/30',
-          )}
-        >
-          {item.checked && '✓'}
-        </button>
-        <div onClick={() => setShopDetail(item)} className="min-w-0 flex-1 cursor-pointer">
-          <span
-            className={cx(
-              'text-base font-semibold',
-              item.checked ? 'text-slate-300 line-through dark:text-slate-600' : 'text-slate-800 dark:text-slate-200',
-            )}
-          >
-            {item.name}
-          </span>
-          {item.qty && (
-            <span
-              className={cx(
-                'ml-2 text-sm',
-                item.checked ? 'text-slate-300 dark:text-slate-600' : 'text-slate-400 dark:text-slate-500',
-              )}
-            >
-              {item.qty}
-            </span>
-          )}
-        </div>
-        {activeStore === 'all' && store && <span className="shrink-0 text-xs">{store.icon}</span>}
-      </div>
-    );
+  // Shared props for the module-scope ShopItemRow.
+  const rowProps = {
+    activeStore,
+    onDragStart: handleDragStart,
+    onDragOver: handleDragOver,
+    onDrop: handleDrop,
+    onTouchStart: handleTouchStart,
+    onTouchEnd: handleTouchEnd,
+    onToggle: shopToggle,
+    onOpenDetail: setShopDetail,
   };
 
   return (
@@ -483,7 +507,13 @@ export default function ShoppingModule({
               </div>
               <div className="flex flex-col gap-1">
                 {group.items.map((item) => (
-                  <ShopItemRow key={item.id} item={item} allItems={group.items} />
+                  <ShopItemRow
+                    key={item.id}
+                    item={item}
+                    allItems={group.items}
+                    store={shopStores.find((s) => s.id === item.store)}
+                    {...rowProps}
+                  />
                 ))}
               </div>
             </div>
@@ -495,7 +525,13 @@ export default function ShoppingModule({
               </div>
               <div className="flex flex-col gap-1">
                 {shopByCategory.checked.map((item) => (
-                  <ShopItemRow key={item.id} item={item} allItems={shopByCategory.checked} />
+                  <ShopItemRow
+                    key={item.id}
+                    item={item}
+                    allItems={shopByCategory.checked}
+                    store={shopStores.find((s) => s.id === item.store)}
+                    {...rowProps}
+                  />
                 ))}
               </div>
             </div>

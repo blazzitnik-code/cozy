@@ -36,6 +36,28 @@ export function ConfirmModal({ action, onClose, isDark = true }) {
   );
 }
 
+// ─── LOGO / MODE TOGGLE (freezer ↔ shopping) ───
+export function LogoToggle({ mode, onToggle }) {
+  return (
+    <button onClick={onToggle} style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+      {mode === "freezer" ? (
+        <span style={{ fontSize: 28, fontWeight: 900, letterSpacing: "-0.5px" }}>
+          <span style={{ background: "linear-gradient(135deg,#E2E8F0,#38BDF8)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>ZMRZK</span>
+          <span style={{ color: "#38BDF8" }}>❄️</span>
+        </span>
+      ) : (
+        <span style={{ fontSize: 28, fontWeight: 900, letterSpacing: "-0.5px" }}>
+          <span style={{ background: "linear-gradient(135deg,#E2E8F0,#F59E0B)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>TRGOVK</span>
+          <span>🛒</span>
+        </span>
+      )}
+      <div style={{ fontSize: 10, color: "#475569", marginTop: 2, textAlign: "left" }}>
+        Tapni za {mode === "freezer" ? "nakupovalni seznam" : "zamrzovalnik"}
+      </div>
+    </button>
+  );
+}
+
 // ─── BOTTOM NAV ───
 const NAV_TABS = [
   { id: "home",     icon: "🏠", label: "Dom" },

@@ -4,7 +4,8 @@ import { useItems, useArchived, useFreezers, useCategories, useShoppingItems, us
 import { useT } from '@/lib/i18n';
 import { supabase } from '@/lib/supabase';
 import { getStyles, A } from '@/lib/styles';
-import { Modal, ConfirmModal, BottomNav } from './ui';
+import { Modal, ConfirmModal, BottomNav, Toaster } from './ui';
+import { notifyError } from '@/lib/notify';
 import TodoApp from './TodoApp';
 import HomeScreen from './HomeScreen';
 import FreezerModule from './FreezerModule';
@@ -214,7 +215,7 @@ export default function AppShell({ user, household, members, signOut }) {
                     message: `Odstrani ${m.display_name || "člana"} iz gospodinjstva?`,
                     onConfirm: async () => {
                       const { error } = await supabase.rpc('remove_household_member', { p_member_id: m.id });
-                      if (error) alert('Napaka: ' + error.message);
+                      if (error) notifyError(error.message);
                     },
                   })} style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.2)", color: "#EF4444", fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
                 )
@@ -256,6 +257,7 @@ export default function AppShell({ user, household, members, signOut }) {
       <BottomNav mode={mode} onNavigate={navigate} />
       <SettingsModal />
       <ConfirmModal action={confirmAction} onClose={() => setConfirmAction(null)} isDark={isDark} />
+      <Toaster />
     </>
   );
 
@@ -294,6 +296,7 @@ export default function AppShell({ user, household, members, signOut }) {
       <div style={{ position: "relative" }}>
         <TodoApp user={user} householdId={householdId} members={members} lang={lang} isDark={isDark} />
         <BottomNav mode={mode} onNavigate={navigate} />
+        <Toaster />
       </div>
     );
   }

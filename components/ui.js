@@ -1,5 +1,6 @@
 'use client';
-import { useState, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
+import { subscribeToErrors } from '@/lib/notify';
 
 // ─── SMALL COMPONENTS ───
 export function Pill({ active, color, onClick, children, small }) {
@@ -33,6 +34,27 @@ export function ConfirmModal({ action, onClose, isDark = true }) {
         <button onClick={onClose} style={{ flex: 1, padding: "14px", borderRadius: 14, border: "1px solid rgba(71,85,105,0.3)", background: "transparent", color: "#94A3B8", fontSize: 15, fontWeight: 600, cursor: "pointer" }}>Prekliči</button>
       </div>
     </Modal>
+  );
+}
+
+// ─── ERROR TOASTER (fed by lib/notify.js) ───
+export function Toaster() {
+  const [toasts, setToasts] = useState([]);
+  useEffect(() => subscribeToErrors(message => {
+    const id = Date.now() + Math.random();
+    setToasts(t => [...t, { id, message }]);
+    setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 4000);
+  }), []);
+  if (toasts.length === 0) return null;
+  return (
+    <div style={{ position: "fixed", top: "calc(12px + env(safe-area-inset-top))", left: "50%", transform: "translateX(-50%)", width: "calc(100% - 32px)", maxWidth: 398, display: "flex", flexDirection: "column", gap: 8, zIndex: 300, pointerEvents: "none" }}>
+      {toasts.map(t => (
+        <div key={t.id} onClick={() => setToasts(ts => ts.filter(x => x.id !== t.id))} style={{ pointerEvents: "auto", display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", background: "rgba(69,10,10,0.95)", border: "1px solid rgba(239,68,68,0.4)", borderRadius: 14, color: "#FCA5A5", fontSize: 14, fontWeight: 600, boxShadow: "0 8px 24px rgba(0,0,0,0.4)", cursor: "pointer", backdropFilter: "blur(8px)" }}>
+          <span style={{ fontSize: 16 }}>⚠️</span>
+          <span style={{ flex: 1 }}>{t.message}</span>
+        </div>
+      ))}
+    </div>
   );
 }
 

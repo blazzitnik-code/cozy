@@ -19,21 +19,28 @@ export const viewport = {
   userScalable: false,
   viewportFit: 'cover',
   interactiveWidget: 'resizes-visual',
-  themeColor: '#0B1120',
+  themeColor: '#020617',
 };
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="sl">
+    // data-theme="dark" is the SSR default; the pre-paint script below may
+    // flip it to the saved theme before hydration → suppressHydrationWarning.
+    <html
+      lang="sl"
+      data-theme="dark"
+      suppressHydrationWarning
+      className="bg-indigo-50 text-slate-800 scheme-light overscroll-none overflow-x-hidden antialiased dark:bg-slate-950 dark:text-slate-200 dark:scheme-dark"
+    >
       <head>
-        {/* Apply saved theme before first paint (tokens in globals.css key off data-theme) */}
+        {/* Apply saved theme before first paint (dark: classes key off data-theme) */}
         <script dangerouslySetInnerHTML={{ __html: `try{var t=localStorage.getItem('zmrzko_theme');if(t)document.documentElement.dataset.theme=t}catch(e){}` }} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
         <link rel="apple-touch-icon" href="/icon-192.png" />
       </head>
-      <body>{children}</body>
+      <body className="pt-[env(safe-area-inset-top)]">{children}</body>
       <Script src="https://accounts.google.com/gsi/client" strategy="afterInteractive" />
     </html>
   );

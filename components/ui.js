@@ -16,6 +16,19 @@ export function Screen({ children, center = false }) {
   );
 }
 
+// Full-screen brand loader (auth + data loading gates).
+export function Loader() {
+  return (
+    <Screen center>
+      <div className="text-center">
+        <div className="text-64 mb-4">🏠</div>
+        <div className="text-28 font-black"><span className="bg-grad-brand-app text-gradient">Cožy</span></div>
+        <div className="text-ink-dim mt-2 text-14">Nalagam...</div>
+      </div>
+    </Screen>
+  );
+}
+
 // ─── SMALL COMPONENTS ───
 export function Pill({ active, color, onClick, children, small }) {
   return (

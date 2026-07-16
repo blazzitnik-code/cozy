@@ -113,7 +113,7 @@ export function Fab({ onClick, children = "+", className }) {
   return (
     <button
       onClick={onClick}
-      className={cx("fixed bottom-[calc(74px+env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 w-[62px] h-[62px] rounded-full border-none bg-linear-135 from-sky-500 to-indigo-500 text-white text-3xl font-light cursor-pointer shadow-xl shadow-sky-500/40 ring-4 ring-sky-500/10 flex items-center justify-center z-50", className)}
+      className={cx("fixed bottom-[calc(74px+env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 w-15.5 h-15.5 rounded-full border-none bg-linear-135 from-sky-500 to-indigo-500 text-white text-3xl font-light cursor-pointer shadow-xl shadow-sky-500/40 ring-4 ring-sky-500/10 flex items-center justify-center z-50", className)}
     >{children}</button>
   );
 }

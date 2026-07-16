@@ -152,9 +152,9 @@ export default function AppShell({ user, household, members, signOut }) {
     return (
       <Modal onClose={() => setShowSettings(false)}>
         <div className="text-center mb-5">
-          <div className="text-48 mb-2">🏠</div>
-          <h2 className="text-20 font-extrabold mb-1">{household.name}</h2>
-          <p className="text-ink-3 text-13">Prijavljen kot {user.user_metadata?.full_name || user.email}</p>
+          <div className="text-5xl mb-2">🏠</div>
+          <h2 className="text-xl font-extrabold mb-1">{household.name}</h2>
+          <p className="text-slate-400 dark:text-slate-500 text-sm">Prijavljen kot {user.user_metadata?.full_name || user.email}</p>
         </div>
 
         {/* LANGUAGE SWITCHER */}
@@ -170,24 +170,24 @@ export default function AppShell({ user, household, members, signOut }) {
         />
 
         {/* Join code */}
-        <div className="p-4 bg-accent/6 border border-accent/20 rounded-14 mb-4 text-center">
-          <div className="text-11 text-accent uppercase tracking-[1px] font-bold mb-1.5">{t('kodaZaPovabilo')}</div>
-          <div className="text-32 font-black tracking-[8px] text-ink">{household.join_code}</div>
-          <div className="text-12 text-ink-dim mt-1">Deli to kodo z družino ali partnerjem</div>
+        <div className="p-4 bg-sky-400/6 border border-sky-400/20 rounded-xl mb-4 text-center">
+          <div className="text-xs text-sky-400 uppercase tracking-[1px] font-bold mb-1.5">{t('kodaZaPovabilo')}</div>
+          <div className="text-4xl font-black tracking-[8px] text-slate-800 dark:text-slate-200">{household.join_code}</div>
+          <div className="text-xs text-slate-300 dark:text-slate-600 mt-1">Deli to kodo z družino ali partnerjem</div>
         </div>
 
         {/* Members */}
         <div className="mb-5">
-          <div className="text-13 font-bold text-ink-2 mb-2">{t('člani')} ({members.length})</div>
+          <div className="text-sm font-bold text-slate-500 dark:text-slate-400 mb-2">{t('člani')} ({members.length})</div>
           {members.map(m => (
-            <div key={m.id} className="flex items-center gap-2.5 py-2.5 px-3 bg-surface-2 rounded-12 mb-1 border border-line">
+            <div key={m.id} className="flex items-center gap-2.5 py-2.5 px-3 bg-white/70 dark:bg-slate-800/50 rounded-xl mb-1 border border-indigo-500/15 dark:border-slate-600/20">
               <Avatar name={m.display_name} />
               <div className="flex-1">
-                <div className="text-14 font-semibold text-ink">{m.display_name || "Uporabnik"}</div>
-                <div className="text-11 text-ink-dim">{m.role === "owner" ? t('lastnik') : t('član')}</div>
+                <div className="text-sm font-semibold text-slate-800 dark:text-slate-200">{m.display_name || "Uporabnik"}</div>
+                <div className="text-xs text-slate-300 dark:text-slate-600">{m.role === "owner" ? t('lastnik') : t('član')}</div>
               </div>
               {m.user_id === user.id
-                ? <span className="text-11 text-accent font-semibold">Ti</span>
+                ? <span className="text-xs text-sky-400 font-semibold">Ti</span>
                 : members.find(x => x.user_id === user.id)?.role === "owner" && (
                   <button onClick={() => setConfirmAction({
                     message: `Odstrani ${m.display_name || "člana"} iz gospodinjstva?`,
@@ -195,7 +195,7 @@ export default function AppShell({ user, household, members, signOut }) {
                       const { error } = await supabase.rpc('remove_household_member', { p_member_id: m.id });
                       if (error) notifyError(error.message);
                     },
-                  })} className="w-7 h-7 rounded-8 bg-danger/12 border border-danger/20 text-danger text-14 cursor-pointer flex items-center justify-center">✕</button>
+                  })} className="w-7 h-7 rounded-lg bg-red-500/12 border border-red-500/20 text-red-500 text-sm cursor-pointer flex items-center justify-center">✕</button>
                 )
               }
             </div>
@@ -204,23 +204,23 @@ export default function AppShell({ user, household, members, signOut }) {
 
         {/* Google Calendar */}
         <div className="mb-5">
-          <div className="text-13 font-bold text-ink-2 mb-2.5">📅 Google Koledar</div>
+          <div className="text-sm font-bold text-slate-500 dark:text-slate-400 mb-2.5">📅 Google Koledar</div>
           {calConnected ? (
-            <div className="flex items-center gap-2.5 py-3 px-3.5 bg-success/6 border border-success/20 rounded-14">
+            <div className="flex items-center gap-2.5 py-3 px-3.5 bg-green-500/6 border border-green-500/20 rounded-xl">
               <div className="flex-1">
-                <div className="text-13 font-bold text-success">✓ Povezan</div>
-                <div className="text-11 text-ink-3 mt-0.5">{calConnection?.google_email}</div>
+                <div className="text-sm font-bold text-green-500">✓ Povezan</div>
+                <div className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">{calConnection?.google_email}</div>
               </div>
-              <button onClick={() => setConfirmAction({ message: "Odklopi Google Koledar?", onConfirm: () => removeCalConnection(calConnection.id) })} className="text-12 text-danger bg-danger/8 border border-danger/20 rounded-10 py-1.5 px-2.5 cursor-pointer font-semibold">Odklopi</button>
+              <button onClick={() => setConfirmAction({ message: "Odklopi Google Koledar?", onConfirm: () => removeCalConnection(calConnection.id) })} className="text-xs text-red-500 bg-red-500/8 border border-red-500/20 rounded-lg py-1.5 px-2.5 cursor-pointer font-semibold">Odklopi</button>
             </div>
           ) : (
-            <button onClick={() => { setShowSettings(false); connectCalendar(); }} className="w-full p-3.5 rounded-14 border border-accent-2/30 bg-accent-2/8 text-accent-3 text-14 font-bold cursor-pointer">
+            <button onClick={() => { setShowSettings(false); connectCalendar(); }} className="w-full p-3.5 rounded-xl border border-indigo-500/30 bg-indigo-500/8 text-indigo-400 text-sm font-bold cursor-pointer">
               📅 Poveži Google Koledar
             </button>
           )}
         </div>
 
-        <button onClick={signOut} className="w-full p-3.5 rounded-14 border border-danger/20 bg-danger/5 text-danger text-15 font-bold cursor-pointer">{t('odjava')}</button>
+        <button onClick={signOut} className="w-full p-3.5 rounded-xl border border-red-500/20 bg-red-500/5 text-red-500 text-base font-bold cursor-pointer">{t('odjava')}</button>
       </Modal>
     );
   }

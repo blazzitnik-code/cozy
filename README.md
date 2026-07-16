@@ -3,6 +3,7 @@
 Domača PWA aplikacija za gospodinjstvo — narejena za dva (ali več) članov z realtime sinhronizacijo prek Supabase.
 
 **Moduli:**
+
 - 🏠 **Dom** — pregled dneva: promet, LPP prihodi, BicikeLJ, bližnjice, današnji dogodki, opravila
 - ❄️ **Zmrzko** — inventar zamrzovalnika z roki uporabe, arhivom in statistiko zavržene hrane
 - 🛒 **Nakupi** — nakupovalni seznam po trgovinah s pametno kategorizacijo in zgodovino
@@ -63,4 +64,4 @@ Shema je v `supabase/migrations/`, globalne privzete kategorije v `supabase/seed
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY` — produkcijski anon key
    - `NEXT_PUBLIC_GOOGLE_CLIENT_ID` — Google OAuth client ID
    - `NEXT_PUBLIC_BICIKELJ_API_KEY` — JCDecaux ključ
-3. Deploy → PWA: na telefonu *Add to Home Screen*
+3. Deploy → PWA: na telefonu _Add to Home Screen_

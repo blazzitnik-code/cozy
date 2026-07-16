@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 /* dark: variant follows <html data-theme="dark"> (SSR default in layout.js;
    saved value applied pre-paint by the inline script there; toggled by

@@ -30,14 +30,21 @@ export default function RootLayout({ children }) {
       lang="sl"
       data-theme="dark"
       suppressHydrationWarning
-      className="bg-indigo-50 text-slate-800 scheme-light overscroll-none overflow-x-hidden antialiased dark:bg-slate-950 dark:text-slate-200 dark:scheme-dark"
+      className="overflow-x-hidden overscroll-none bg-indigo-50 text-slate-800 antialiased scheme-light dark:bg-slate-950 dark:text-slate-200 dark:scheme-dark"
     >
       <head>
         {/* Apply saved theme before first paint (dark: classes key off data-theme) */}
-        <script dangerouslySetInnerHTML={{ __html: `try{var t=localStorage.getItem('zmrzko_theme');if(t)document.documentElement.dataset.theme=t}catch(e){}` }} />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{var t=localStorage.getItem('zmrzko_theme');if(t)document.documentElement.dataset.theme=t}catch(e){}`,
+          }}
+        />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap"
+          rel="stylesheet"
+        />
         <link rel="apple-touch-icon" href="/icon-192.png" />
       </head>
       <body className="pt-[env(safe-area-inset-top)]">{children}</body>

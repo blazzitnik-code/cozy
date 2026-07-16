@@ -1,4 +1,26 @@
 {
+  "A11y": {
+    "settings": "Settings",
+    "archive": "Archive",
+    "history": "Purchase history",
+    "close": "Close",
+    "clearSearch": "Clear search",
+    "clearFilter": "Clear filter",
+    "add": "Add",
+    "remove": "Remove",
+    "increase": "Increase",
+    "decrease": "Decrease",
+    "refresh": "Refresh",
+    "edit": "Edit",
+    "delete": "Delete",
+    "filterCategories": "Filter by category",
+    "manageStores": "Manage stores",
+    "removeMember": "Remove member"
+  },
+  "NotFound": {
+    "title": "Page not found",
+    "goHome": "← Home"
+  },
   "Common": {
     "loading": "Loading...",
     "add": "Add",

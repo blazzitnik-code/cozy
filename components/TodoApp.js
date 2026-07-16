@@ -23,6 +23,7 @@ const LIST_EMOJIS = ['📋', '🏖️', '🏠', '🛒', '🎉', '🪴', '🛠️
 // ─── MAIN TODO APP ───
 export default function TodoApp({ user, householdId, members }) {
   const t = useTranslations('Todo');
+  const ta = useTranslations('A11y');
   const format = useFormatter();
   const { lists, addList, updateList, archiveList, deleteList } = useTodoLists(householdId);
   const { lists: archivedLists, unarchiveList } = useTodoArchivedLists(householdId);
@@ -151,7 +152,9 @@ export default function TodoApp({ user, householdId, members }) {
       <PageBody>
         <div className="mb-6 flex items-center justify-between">
           <h1 className="text-3xl font-extrabold">{t('title')}</h1>
-          <IconButton onClick={() => setScreen('archive')}>📦</IconButton>
+          <IconButton onClick={() => setScreen('archive')} aria-label={ta('archive')}>
+            📦
+          </IconButton>
         </div>
 
         {lists.length === 0 ? (
@@ -178,6 +181,7 @@ export default function TodoApp({ user, householdId, members }) {
 
       {/* FAB */}
       <button
+        aria-label={ta('add')}
         onClick={() => setShowNewList(true)}
         className="fixed right-5 bottom-[calc(88px+env(safe-area-inset-bottom))] z-50 h-14 w-14 cursor-pointer rounded-full border-none bg-linear-135 from-purple-500 to-indigo-500 text-2xl text-white shadow-lg shadow-purple-500/35"
       >
@@ -281,6 +285,7 @@ function TodoListCard({ list, householdId, onClick }) {
 // ─── LIST DETAIL SCREEN ───
 function TodoListScreen({ list, householdId, members, user, onBack, onArchive, onUpdateList, onUnarchive, readOnly }) {
   const t = useTranslations('Todo');
+  const ta = useTranslations('A11y');
   const format = useFormatter();
   const { items, addItem, toggleItem, deleteItem, updateItem } = useTodoItems(householdId, list.id);
   const [newItem, setNewItem] = useState('');
@@ -341,6 +346,7 @@ function TodoListScreen({ list, householdId, members, user, onBack, onArchive, o
             <h2 className="text-2xl font-extrabold text-slate-800 dark:text-slate-200">{list.title}</h2>
             {!readOnly && (
               <button
+                aria-label={ta('edit')}
                 onClick={() => setListEdit({ title: list.title, emoji: list.emoji, due_date: list.due_date || '' })}
                 className="cursor-pointer border-none bg-transparent p-1 text-sm text-slate-400 dark:text-slate-500"
               >
@@ -551,6 +557,7 @@ function TodoListScreen({ list, householdId, members, user, onBack, onArchive, o
 function TodoItemRow({ item, isLast, member, members, showPicker, onToggle, onDelete, onTap, onPickerOpen, onAssign }) {
   const t = useTranslations('Todo');
   const tc = useTranslations('Common');
+  const ta = useTranslations('A11y');
   return (
     <div
       className={cx(
@@ -624,6 +631,7 @@ function TodoItemRow({ item, isLast, member, members, showPicker, onToggle, onDe
       </div>
 
       <button
+        aria-label={ta('delete')}
         onClick={onDelete}
         className="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-md border-none bg-transparent text-sm text-slate-300 dark:text-slate-600"
       >

@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "i18n:check": "node scripts/check-messages.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.7",

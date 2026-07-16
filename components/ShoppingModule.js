@@ -40,6 +40,7 @@ export default function ShoppingModule({
 }) {
   const t = useTranslations('Shopping');
   const tc = useTranslations('Common');
+  const ta = useTranslations('A11y');
   const format = useFormatter();
   const locale = useLocale();
   const shopSuggList = SHOP_SUGG[locale] ?? SHOP_SUGG.sl;
@@ -368,8 +369,12 @@ export default function ShoppingModule({
         <div className="mb-3.5 flex items-start justify-between pt-3">
           <LogoToggle mode="shopping" onToggle={onToggleMode} />
           <div className="flex items-center gap-2">
-            <IconButton onClick={() => setShowShopArchive(true)}>🧾</IconButton>
-            <IconButton onClick={onOpenSettings}>⚙️</IconButton>
+            <IconButton onClick={() => setShowShopArchive(true)} aria-label={ta('history')}>
+              🧾
+            </IconButton>
+            <IconButton onClick={onOpenSettings} aria-label={ta('settings')}>
+              ⚙️
+            </IconButton>
           </div>
         </div>
 
@@ -405,6 +410,7 @@ export default function ShoppingModule({
             })}
           </div>
           <button
+            aria-label={ta('manageStores')}
             onClick={() => setShowManageStores(true)}
             className="absolute inset-y-0 right-0 flex w-9.5 cursor-pointer items-center justify-end rounded-xl border border-indigo-500/20 bg-linear-to-l from-indigo-50 from-60% to-transparent pr-1 text-base font-bold text-slate-400 dark:border-slate-600/30 dark:from-slate-950 dark:text-slate-500"
           >
@@ -430,6 +436,7 @@ export default function ShoppingModule({
           />
           {shopInput && (
             <button
+              aria-label={ta('add')}
               onClick={() => shopAddItem(shopInput)}
               className="absolute top-1/2 right-2 flex h-9 w-9 -translate-y-1/2 cursor-pointer items-center justify-center rounded-lg border-none bg-linear-135 from-amber-500 to-amber-600 text-lg text-white"
             >
@@ -713,6 +720,7 @@ export default function ShoppingModule({
                       {cnt > 0 && <span className="ml-auto text-xs text-slate-400 dark:text-slate-500">{cnt}</span>}
                     </button>
                     <button
+                      aria-label={ta('edit')}
                       onClick={() => {
                         setEditingStore({ id: s.id, name: s.name, icon: s.icon });
                         setShowAddStoreForm(false);
@@ -722,6 +730,7 @@ export default function ShoppingModule({
                       ✏️
                     </button>
                     <button
+                      aria-label={ta('delete')}
                       onClick={() =>
                         setConfirmAction({
                           message: t('deleteStoreConfirm', { name: s.name }),

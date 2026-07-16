@@ -206,7 +206,7 @@ export function EmptyState({ icon, children }) {
   );
 }
 
-export function IconButton({ onClick, children, className }) {
+export function IconButton({ onClick, children, className, ...rest }) {
   return (
     <button
       onClick={onClick}
@@ -215,21 +215,25 @@ export function IconButton({ onClick, children, className }) {
         PRESS_SM,
         className,
       )}
+      {...rest}
     >
       {children}
     </button>
   );
 }
 
-export function Fab({ onClick, children = '+', className }) {
+export function Fab({ onClick, children = '+', className, ...rest }) {
+  const t = useTranslations('A11y');
   return (
     <button
       onClick={onClick}
+      aria-label={t('add')}
       className={cx(
         'fixed bottom-[calc(74px+env(safe-area-inset-bottom))] left-1/2 z-50 flex h-15.5 w-15.5 -translate-x-1/2 cursor-pointer items-center justify-center rounded-full border-none bg-linear-135 from-sky-500 to-indigo-500 text-3xl font-light text-white shadow-xl ring-4 shadow-sky-500/40 ring-sky-500/10',
         PRESS_SM,
         className,
       )}
+      {...rest}
     >
       {children}
     </button>

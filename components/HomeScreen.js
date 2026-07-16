@@ -2,6 +2,7 @@
 import { useTodoItems } from '@/lib/hooks';
 import { useTranslations, useFormatter } from 'next-intl';
 import { getSt, cx, dueTone, DUE_BAR, DUE_BADGE } from '@/lib/utils';
+import { eventTitle } from '@/lib/intl';
 import { Screen, PageBody, Card, SectionHeader, IconButton } from './ui';
 import HomeModule from './HomeModule';
 
@@ -63,6 +64,8 @@ export default function HomeScreen({
   onOpenSettings,
 }) {
   const t = useTranslations('HomeScreen');
+  const ta = useTranslations('A11y');
+  const tCal = useTranslations('Calendar');
   const format = useFormatter();
   const fmtTime = (d) => format.dateTime(new Date(d), 'time');
   const expiredC = items.filter((i) => getSt(i) === 'expired').length;
@@ -83,7 +86,9 @@ export default function HomeScreen({
             </div>
             <div className="mt-0.5 text-xs text-slate-500 capitalize dark:text-slate-400">{today}</div>
           </div>
-          <IconButton onClick={onOpenSettings}>⚙️</IconButton>
+          <IconButton onClick={onOpenSettings} aria-label={ta('settings')}>
+            ⚙️
+          </IconButton>
         </div>
 
         {/* Quick stats */}
@@ -127,7 +132,9 @@ export default function HomeScreen({
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1 text-sm font-bold text-slate-800 dark:text-slate-200">
                         {ev.is_important && <span className="text-xs">⭐</span>}
-                        <span className="overflow-hidden text-ellipsis whitespace-nowrap">{ev.title}</span>
+                        <span className="overflow-hidden text-ellipsis whitespace-nowrap">
+                          {eventTitle(ev.title, tCal)}
+                        </span>
                       </div>
                       {ev.label && (
                         <div className={cx('mt-px text-xs font-semibold', EVENT_LABEL[person])}>{ev.label}</div>

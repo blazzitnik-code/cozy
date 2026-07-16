@@ -252,6 +252,7 @@ export default function FreezerModule({
 }) {
   const t = useTranslations('Freezer');
   const tc = useTranslations('Common');
+  const ta = useTranslations('A11y');
   const locale = useLocale();
   const format = useFormatter();
   const catLabel = useCatLabel();
@@ -449,6 +450,7 @@ export default function FreezerModule({
             />
             {archSearch && (
               <button
+                aria-label={ta('clearSearch')}
                 onClick={() => setArchSearch('')}
                 className="absolute top-1/2 right-3 -translate-y-1/2 cursor-pointer border-none bg-transparent text-base text-slate-400 dark:text-slate-500"
               >
@@ -689,6 +691,7 @@ export default function FreezerModule({
             <div className="flex items-center gap-2">
               <FreezerDD freezers={freezers} selected={selFrzs} onChange={setSelFrzs} onAdd={dbAddFreezer} />
               <IconButton
+                aria-label={ta('archive')}
                 onClick={() => {
                   setShowArchive(true);
                   setArchSearch('');
@@ -697,7 +700,9 @@ export default function FreezerModule({
               >
                 📦
               </IconButton>
-              <IconButton onClick={onOpenSettings}>⚙️</IconButton>
+              <IconButton onClick={onOpenSettings} aria-label={ta('settings')}>
+                ⚙️
+              </IconButton>
             </div>
           </div>
 
@@ -729,6 +734,7 @@ export default function FreezerModule({
               )}
               {filterStatus && (
                 <button
+                  aria-label={ta('clearFilter')}
                   onClick={() => setFilterStatus(null)}
                   className="cursor-pointer rounded-full border border-indigo-500/20 bg-transparent px-3 py-1.5 text-xs font-semibold text-slate-400 dark:border-slate-600/30 dark:text-slate-500"
                 >
@@ -751,6 +757,7 @@ export default function FreezerModule({
               />
               {search && (
                 <button
+                  aria-label={ta('clearSearch')}
                   onClick={() => setSearch('')}
                   className="absolute top-1/2 right-3 -translate-y-1/2 cursor-pointer border-none bg-transparent text-base leading-none text-slate-400 dark:text-slate-500"
                 >
@@ -759,6 +766,7 @@ export default function FreezerModule({
               )}
             </div>
             <button
+              aria-label={ta('filterCategories')}
               onClick={() => setShowCatFilter(!showCatFilter)}
               className={cx(
                 'relative flex h-11.5 w-11.5 shrink-0 cursor-pointer items-center justify-center rounded-xl border text-lg',
@@ -946,6 +954,7 @@ export default function FreezerModule({
                       <Label>{t('packets')}</Label>
                       <div className="flex items-center gap-2">
                         <button
+                          aria-label={ta('decrease')}
                           onClick={() => setEditData((d) => ({ ...d, packets: Math.max(1, d.packets - 1) }))}
                           className="h-11.5 w-10 cursor-pointer rounded-lg border border-indigo-500/20 bg-white/80 text-xl text-slate-500 dark:border-slate-600/30 dark:bg-slate-800/60 dark:text-slate-400"
                         >
@@ -953,6 +962,7 @@ export default function FreezerModule({
                         </button>
                         <span className="min-w-6 text-center text-xl font-extrabold">{editData.packets}</span>
                         <button
+                          aria-label={ta('increase')}
                           onClick={() => setEditData((d) => ({ ...d, packets: d.packets + 1 }))}
                           className="h-11.5 w-10 cursor-pointer rounded-lg border border-indigo-500/30 bg-indigo-500/10 text-xl text-indigo-400"
                         >
@@ -1066,6 +1076,7 @@ export default function FreezerModule({
                       </div>
                     </div>
                     <button
+                      aria-label={t('subtractPacket')}
                       onClick={async () => {
                         const newP = item.packets - 1;
                         await dbUpdateItem(item.id, { packets: newP });
@@ -1087,6 +1098,7 @@ export default function FreezerModule({
                     {t('usedBtn')}
                   </button>
                   <button
+                    aria-label={ta('delete')}
                     onClick={() => doArchive(item, true)}
                     className="flex-1 cursor-pointer rounded-xl border border-red-500/30 bg-red-500/10 p-3.75 text-sm font-bold text-red-500"
                   >
@@ -1152,6 +1164,7 @@ export default function FreezerModule({
           />
           <h2 className="text-lg font-extrabold">{t('addToFreezer')}</h2>
           <button
+            aria-label={ta('close')}
             onClick={() => setScreen('home')}
             className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl border border-indigo-500/20 bg-white/90 text-lg text-slate-500 dark:border-slate-600/30 dark:bg-slate-800/80 dark:text-slate-400"
           >
@@ -1349,13 +1362,18 @@ export default function FreezerModule({
             <Label>{t('packets')}</Label>
             <div className="mb-4.5 flex items-center gap-3">
               <button
+                aria-label={ta('decrease')}
                 onClick={() => setAddData((d) => ({ ...d, packets: Math.max(1, d.packets - 1) }))}
                 className={STEPPER_MINUS}
               >
                 −
               </button>
               <span className="min-w-8 text-center text-2xl font-extrabold">{addData.packets}</span>
-              <button onClick={() => setAddData((d) => ({ ...d, packets: d.packets + 1 }))} className={STEPPER_PLUS}>
+              <button
+                aria-label={ta('increase')}
+                onClick={() => setAddData((d) => ({ ...d, packets: d.packets + 1 }))}
+                className={STEPPER_PLUS}
+              >
                 +
               </button>
               <span className="text-sm text-slate-400 dark:text-slate-500">{t('packetsWord')}</span>

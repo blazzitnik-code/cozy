@@ -92,6 +92,7 @@ function StationSearch({ placeholder, stations, onSelect }) {
 function EditModal({ settings, onSave, onClose }) {
   const t = useTranslations('HomeModule');
   const tc = useTranslations('Common');
+  const ta = useTranslations('A11y');
   const [homeAddress, setHomeAddress] = useState(settings?.home_address || '');
   const [destinations, setDestinations] = useState(settings?.destinations?.length ? settings.destinations : []);
   const [shortcuts, setShortcuts] = useState(settings?.shortcuts?.length ? settings.shortcuts : []);
@@ -168,7 +169,11 @@ function EditModal({ settings, onSave, onClose }) {
               placeholder={t('address')}
               className="flex-1"
             />
-            <button onClick={() => setDestinations(destinations.filter((_, j) => j !== i))} className={RM_BTN}>
+            <button
+              aria-label={ta('remove')}
+              onClick={() => setDestinations(destinations.filter((_, j) => j !== i))}
+              className={RM_BTN}
+            >
               ✕
             </button>
           </div>
@@ -219,7 +224,11 @@ function EditModal({ settings, onSave, onClose }) {
               placeholder="https://..."
               className="flex-1"
             />
-            <button onClick={() => setShortcuts(shortcuts.filter((_, j) => j !== i))} className={RM_BTN}>
+            <button
+              aria-label={ta('remove')}
+              onClick={() => setShortcuts(shortcuts.filter((_, j) => j !== i))}
+              className={RM_BTN}
+            >
               ✕
             </button>
           </div>
@@ -237,7 +246,11 @@ function EditModal({ settings, onSave, onClose }) {
               <div className="text-sm font-semibold text-slate-800 dark:text-slate-200">{s.name}</div>
               <div className="text-xs text-slate-400 dark:text-slate-500">{t('codeLabel', { code: s.code })}</div>
             </div>
-            <button onClick={() => setBusStops(busStops.filter((_, j) => j !== i))} className={RM_BTN}>
+            <button
+              aria-label={ta('remove')}
+              onClick={() => setBusStops(busStops.filter((_, j) => j !== i))}
+              className={RM_BTN}
+            >
               ✕
             </button>
           </div>
@@ -276,7 +289,11 @@ function EditModal({ settings, onSave, onClose }) {
                 {t('stationNumber', { number: s.number })}
               </div>
             </div>
-            <button onClick={() => setBikeStations(bikeStations.filter((_, j) => j !== i))} className={RM_BTN}>
+            <button
+              aria-label={ta('remove')}
+              onClick={() => setBikeStations(bikeStations.filter((_, j) => j !== i))}
+              className={RM_BTN}
+            >
               ✕
             </button>
           </div>
@@ -301,6 +318,7 @@ function EditModal({ settings, onSave, onClose }) {
 // ─── MAIN COMPONENT ───
 export default function HomeModule({ user, householdId }) {
   const t = useTranslations('HomeModule');
+  const ta = useTranslations('A11y');
   const { settings, loading, saveSettings } = useHomeSettings(householdId, user.id);
   const [editing, setEditing] = useState(false);
   const [busData, setBusData] = useState({});
@@ -368,6 +386,7 @@ export default function HomeModule({ user, householdId }) {
       <div className="mb-2.5 flex items-center justify-between">
         <SectionHeader className={DIM_LABEL}>{t('sectionTitle')}</SectionHeader>
         <button
+          aria-label={ta('edit')}
           onClick={() => setEditing(true)}
           className="cursor-pointer border-none bg-transparent p-1 text-base text-slate-400 dark:text-slate-500"
         >
@@ -446,6 +465,7 @@ export default function HomeModule({ user, householdId }) {
                 <span className="text-lg">🚌</span>
                 <div className="flex-1 text-sm font-bold text-slate-800 dark:text-slate-200">{stop.name}</div>
                 <button
+                  aria-label={ta('refresh')}
                   onClick={refreshBus}
                   className="cursor-pointer border-none bg-transparent p-1 text-sm text-slate-400 dark:text-slate-500"
                 >

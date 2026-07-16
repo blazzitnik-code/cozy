@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useTranslations, useFormatter } from 'next-intl';
 import { detectEventType, cx } from '@/lib/utils';
+import { eventTitle } from '@/lib/intl';
 import { Screen, PageBody, Btn, Modal, Input, Label, IconButton } from './ui';
 
 // Person lane tones — current user = indigo, partner = pink.
@@ -42,6 +43,7 @@ export default function CalendarModule({
   const [calEventDetail, setCalEventDetail] = useState(null);
   const t = useTranslations('Calendar');
   const tc = useTranslations('Common');
+  const ta = useTranslations('A11y');
   const format = useFormatter();
   const fmtTime = (d) => format.dateTime(new Date(d), 'time');
   // Two-letter day-of-week strip labels (no CLDR equivalent — kept in messages)
@@ -62,7 +64,8 @@ export default function CalendarModule({
   // Own events: directly from API (instant); partner events: from shared DB
   const myEvents = myFetchedEvents.map((ev) => ({
     id: ev.id,
-    title: ev.summary || t('noTitle'),
+    // Keep the raw (possibly empty) title — eventTitle() translates at render
+    title: ev.summary || '',
     start_time: ev.start?.dateTime || ev.start?.date || null,
     end_time: ev.end?.dateTime || ev.end?.date || null,
     is_all_day: !!ev.start?.date,
@@ -88,7 +91,7 @@ export default function CalendarModule({
       >
         <div className={cx('text-xs leading-snug font-bold', p.text)}>
           {ev.is_important ? '⭐ ' : ''}
-          {detectEventType(ev.title)} {ev.title}
+          {detectEventType(ev.title)} {eventTitle(ev.title, t)}
         </div>
         {ev.label && <div className={cx('mt-px text-[10px] font-semibold', p.text)}>{ev.label}</div>}
         {!ev.is_all_day && ev.start_time && (
@@ -112,7 +115,9 @@ export default function CalendarModule({
               {format.dateTime(selDay, 'monthYear')}
             </div>
           </div>
-          <IconButton onClick={onOpenSettings}>⚙️</IconButton>
+          <IconButton onClick={onOpenSettings} aria-label={ta('settings')}>
+            ⚙️
+          </IconButton>
         </div>
 
         {/* Week strip */}
@@ -243,7 +248,7 @@ export default function CalendarModule({
       {calEventDetail && (
         <Modal onClose={() => setCalEventDetail(null)}>
           <div className="mb-1 text-xl">{detectEventType(calEventDetail.title)}</div>
-          <h3 className="mb-1 text-lg font-extrabold">{calEventDetail.title}</h3>
+          <h3 className="mb-1 text-lg font-extrabold">{eventTitle(calEventDetail.title, t)}</h3>
           {!calEventDetail.is_all_day && calEventDetail.start_time && (
             <div className="mb-4 text-sm text-slate-500 dark:text-slate-400">
               {fmtTime(calEventDetail.start_time)}

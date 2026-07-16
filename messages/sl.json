@@ -1,4 +1,26 @@
 {
+  "A11y": {
+    "settings": "Nastavitve",
+    "archive": "Arhiv",
+    "history": "Zgodovina nakupov",
+    "close": "Zapri",
+    "clearSearch": "Počisti iskanje",
+    "clearFilter": "Počisti filter",
+    "add": "Dodaj",
+    "remove": "Odstrani",
+    "increase": "Povečaj",
+    "decrease": "Zmanjšaj",
+    "refresh": "Osveži",
+    "edit": "Uredi",
+    "delete": "Izbriši",
+    "filterCategories": "Filtriraj po kategorijah",
+    "manageStores": "Uredi trgovine",
+    "removeMember": "Odstrani člana"
+  },
+  "NotFound": {
+    "title": "Stran ne obstaja",
+    "goHome": "← Domov"
+  },
   "Common": {
     "loading": "Nalagam...",
     "add": "Dodaj",

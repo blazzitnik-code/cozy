@@ -201,6 +201,7 @@ export default function AppShell({ user, household, members, signOut }) {
   function SettingsModal() {
     const t = useTranslations('Settings');
     const tc = useTranslations('Common');
+    const ta = useTranslations('A11y');
     const { locale, switchLocale } = useLocaleSwitch();
     if (!showSettings) return null;
     return (
@@ -269,6 +270,7 @@ export default function AppShell({ user, household, members, signOut }) {
               ) : (
                 members.find((x) => x.user_id === user.id)?.role === 'owner' && (
                   <button
+                    aria-label={ta('removeMember')}
                     onClick={() =>
                       setConfirmAction({
                         message: t('removeMember', { name: m.display_name || t('memberFallback') }),

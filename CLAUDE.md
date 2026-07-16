@@ -60,6 +60,14 @@ Architecture: data hooks live in AppShell and flow into modules via props — mo
 - `categories.household_id = null` means a global default category.
 - Realtime: hooks listen to `postgres_changes` — a new table must be added to the `supabase_realtime` publication and have RLS/grants.
 
+## Theming
+
+- Design tokens are CSS custom properties in `app/globals.css`: `:root` = dark (default), `:root[data-theme="light"]` = light. The saved theme is applied pre-paint by an inline script in `app/layout.js`; `switchTheme` in AppShell toggles `<html data-theme>` + localStorage (`zmrzko_theme`).
+- `lib/styles.js` `getStyles()` returns `var(--…)` references — all `st.*` consumers follow the theme via CSS. Shared `components/ui.js` is fully on tokens (reference pattern).
+- **Rule: new colors go through tokens only — no new hardcoded hex/rgba.**
+- Migration status: ui.js ✓; module-internal colors (~240 spots in Freezer/Shopping/Calendar) intentionally still hardcode the dark palette — they migrate together with Nik's upcoming visual design (roadmap 7).
+- Errors: failed DB writes surface via `notifyError()` (`lib/notify.js`) → `<Toaster />`; never swallow write errors silently.
+
 ## Conventions
 
 - One module = one file in `components/`; DB logic lives exclusively in `lib/hooks.js`.
@@ -70,9 +78,8 @@ Architecture: data hooks live in AppShell and flow into modules via props — mo
 
 ## Known tech debt (deliberately deferred)
 
-- Light theme and EN translations are half-implemented (dark colors hardcoded in many places).
-- DB writes mostly lack error handling (errors are silently swallowed).
-- `toISOString().split('T')[0]` timezone bug (UTC vs. local time around midnight).
+- Module-internal colors still hardcode the dark palette (light theme only works on token-backed surfaces) — migrates with the visual design (roadmap 7).
+- i18n via `useT` is ad-hoc and only covers the freezer module + settings — gets replaced by next-intl (roadmap 6).
 - Google Calendar access tokens stored in plaintext in `calendar_connections` (readable by household members — a deliberate decision for a two-person app).
 
 ## Agreed roadmap
@@ -81,4 +88,6 @@ Architecture: data hooks live in AppShell and flow into modules via props — mo
 2. ~~Bump all dependency versions (Next 16, React 19, Tailwind 4, supabase-js)~~ ✅
 3. ~~Add MCP servers for Next + Supabase~~ ✅
 4. ~~Split `ZmrzkoApp.js` into modules (AppShell + HomeScreen/Freezer/Shopping/Calendar + ui.js)~~ ✅
-5. Then: theme/i18n decision, error handling
+5. ~~Toast error handling + timezone fix + CSS design-token theming foundation~~ ✅
+6. i18n refactor with **next-intl** ("without i18n routing" mode — client app, locale from settings, SL + EN) replacing the ad-hoc `useT`
+7. Theme design migration: Nik provides the visual design → map module-internal colors onto the token catalogue in globals.css

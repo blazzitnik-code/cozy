@@ -3,9 +3,9 @@ import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useItems, useArchived, useFreezers, useCategories, useShoppingItems, useShoppingArchived, useShoppingFavourites, useShoppingStores, useCalendarConnections, useCalendarEvents, useTodoLists } from '@/lib/hooks';
 import { useT } from '@/lib/i18n';
 import { supabase } from '@/lib/supabase';
-import { getStyles, A } from '@/lib/styles';
+import { getStyles } from '@/lib/styles';
 import { localDateStr } from '@/lib/utils';
-import { Modal, ConfirmModal, BottomNav, Toaster } from './ui';
+import { Modal, ConfirmModal, BottomNav, Toaster, Loader, Segmented, Avatar } from './ui';
 import { notifyError } from '@/lib/notify';
 import TodoApp from './TodoApp';
 import HomeScreen from './HomeScreen';
@@ -148,69 +148,49 @@ export default function AppShell({ user, household, members, signOut }) {
   // ─── LOADING GATE (global categories are required for the app to work) ───
   const hasCats = Object.keys(categories).length > 0;
 
-  if (itemsLoading || !hasCats) {
-    return (
-      <div style={{ ...A, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: 64, marginBottom: 16 }}>🏠</div>
-          <div style={{ fontSize: 28, fontWeight: 900 }}>
-            <span style={{ background: "linear-gradient(135deg,#E2E8F0,#C4B5FD)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Cožy</span>
-          </div>
-          <div style={{ color: "#475569", marginTop: 8, fontSize: 14 }}>Nalagam...</div>
-        </div>
-      </div>
-    );
-  }
+  if (itemsLoading || !hasCats) return <Loader />;
 
   function SettingsModal() {
     if (!showSettings) return null;
     return (
-      <Modal isDark={isDark} onClose={() => setShowSettings(false)}>
-        <div style={{ textAlign: "center", marginBottom: 20 }}>
-          <div style={{ fontSize: 48, marginBottom: 8 }}>🏠</div>
-          <h2 style={{ fontSize: 20, fontWeight: 800, margin: "0 0 4px" }}>{household.name}</h2>
-          <p style={{ color: "#64748B", fontSize: 13, margin: 0 }}>Prijavljen kot {user.user_metadata?.full_name || user.email}</p>
+      <Modal onClose={() => setShowSettings(false)}>
+        <div className="text-center mb-5">
+          <div className="text-48 mb-2">🏠</div>
+          <h2 className="text-20 font-extrabold mb-1">{household.name}</h2>
+          <p className="text-ink-3 text-13">Prijavljen kot {user.user_metadata?.full_name || user.email}</p>
         </div>
 
         {/* LANGUAGE SWITCHER */}
-        <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-          {['sl', 'en'].map(l => (
-            <button key={l} onClick={() => switchLang(l)} style={{ flex: 1, padding: "10px", borderRadius: 12, border: "1px solid " + (lang === l ? "rgba(56,189,248,0.5)" : isDark ? "rgba(71,85,105,0.3)" : "rgba(99,102,241,0.2)"), background: lang === l ? "rgba(56,189,248,0.12)" : isDark ? "rgba(30,41,59,0.6)" : "rgba(255,255,255,0.8)", color: lang === l ? "#38BDF8" : isDark ? "#94A3B8" : "#64748B", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
-              {l === 'sl' ? '🇸🇮 Slovenščina' : '🇬🇧 English'}
-            </button>
-          ))}
-        </div>
+        <Segmented
+          className="mb-3" value={lang} onChange={switchLang}
+          options={[{ value: 'sl', label: '🇸🇮 Slovenščina' }, { value: 'en', label: '🇬🇧 English' }]}
+        />
 
         {/* THEME SWITCHER */}
-        <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
-          {[['dark', '🌙 Temna'], ['light', '☀️ Svetla']].map(([th, label]) => (
-            <button key={th} onClick={() => switchTheme(th)} style={{ flex: 1, padding: "10px", borderRadius: 12, border: "1px solid " + (theme === th ? "rgba(99,102,241,0.5)" : isDark ? "rgba(71,85,105,0.3)" : "rgba(99,102,241,0.2)"), background: theme === th ? "rgba(99,102,241,0.15)" : isDark ? "rgba(30,41,59,0.6)" : "rgba(255,255,255,0.8)", color: theme === th ? "#818CF8" : isDark ? "#94A3B8" : "#64748B", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
-              {label}
-            </button>
-          ))}
-        </div>
+        <Segmented
+          className="mb-5" tone="indigo" value={theme} onChange={switchTheme}
+          options={[{ value: 'dark', label: '🌙 Temna' }, { value: 'light', label: '☀️ Svetla' }]}
+        />
 
         {/* Join code */}
-        <div style={{ padding: "16px", background: "rgba(56,189,248,0.06)", border: "1px solid rgba(56,189,248,0.2)", borderRadius: 14, marginBottom: 16, textAlign: "center" }}>
-          <div style={{ fontSize: 11, color: "#38BDF8", textTransform: "uppercase", letterSpacing: 1, fontWeight: 700, marginBottom: 6 }}>{t('kodaZaPovabilo')}</div>
-          <div style={{ fontSize: 32, fontWeight: 900, letterSpacing: 8, color: "#E2E8F0" }}>{household.join_code}</div>
-          <div style={{ fontSize: 12, color: "#475569", marginTop: 4 }}>Deli to kodo z družino ali partnerjem</div>
+        <div className="p-4 bg-accent/6 border border-accent/20 rounded-14 mb-4 text-center">
+          <div className="text-11 text-accent uppercase tracking-[1px] font-bold mb-1.5">{t('kodaZaPovabilo')}</div>
+          <div className="text-32 font-black tracking-[8px] text-ink">{household.join_code}</div>
+          <div className="text-12 text-ink-dim mt-1">Deli to kodo z družino ali partnerjem</div>
         </div>
 
         {/* Members */}
-        <div style={{ marginBottom: 20 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: "#94A3B8", marginBottom: 8 }}>{t('člani')} ({members.length})</div>
+        <div className="mb-5">
+          <div className="text-13 font-bold text-ink-2 mb-2">{t('člani')} ({members.length})</div>
           {members.map(m => (
-            <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "rgba(30,41,59,0.4)", borderRadius: 12, marginBottom: 4, border: "1px solid rgba(71,85,105,0.15)" }}>
-              <div style={{ width: 32, height: 32, borderRadius: "50%", background: "linear-gradient(135deg,#0EA5E9,#6366F1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, color: "#fff" }}>
-                {(m.display_name || "?")[0].toUpperCase()}
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 14, fontWeight: 600, color: "#E2E8F0" }}>{m.display_name || "Uporabnik"}</div>
-                <div style={{ fontSize: 11, color: "#475569" }}>{m.role === "owner" ? t('lastnik') : t('član')}</div>
+            <div key={m.id} className="flex items-center gap-2.5 py-2.5 px-3 bg-surface-2 rounded-12 mb-1 border border-line">
+              <Avatar name={m.display_name} />
+              <div className="flex-1">
+                <div className="text-14 font-semibold text-ink">{m.display_name || "Uporabnik"}</div>
+                <div className="text-11 text-ink-dim">{m.role === "owner" ? t('lastnik') : t('član')}</div>
               </div>
               {m.user_id === user.id
-                ? <span style={{ fontSize: 11, color: "#38BDF8", fontWeight: 600 }}>Ti</span>
+                ? <span className="text-11 text-accent font-semibold">Ti</span>
                 : members.find(x => x.user_id === user.id)?.role === "owner" && (
                   <button onClick={() => setConfirmAction({
                     message: `Odstrani ${m.display_name || "člana"} iz gospodinjstva?`,
@@ -218,7 +198,7 @@ export default function AppShell({ user, household, members, signOut }) {
                       const { error } = await supabase.rpc('remove_household_member', { p_member_id: m.id });
                       if (error) notifyError(error.message);
                     },
-                  })} style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.2)", color: "#EF4444", fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+                  })} className="w-7 h-7 rounded-8 bg-danger/12 border border-danger/20 text-danger text-14 cursor-pointer flex items-center justify-center">✕</button>
                 )
               }
             </div>
@@ -226,28 +206,24 @@ export default function AppShell({ user, household, members, signOut }) {
         </div>
 
         {/* Google Calendar */}
-        <div style={{ marginBottom: 20 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: "#94A3B8", marginBottom: 10 }}>📅 Google Koledar</div>
+        <div className="mb-5">
+          <div className="text-13 font-bold text-ink-2 mb-2.5">📅 Google Koledar</div>
           {calConnected ? (
-            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.2)", borderRadius: 14 }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#22C55E" }}>✓ Povezan</div>
-                <div style={{ fontSize: 11, color: "#64748B", marginTop: 2 }}>{calConnection?.google_email}</div>
+            <div className="flex items-center gap-2.5 py-3 px-3.5 bg-success/6 border border-success/20 rounded-14">
+              <div className="flex-1">
+                <div className="text-13 font-bold text-success">✓ Povezan</div>
+                <div className="text-11 text-ink-3 mt-0.5">{calConnection?.google_email}</div>
               </div>
-              <button onClick={() => setConfirmAction({ message: "Odklopi Google Koledar?", onConfirm: () => removeCalConnection(calConnection.id) })} style={{ fontSize: 12, color: "#EF4444", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 10, padding: "6px 10px", cursor: "pointer", fontWeight: 600 }}>Odklopi</button>
+              <button onClick={() => setConfirmAction({ message: "Odklopi Google Koledar?", onConfirm: () => removeCalConnection(calConnection.id) })} className="text-12 text-danger bg-danger/8 border border-danger/20 rounded-10 py-1.5 px-2.5 cursor-pointer font-semibold">Odklopi</button>
             </div>
           ) : (
-            <button onClick={() => { setShowSettings(false); connectCalendar(); }} style={{ width: "100%", padding: "14px", borderRadius: 14, border: "1px solid rgba(99,102,241,0.3)", background: "rgba(99,102,241,0.08)", color: "#818CF8", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>
+            <button onClick={() => { setShowSettings(false); connectCalendar(); }} className="w-full p-3.5 rounded-14 border border-accent-2/30 bg-accent-2/8 text-accent-3 text-14 font-bold cursor-pointer">
               📅 Poveži Google Koledar
             </button>
           )}
         </div>
 
-        <button onClick={signOut} style={{
-          width: "100%", padding: "14px", borderRadius: 14, border: "1px solid rgba(239,68,68,0.2)",
-          background: "rgba(239,68,68,0.05)", color: "#EF4444", fontSize: 15, fontWeight: 700,
-          cursor: "pointer",
-        }}>{t('odjava')}</button>
+        <button onClick={signOut} className="w-full p-3.5 rounded-14 border border-danger/20 bg-danger/5 text-danger text-15 font-bold cursor-pointer">{t('odjava')}</button>
       </Modal>
     );
   }
@@ -257,7 +233,7 @@ export default function AppShell({ user, household, members, signOut }) {
     <>
       <BottomNav mode={mode} onNavigate={navigate} />
       <SettingsModal />
-      <ConfirmModal action={confirmAction} onClose={() => setConfirmAction(null)} isDark={isDark} />
+      <ConfirmModal action={confirmAction} onClose={() => setConfirmAction(null)} />
       <Toaster />
     </>
   );
@@ -294,7 +270,7 @@ export default function AppShell({ user, household, members, signOut }) {
 
   if (mode === "todo") {
     return (
-      <div style={{ position: "relative" }}>
+      <div className="relative">
         <TodoApp user={user} householdId={householdId} members={members} lang={lang} isDark={isDark} />
         <BottomNav mode={mode} onNavigate={navigate} />
         <Toaster />

@@ -7,7 +7,7 @@
 ## Stack and commands
 
 - Next.js 16 app router (JS, no TypeScript, Turbopack), React 19, Supabase JS v2.
-- Inline styles everywhere — **Tailwind 4 is loaded only for its preflight reset** (`@import "tailwindcss"` in `globals.css`); utility classes are NOT used, do not introduce them.
+- **Tailwind 4 utility classes everywhere** — the vocabulary is defined in `app/globals.css` (`@theme inline` + `@utility`). Inline `style` props are allowed ONLY for the documented dynamic cases (see Theming). No CSS modules, no styled-components.
 - `npm run dev` — app on http://localhost:3000
 - `npx supabase start|stop|status` — local stack in Docker, ports **55321+** (API 55321, DB 55322, Studio 55323; intentionally non-default to avoid clashing with other projects)
 - `npx supabase db reset` — re-runs `supabase/migrations/` + `supabase/seed.sql` (wipes local data)
@@ -37,12 +37,14 @@ components/ShoppingModule.js — shopping: store tabs, categorized list, history
 components/CalendarModule.js — two-lane partner calendar + event detail modal
 components/TodoApp.js        — todo module
 components/HomeModule.js     — traffic, shortcuts, LPP, BicikeLJ
-components/ui.js             — shared UI: Pill, FC, Btn, Modal, ConfirmModal, BottomNav,
-                               SwipeCard, LogoToggle
+components/ui.js             — shared UI: Screen, Card, Input, Label, SectionHeader,
+                               EmptyState, IconButton, Fab, Avatar, Segmented, Badge,
+                               Pill, FC, Btn, Modal, ConfirmModal, Toaster, LogoToggle,
+                               BottomNav, SwipeCard
 lib/hooks.js                 — ALL Supabase access (17 hooks); generic useHouseholdTable
 lib/constants.js             — CATS, SUGG, SHOP_SUGG, FICONS, QO
-lib/utils.js                 — expiry status + date/calendar formatting helpers
-lib/styles.js                — getStyles(isDark) + static dark style constants
+lib/utils.js                 — cx class joiner, expiry status + STATUS_* class maps,
+                               date/calendar formatting helpers
 lib/supabase.js              — client from env
 lib/i18n.js                  — translations (useT) — only partially used
 supabase/migrations/         — schema (reconstructed from hooks.js; cloud was never pulled)
@@ -63,22 +65,23 @@ Architecture: data hooks live in AppShell and flow into modules via props — mo
 ## Theming
 
 - Design tokens are CSS custom properties in `app/globals.css`: `:root` = dark (default), `:root[data-theme="light"]` = light. The saved theme is applied pre-paint by an inline script in `app/layout.js`; `switchTheme` in AppShell toggles `<html data-theme>` + localStorage (`zmrzko_theme`).
-- `lib/styles.js` `getStyles()` returns `var(--…)` references — all `st.*` consumers follow the theme via CSS. Shared `components/ui.js` is fully on tokens (reference pattern).
-- **Rule: new colors go through tokens only — no new hardcoded hex/rgba.**
-- Migration status: ui.js ✓; module-internal colors (~240 spots in Freezer/Shopping/Calendar) intentionally still hardcode the dark palette — they migrate together with Nik's upcoming visual design (roadmap 7).
+- The `@theme inline` block in `globals.css` exposes tokens as Tailwind utilities: `bg-surface`, `bg-surface-2`, `bg-surface-solid`, `text-ink`/`ink-2`/`ink-3`/`ink-dim`, `border-line`/`line-strong`, `bg-field`/`border-field-line`, accent families (`accent`, `accent-2/3`, `amber`, `danger`, `success`, `me`, `partner`) with `/N` opacity modifiers, px-named `text-13`/`rounded-14` scales, `max-w-app`, `shadow-pop`/`shadow-fab`. Gradients are `@utility` classes (`bg-app`, `bg-modal`, `bg-grad-*`, `text-gradient`). Utilities follow the theme automatically — **`dark:`/`light:` variants are forbidden**; theming happens in tokens only.
+- Default Tailwind palettes are wiped (`--color-*: initial`) — a `bg-slate-800` etc. renders unstyled on purpose.
+- **Rule: new colors go through tokens only — no new hardcoded hex/rgba.** Audit: `grep -rnE '#[0-9A-Fa-f]{3,8}\b|rgba?\(' app components lib --include='*.js' | grep -v lib/constants.js` must stay empty.
+- Inline `style` props are allowed ONLY for truly runtime-dynamic values: CSS-var bridges for data-driven colors (`style={{'--cat': cat.color}}` + `bg-(--cat)/13`), computed widths/heights (progress bars, chart bars), and drag transforms (SwipeCard). Everything else is a class.
+- Conditional classes use `cx()` from `lib/utils.js` with **full literal class strings** — never concatenate class-name fragments (Tailwind's scanner can't see them).
 - Errors: failed DB writes surface via `notifyError()` (`lib/notify.js`) → `<Toaster />`; never swallow write errors silently.
 
 ## Conventions
 
 - One module = one file in `components/`; DB logic lives exclusively in `lib/hooks.js`.
 - **Code comments (JS/SQL/config/env) in English**; UI strings in Slovenian. Exception: `raise exception` messages in RPC functions are Slovenian because the app shows them to the user (`setError(e.message)`).
-- Inline styles; slate/indigo palette (#0B1120 background, #E2E8F0 text, accents #38BDF8/#6366F1/#F59E0B).
+- Tailwind utility classes (see Theming); slate/indigo palette (#0B1120 background, #E2E8F0 text, accents #38BDF8/#6366F1/#F59E0B) defined exclusively in `globals.css` tokens.
 - UI strings in Slovenian directly in JSX (i18n via `useT` is half-implemented — don't extend it without agreeing first).
 - Dates: `sl-SI` locale, formatted via `toLocaleDateString`.
 
 ## Known tech debt (deliberately deferred)
 
-- Module-internal colors still hardcode the dark palette (light theme only works on token-backed surfaces) — migrates with the visual design (roadmap 7).
 - i18n via `useT` is ad-hoc and only covers the freezer module + settings — gets replaced by next-intl (roadmap 6).
 - Google Calendar access tokens stored in plaintext in `calendar_connections` (readable by household members — a deliberate decision for a two-person app).
 
@@ -90,4 +93,4 @@ Architecture: data hooks live in AppShell and flow into modules via props — mo
 4. ~~Split `ZmrzkoApp.js` into modules (AppShell + HomeScreen/Freezer/Shopping/Calendar + ui.js)~~ ✅
 5. ~~Toast error handling + timezone fix + CSS design-token theming foundation~~ ✅
 6. i18n refactor with **next-intl** ("without i18n routing" mode — client app, locale from settings, SL + EN) replacing the ad-hoc `useT`
-7. Theme design migration: Nik provides the visual design → map module-internal colors onto the token catalogue in globals.css
+7. Theme design migration: ~~unify all styling onto Tailwind utilities + tokens~~ ✅ → Nik provides the visual design → restyle by editing the token values (+ component classes in `ui.js`) — modules should barely change

@@ -1,12 +1,17 @@
 @import "tailwindcss";
 
+/* Escape hatch for rare per-theme tweaks. Theming normally happens in the
+   :root tokens below — never via light:/dark: variants in JSX. */
+@custom-variant light (&:where([data-theme="light"], [data-theme="light"] *));
+
 /* ─── DESIGN TOKENS ───────────────────────────────────────────────
-   Single source of truth for theme colors. Dark is the default
-   (:root); light overrides via <html data-theme="light">, toggled in
-   settings and applied pre-paint by the inline script in layout.js.
+   Single source of truth for the theme. Dark is the default (:root);
+   light overrides via <html data-theme="light">, toggled in settings
+   and applied pre-paint by the inline script in layout.js.
    Rule: new colors go through tokens — no new hardcoded hex/rgba.
-   Consumed by lib/styles.js (getStyles) and components/ui.js;
-   module-internal colors migrate here when the visual design lands. */
+   The @theme inline block below exposes these as Tailwind utilities
+   (bg-surface, text-ink, border-line, …), so utilities follow the
+   active theme automatically. */
 :root {
   --page-bg: #0B1120;
   --bg: linear-gradient(180deg, #0B1120 0%, #111827 40%, #0F172A 100%);
@@ -15,6 +20,7 @@
 
   --surface: rgba(30, 41, 59, 0.6);
   --surface-2: rgba(30, 41, 59, 0.5);
+  --surface-solid: #1E293B;
   --border: rgba(71, 85, 105, 0.2);
   --border-strong: rgba(71, 85, 105, 0.3);
 
@@ -28,8 +34,10 @@
 
   --modal-bg: linear-gradient(180deg, #1E293B, #0F172A);
   --modal-handle: #334155;
+  --overlay: rgba(0, 0, 0, 0.7);
 
   --nav-bg: rgba(11, 17, 32, 0.97);
+  --nav-active: #C4B5FD;
 
   /* Accents are theme-invariant for now */
   --accent: #38BDF8;
@@ -38,6 +46,26 @@
   --amber: #F59E0B;
   --danger: #EF4444;
   --success: #22C55E;
+
+  /* Calendar person lanes */
+  --me: #6366F1;
+  --partner: #EC4899;
+
+  /* Error toast (theme-invariant) */
+  --toast-bg: rgba(69, 10, 10, 0.95);
+  --toast-border: rgba(239, 68, 68, 0.4);
+  --toast-text: #FCA5A5;
+
+  /* Brand / action gradients. Brand gradients start from --text-1 so the
+     logo text stays readable in both themes. */
+  --grad-primary: linear-gradient(135deg, #0EA5E9, #6366F1);
+  --grad-success: linear-gradient(135deg, #22C55E, #059669);
+  --grad-danger: linear-gradient(135deg, #EF4444, #DC2626);
+  --grad-violet: linear-gradient(135deg, #A855F7, #6366F1);
+  --grad-brand-freeze: linear-gradient(135deg, var(--text-1), #38BDF8);
+  --grad-brand-shop: linear-gradient(135deg, var(--text-1), #F59E0B);
+  --grad-brand-app: linear-gradient(135deg, var(--text-1), #C4B5FD);
+  --grad-swipe: linear-gradient(90deg, transparent, var(--success));
 }
 
 :root[data-theme="light"] {
@@ -48,6 +76,7 @@
 
   --surface: rgba(255, 255, 255, 0.8);
   --surface-2: rgba(255, 255, 255, 0.7);
+  --surface-solid: #FFFFFF;
   --border: rgba(99, 102, 241, 0.15);
   --border-strong: rgba(99, 102, 241, 0.2);
 
@@ -65,6 +94,129 @@
   --nav-bg: rgba(255, 255, 255, 0.97);
 }
 
+/* ─── TAILWIND THEME ──────────────────────────────────────────────
+   Utility vocabulary. `inline` is required: values are var() references
+   that must re-resolve when data-theme flips. Default palettes are wiped
+   so the tokens above are the ONLY styling vocabulary — a forgotten
+   default class (e.g. bg-slate-800) renders unstyled and is caught by
+   visual review. */
+@theme inline {
+  --font-sans: 'Outfit', 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+
+  /* Colors: tokens only */
+  --color-*: initial;
+  --color-white: #fff;
+  --color-black: #000;
+  --color-page: var(--page-bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-solid: var(--surface-solid);
+  --color-line: var(--border);
+  --color-line-strong: var(--border-strong);
+  --color-ink: var(--text-1);
+  --color-ink-2: var(--text-2);
+  --color-ink-3: var(--text-3);
+  --color-ink-dim: var(--text-dim);
+  --color-field: var(--input-bg);
+  --color-field-line: var(--input-border);
+  --color-handle: var(--modal-handle);
+  --color-overlay: var(--overlay);
+  --color-nav: var(--nav-bg);
+  --color-nav-active: var(--nav-active);
+  --color-accent: var(--accent);
+  --color-accent-2: var(--accent-2);
+  --color-accent-3: var(--accent-3);
+  --color-amber: var(--amber);
+  --color-danger: var(--danger);
+  --color-success: var(--success);
+  --color-me: var(--me);
+  --color-partner: var(--partner);
+  --color-toast: var(--toast-bg);
+  --color-toast-line: var(--toast-border);
+  --color-toast-ink: var(--toast-text);
+
+  /* Font sizes: px-named scale (values in rem, 1rem = 16px). No paired
+     line-heights — browser default, matching the previous inline styles. */
+  --text-*: initial;
+  --text-9: 0.5625rem;
+  --text-10: 0.625rem;
+  --text-11: 0.6875rem;
+  --text-12: 0.75rem;
+  --text-13: 0.8125rem;
+  --text-14: 0.875rem;
+  --text-15: 0.9375rem;
+  --text-16: 1rem;
+  --text-17: 1.0625rem;
+  --text-18: 1.125rem;
+  --text-20: 1.25rem;
+  --text-22: 1.375rem;
+  --text-24: 1.5rem;
+  --text-26: 1.625rem;
+  --text-28: 1.75rem;
+  --text-30: 1.875rem;
+  --text-32: 2rem;
+  --text-36: 2.25rem;
+  --text-44: 2.75rem;
+  --text-48: 3rem;
+  --text-56: 3.5rem;
+  --text-64: 4rem;
+  --text-72: 4.5rem;
+
+  /* Radii: px-named (rounded-full stays built in) */
+  --radius-*: initial;
+  --radius-2: 2px;
+  --radius-4: 4px;
+  --radius-6: 6px;
+  --radius-8: 8px;
+  --radius-10: 10px;
+  --radius-12: 12px;
+  --radius-14: 14px;
+  --radius-16: 16px;
+  --radius-18: 18px;
+  --radius-20: 20px;
+  --radius-24: 24px;
+
+  /* App frame width: max-w-app */
+  --container-app: 430px;
+
+  /* Shadows */
+  --shadow-*: initial;
+  --shadow-pop: 0 8px 24px rgb(0 0 0 / 0.4);
+  --shadow-fab: 0 8px 32px rgb(14 165 233 / 0.4), 0 0 0 4px rgb(14 165 233 / 0.1);
+  --shadow-fab-violet: 0 4px 12px rgb(168 85 247 / 0.35);
+}
+
+/* ─── GRADIENT & HELPER UTILITIES ─────────────────────────────────
+   Gradient tokens can't be @theme colors (bg-* expects flat colors). */
+@utility bg-app { background: var(--bg); }
+@utility bg-modal { background: var(--modal-bg); }
+@utility bg-glow-1 { background: var(--glow-1); }
+@utility bg-glow-2 { background: var(--glow-2); }
+@utility bg-grad-primary { background-image: var(--grad-primary); }
+@utility bg-grad-success { background-image: var(--grad-success); }
+@utility bg-grad-danger { background-image: var(--grad-danger); }
+@utility bg-grad-violet { background-image: var(--grad-violet); }
+@utility bg-grad-brand-freeze { background-image: var(--grad-brand-freeze); }
+@utility bg-grad-brand-shop { background-image: var(--grad-brand-shop); }
+@utility bg-grad-brand-app { background-image: var(--grad-brand-app); }
+@utility bg-grad-swipe { background-image: var(--grad-swipe); }
+
+/* Gradient text — pair with a bg-grad-* class */
+@utility text-gradient {
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Hide scrollbar but keep scroll */
+@utility hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  &::-webkit-scrollbar { display: none; }
+}
+
+/* ─── BASE ─── */
 * {
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
@@ -90,7 +242,3 @@ body {
 input[type="date"]::-webkit-calendar-picker-indicator {
   filter: invert(0.7);
 }
-
-/* Hide scrollbar but keep scroll */
-.hide-scrollbar::-webkit-scrollbar { display: none; }
-.hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }

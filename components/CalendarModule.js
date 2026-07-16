@@ -1,23 +1,8 @@
 'use client';
 import { useState } from 'react';
-import { detectEventType, fmtTime, cx } from '@/lib/utils';
-import { Screen, Btn, Modal, Input, Label, IconButton } from './ui';
-
-const SL_DAYS = ['Ne', 'Po', 'To', 'Sr', 'Če', 'Pe', 'So'];
-const SL_MONTHS = [
-  'januar',
-  'februar',
-  'marec',
-  'april',
-  'maj',
-  'junij',
-  'julij',
-  'avgust',
-  'september',
-  'oktober',
-  'november',
-  'december',
-];
+import { useTranslations, useFormatter } from 'next-intl';
+import { detectEventType, cx } from '@/lib/utils';
+import { Screen, PageBody, Btn, Modal, Input, Label, IconButton } from './ui';
 
 // Person lane tones — current user = indigo, partner = pink.
 // Full literal class strings for the Tailwind scanner.
@@ -55,6 +40,12 @@ export default function CalendarModule({
   onOpenSettings,
 }) {
   const [calEventDetail, setCalEventDetail] = useState(null);
+  const t = useTranslations('Calendar');
+  const tc = useTranslations('Common');
+  const format = useFormatter();
+  const fmtTime = (d) => format.dateTime(new Date(d), 'time');
+  // Two-letter day-of-week strip labels (no CLDR equivalent — kept in messages)
+  const dow = t.raw('dow');
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -71,7 +62,7 @@ export default function CalendarModule({
   // Own events: directly from API (instant); partner events: from shared DB
   const myEvents = myFetchedEvents.map((ev) => ({
     id: ev.id,
-    title: ev.summary || 'Brez naslova',
+    title: ev.summary || t('noTitle'),
     start_time: ev.start?.dateTime || ev.start?.date || null,
     end_time: ev.end?.dateTime || ev.end?.date || null,
     is_all_day: !!ev.start?.date,
@@ -112,13 +103,13 @@ export default function CalendarModule({
 
   return (
     <Screen>
-      <div className="relative z-1 px-4 pt-4 pb-[calc(100px+env(safe-area-inset-bottom))]">
+      <PageBody>
         {/* Header */}
         <div className="mb-4 flex items-center justify-between pt-3">
           <div>
-            <h1 className="text-2xl font-extrabold">📅 Koledar</h1>
+            <h1 className="text-2xl font-extrabold">{t('title')}</h1>
             <div className="mt-0.5 text-xs text-slate-500 capitalize dark:text-slate-400">
-              {SL_MONTHS[selDay.getMonth()]} {selDay.getFullYear()}
+              {format.dateTime(selDay, 'monthYear')}
             </div>
           </div>
           <IconButton onClick={onOpenSettings}>⚙️</IconButton>
@@ -143,7 +134,7 @@ export default function CalendarModule({
                   isToday(d) ? 'text-indigo-400' : 'text-slate-400 dark:text-slate-500',
                 )}
               >
-                {SL_DAYS[d.getDay()]}
+                {dow[d.getDay()]}
               </span>
               <span
                 className={cx(
@@ -166,13 +157,13 @@ export default function CalendarModule({
         {!calConnected && (
           <div className="px-5 py-10 text-center">
             <div className="mb-3 text-5xl">📅</div>
-            <div className="mb-1.5 text-base font-bold text-slate-800 dark:text-slate-200">Poveži Google Koledar</div>
-            <div className="mb-5 text-sm text-slate-500 dark:text-slate-400">Poveži v nastavitvah</div>
+            <div className="mb-1.5 text-base font-bold text-slate-800 dark:text-slate-200">{t('connectTitle')}</div>
+            <div className="mb-5 text-sm text-slate-500 dark:text-slate-400">{t('connectHint')}</div>
             <button
               onClick={connectCalendar}
               className="cursor-pointer rounded-xl border-none bg-linear-135 from-indigo-500 to-indigo-400 px-6 py-3.25 text-sm font-bold text-white"
             >
-              Poveži Google Koledar
+              {t('connectBtn')}
             </button>
           </div>
         )}
@@ -186,20 +177,20 @@ export default function CalendarModule({
               <div className="flex items-center gap-1.5 pl-2">
                 <div className={cx('h-2 w-2 shrink-0 rounded-full', PERSON.me.dot)} />
                 <span className="overflow-hidden text-xs font-bold text-ellipsis whitespace-nowrap text-slate-500 dark:text-slate-400">
-                  {calConnection?.google_email?.split('@')[0] || 'Ti'}
+                  {calConnection?.google_email?.split('@')[0] || t('you')}
                 </span>
               </div>
               <div className="flex items-center gap-1.5 pl-2">
                 <div className={cx('h-2 w-2 shrink-0 rounded-full', PERSON.partner.dot)} />
                 <span className="overflow-hidden text-xs font-bold text-ellipsis whitespace-nowrap text-slate-500 dark:text-slate-400">
-                  {partnerConn?.google_email?.split('@')[0] || 'Partner'}
+                  {partnerConn?.google_email?.split('@')[0] || t('partner')}
                 </span>
               </div>
             </div>
 
             {/* Loading — only block on Google API fetch, not DB */}
             {calLoading && (
-              <div className="py-6 text-center text-sm text-slate-500 dark:text-slate-400">Nalagam...</div>
+              <div className="py-6 text-center text-sm text-slate-500 dark:text-slate-400">{tc('loading')}</div>
             )}
 
             {/* Hour grid */}
@@ -241,12 +232,12 @@ export default function CalendarModule({
             {/* Partner not connected note */}
             {calConnections.length > 1 && !partnerConn && (
               <div className="mt-2 p-4 text-center text-xs text-slate-400 dark:text-slate-500">
-                Partner še ni povezal svojega koledarja
+                {t('partnerNotConnected')}
               </div>
             )}
           </div>
         )}
-      </div>
+      </PageBody>
 
       {/* Event detail modal */}
       {calEventDetail && (
@@ -268,13 +259,13 @@ export default function CalendarModule({
                 : 'border-indigo-500/20 bg-white/70 text-slate-400 dark:border-slate-600/30 dark:bg-slate-800/50 dark:text-slate-500',
             )}
           >
-            {calEventDetail.is_important ? '⭐ Pomemben' : '☆ Označi kot pomemben'}
+            {calEventDetail.is_important ? t('important') : t('markImportant')}
           </button>
-          <Label>Oznaka</Label>
+          <Label>{t('labelField')}</Label>
           <Input
             value={calEventDetail.label || ''}
             onChange={(e) => setCalEventDetail((d) => ({ ...d, label: e.target.value }))}
-            placeholder="Dodaj oznako..."
+            placeholder={t('labelPlaceholder')}
             className="mb-4"
           />
           <Btn
@@ -286,7 +277,7 @@ export default function CalendarModule({
               setCalEventDetail(null);
             }}
           >
-            Shrani
+            {tc('save')}
           </Btn>
         </Modal>
       )}

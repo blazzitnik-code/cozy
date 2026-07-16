@@ -2,13 +2,14 @@
 
 ## What this is
 
-**Cožy** — a household PWA for Nik and partner: shared freezer inventory, shopping lists, todo lists, calendar, home screen (traffic/LPP buses/BicikeLJ). Mobile-first (max-width 430px), UI in Slovenian, dark theme by default. Realtime sync between household members via Supabase.
+**Cožy** — a household PWA for Nik and partner: shared freezer inventory, shopping lists, todo lists, calendar, home screen (traffic/LPP buses/BicikeLJ). Mobile-first (max-width 430px), bilingual UI (Slovenian default + English via next-intl), dark theme by default. Realtime sync between household members via Supabase.
 
 ## Stack and commands
 
 - Next.js 16 app router (JS, no TypeScript, Turbopack), React 19, Supabase JS v2.
 - **Stock Tailwind 4 utility classes everywhere** — no custom tokens, no `@utility`, no CSS modules/styled-components. `app/globals.css` contains ONLY the import, the `dark` custom variant and the Outfit font. Inline `style` props are allowed ONLY for the documented dynamic cases (see Theming).
 - `npm run dev` — app on http://localhost:3000
+- `npm run format` — Prettier with `prettier-plugin-tailwindcss` (canonical class order; `.vscode/settings.json` wires format-on-save + Tailwind IntelliSense for `cx()` and ALL-CAPS class consts). Run before committing.
 - `npx supabase start|stop|status` — local stack in Docker, ports **55321+** (API 55321, DB 55322, Studio 55323; intentionally non-default to avoid clashing with other projects)
 - `npx supabase db reset` — re-runs `supabase/migrations/` + `supabase/seed.sql` (wipes local data)
 - New migration: `npx supabase migration new <name>`
@@ -29,30 +30,47 @@
 
 ```
 app/page.js                  — auth flow: login → create/join household → AppShell
-components/AppShell.js       — app shell (~330 lines): ALL Supabase hooks, mode/lang/theme,
+components/AppShell.js       — app shell (~330 lines): ALL Supabase hooks, mode/theme,
                                calendar connection orchestration, settings modal, routing
+components/IntlProvider.js   — next-intl client provider: locale state (localStorage
+                               zmrzko_lang), NextIntlClientProvider (explicit props),
+                               date-format presets, useLocaleSwitch() context
 components/HomeScreen.js     — home mode: quick stats, today's events, todo previews
 components/FreezerModule.js  — freezer: list+filters, swipe archive, add flow, archive views
 components/ShoppingModule.js — shopping: store tabs, categorized list, history, modals
 components/CalendarModule.js — two-lane partner calendar + event detail modal
 components/TodoApp.js        — todo module
 components/HomeModule.js     — traffic, shortcuts, LPP, BicikeLJ
-components/ui.js             — shared UI: Screen, Card, Input, Label, SectionHeader,
-                               EmptyState, IconButton, Fab, Avatar, Segmented, Badge,
-                               Pill, FC, Btn, Modal, ConfirmModal, Toaster, LogoToggle,
-                               BottomNav, SwipeCard
+components/ui.js             — shared UI: Screen, PageBody, Loader, Card, Input, Label,
+                               SectionHeader, EmptyState, IconButton, Fab, Avatar,
+                               Segmented, Badge, Pill, FC, Btn, BackBtn, Modal,
+                               ModalActions, ConfirmModal, Toaster, LogoToggle,
+                               BottomNav, SwipeCard + shared class consts
+                               (CHIP_OFF/CHIP_*_ON, POPOVER, PRESS/PRESS_SM)
 lib/hooks.js                 — ALL Supabase access (17 hooks); generic useHouseholdTable
-lib/constants.js             — CATS, SUGG, SHOP_SUGG, FICONS, QO
-lib/utils.js                 — cx class joiner, expiry status + STATUS_* class maps,
-                               date/calendar formatting helpers
+lib/constants.js             — CATS; per-locale SUGG/SHOP_SUGG/QO ({ sl, en }); FICONS
+lib/utils.js                 — cx (clsx + tailwind-merge), expiry status + STATUS_*
+                               class maps, expiryInfo(), localDateStr()
+lib/intl.js                  — useCatLabel(), useExpiryText(), RPC error → key mapping
 lib/supabase.js              — client from env
-lib/i18n.js                  — translations (useT) — only partially used
+messages/sl.json, en.json    — ALL UI strings (next-intl, namespaced per module)
 supabase/migrations/         — schema (reconstructed from hooks.js; cloud was never pulled)
 supabase/seed.sql            — 10 global categories; REQUIRED, otherwise the app hangs
                                on "Nalagam..." (hasCats check)
 ```
 
 Architecture: data hooks live in AppShell and flow into modules via props — modules own only their UI state. Reason: switching tabs unmounts modules; module-owned hooks would refetch and flicker on every switch, and unmount naturally resets per-module UI state.
+
+## i18n (next-intl, "without i18n routing")
+
+- Fully client-side: **no** `createNextIntlPlugin`, **no** `i18n/request.js` — `components/IntlProvider.js` (mounted in layout.js `<body>`) passes explicit `locale`/`messages`/`timeZone`/`formats` to `NextIntlClientProvider`. Both locale JSONs are statically imported (instant offline switch, ~4 KB gzip each).
+- Locale = `localStorage['zmrzko_lang']` (`sl` default, `en`); the layout.js pre-paint script also sets `<html lang>`; the switcher in SettingsModal uses `useLocaleSwitch()` from IntlProvider.
+- Components use `useTranslations('<Namespace>')` (namespace per module + `Common`/`Errors`/`Expiry`/`Categories`/`Nav`) and `useFormatter()` with the named dateTime presets from IntlProvider (`day`, `dayShort`, `monthYear`, `time`, …) — never `toLocaleDateString('sl-SI', …)` directly.
+- Missing keys fall back en → sl → key path (`getMessageFallback` in IntlProvider). Plurals use ICU (`{count, plural, one {…} two {…} few {…} other {…}}` — Slovenian has 4 forms). ICU treats `{ } #` as special — escape literal ones with `'`.
+- **New UI strings go into BOTH `messages/sl.json` and `messages/en.json`** — never hardcode UI text in JSX.
+- Category labels: translate by stable id via `useCatLabel()` (`Categories.*`); user-created categories fall back to their DB label. Suggestion lists (SUGG/SHOP_SUGG/QO) are per-locale in `lib/constants.js`; picked values become DB data, so shared lists can contain mixed-language names — the shopping `detectCategory` regexes match both languages.
+- Toast errors: `lib/hooks.js` passes `Errors.*` **keys** to `notifyError()`; `<Toaster />` translates known keys at render time and shows unknown strings verbatim.
+- Out of scope (stays Slovenian): static metadata in layout.js, `public/manifest.json`, data stored in the DB.
 
 ## Database (essentials)
 
@@ -71,20 +89,20 @@ Architecture: data hooks live in AppShell and flow into modules via props — mo
 - **Rule: no hardcoded hex/rgba.** Audit: `grep -rnE '#[0-9A-Fa-f]{3,8}\b|rgba?\(' app components lib --include='*.js' | grep -vE 'lib/constants\.js|fill="#|themeColor'` must stay empty (exclusions: CATS data colors, the Google logo SVG, the PWA themeColor meta).
 - Arbitrary values only where stock has no equivalent: app frame `max-w-[430px]`, `text-[9px]`/`text-[10px]` micro-captions, `env(safe-area-inset-*)`/`calc()` offsets, `tracking-[…]`, scrollbar hiding (`[scrollbar-width:none] [&::-webkit-scrollbar]:hidden`).
 - Inline `style` props are allowed ONLY for truly runtime-dynamic values: CSS-var bridges for data-driven colors (`style={{'--cat': cat.color}}` + `bg-(--cat)/13`), computed widths/heights (progress bars, chart bars), drag transforms (SwipeCard), Avatar size. Everything else is a class.
-- Conditional classes use `cx()` from `lib/utils.js` with **full literal class strings** — never concatenate class-name fragments (Tailwind's scanner can't see them).
+- Conditional classes use `cx()` from `lib/utils.js` (clsx + tailwind-merge: later classes win per CSS property, so `className` overrides on shared components are safe — e.g. `<Card className="rounded-xl">`). Always **full literal class strings** — never concatenate class-name fragments (Tailwind's scanner can't see them). Caveat: twMerge does not merge across variants — a `dark:bg-*` on a component base can only be overridden by another `dark:bg-*`.
+- Repeated visual recipes live in `components/ui.js`, not inline: `PageBody` (page content wrapper), `Card` (surface), `BackBtn`, `ModalActions` (Save/Cancel pair, tones primary/violet/orange/danger), `POPOVER` (opaque dropdown panel), chip states (`CHIP_OFF` + `CHIP_SKY_ON`/`CHIP_INDIGO_ON`/`CHIP_AMBER_ON`). Reuse before writing a new one.
+- Interactive baseline: shared primitives ship press feedback + keyboard focus ring via the `PRESS`/`PRESS_SM` consts (`active:scale-*`, `focus-visible:outline-*`); `Input` highlights its border on focus. New tappable elements should include `PRESS`/`PRESS_SM`.
 - Errors: failed DB writes surface via `notifyError()` (`lib/notify.js`) → `<Toaster />`; never swallow write errors silently.
 
 ## Conventions
 
 - One module = one file in `components/`; DB logic lives exclusively in `lib/hooks.js`.
-- **Code comments (JS/SQL/config/env) in English**; UI strings in Slovenian. Exception: `raise exception` messages in RPC functions are Slovenian because the app shows them to the user (`setError(e.message)`).
+- **Code comments (JS/SQL/config/env) in English**; UI strings via next-intl messages (see i18n). Exception: `raise exception` messages in RPC functions are Slovenian — the client maps the known ones to `Errors.rpc.*` keys via `rpcErrorKey()` in `lib/intl.js` and shows unknown ones verbatim.
 - Stock Tailwind utility classes (see Theming); slate/indigo palette with sky/amber accents, light + dark via the `dark:` variant.
-- UI strings in Slovenian directly in JSX (i18n via `useT` is half-implemented — don't extend it without agreeing first).
-- Dates: `sl-SI` locale, formatted via `toLocaleDateString`.
+- Dates/times: `useFormatter()` presets (locale-aware); `localDateStr()` only for YYYY-MM-DD data values.
 
 ## Known tech debt (deliberately deferred)
 
-- i18n via `useT` is ad-hoc and only covers the freezer module + settings — gets replaced by next-intl (roadmap 6).
 - Google Calendar access tokens stored in plaintext in `calendar_connections` (readable by household members — a deliberate decision for a two-person app).
 
 ## Agreed roadmap
@@ -94,5 +112,5 @@ Architecture: data hooks live in AppShell and flow into modules via props — mo
 3. ~~Add MCP servers for Next + Supabase~~ ✅
 4. ~~Split `ZmrzkoApp.js` into modules (AppShell + HomeScreen/Freezer/Shopping/Calendar + ui.js)~~ ✅
 5. ~~Toast error handling + timezone fix + CSS design-token theming foundation~~ ✅
-6. i18n refactor with **next-intl** ("without i18n routing" mode — client app, locale from settings, SL + EN) replacing the ad-hoc `useT`
+6. ~~i18n refactor with **next-intl** ("without i18n routing" mode — client app, locale from settings, SL + EN) replacing the ad-hoc `useT`~~ ✅
 7. Theme design migration: ~~unify all styling onto stock Tailwind utilities (light + dark via `dark:`)~~ ✅ → Nik provides the visual design → restyle by editing classes, mostly in `components/ui.js` and the shared class-map constants

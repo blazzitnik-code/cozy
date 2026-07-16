@@ -13,7 +13,9 @@ import {
   useCalendarEvents,
   useTodoLists,
 } from '@/lib/hooks';
-import { useT } from '@/lib/i18n';
+import { useTranslations } from 'next-intl';
+import { useLocaleSwitch } from './IntlProvider';
+import { rpcErrorKey } from '@/lib/intl';
 import { supabase } from '@/lib/supabase';
 import { localDateStr } from '@/lib/utils';
 import { Modal, ConfirmModal, BottomNav, Toaster, Loader, Segmented, Avatar } from './ui';
@@ -26,25 +28,15 @@ import CalendarModule from './CalendarModule';
 
 // ═══════════════════════════
 // APP SHELL
-// Owns all Supabase hooks, mode/lang/theme, calendar connection
+// Owns all Supabase hooks, mode/theme, calendar connection
 // orchestration and the settings modal; modules get data via props.
+// Language lives in IntlProvider (next-intl); modules read it via hooks.
 // ═══════════════════════════
 export default function AppShell({ user, household, members, signOut }) {
   const householdId = household?.id;
 
   // ─── MODE: home | freezer | shopping | calendar | todo ───
   const [mode, setMode] = useState('home');
-
-  // ─── LANGUAGE ───
-  const [lang, setLang] = useState(() => {
-    if (typeof window !== 'undefined') return localStorage.getItem('zmrzko_lang') || 'sl';
-    return 'sl';
-  });
-  const t = useT(lang);
-  const switchLang = (l) => {
-    setLang(l);
-    localStorage.setItem('zmrzko_lang', l);
-  };
 
   // ─── THEME ───
   const [theme, setTheme] = useState(() => {
@@ -207,6 +199,9 @@ export default function AppShell({ user, household, members, signOut }) {
   if (itemsLoading || !hasCats) return <Loader />;
 
   function SettingsModal() {
+    const t = useTranslations('Settings');
+    const tc = useTranslations('Common');
+    const { locale, switchLocale } = useLocaleSwitch();
     if (!showSettings) return null;
     return (
       <Modal onClose={() => setShowSettings(false)}>
@@ -214,15 +209,15 @@ export default function AppShell({ user, household, members, signOut }) {
           <div className="mb-2 text-5xl">🏠</div>
           <h2 className="mb-1 text-xl font-extrabold">{household.name}</h2>
           <p className="text-sm text-slate-400 dark:text-slate-500">
-            Prijavljen kot {user.user_metadata?.full_name || user.email}
+            {t('signedInAs', { name: user.user_metadata?.full_name || user.email })}
           </p>
         </div>
 
-        {/* LANGUAGE SWITCHER */}
+        {/* LANGUAGE SWITCHER — labels stay in their native language on purpose */}
         <Segmented
           className="mb-3"
-          value={lang}
-          onChange={switchLang}
+          value={locale}
+          onChange={switchLocale}
           options={[
             { value: 'sl', label: '🇸🇮 Slovenščina' },
             { value: 'en', label: '🇬🇧 English' },
@@ -236,24 +231,24 @@ export default function AppShell({ user, household, members, signOut }) {
           value={theme}
           onChange={switchTheme}
           options={[
-            { value: 'dark', label: '🌙 Temna' },
-            { value: 'light', label: '☀️ Svetla' },
+            { value: 'dark', label: t('themeDark') },
+            { value: 'light', label: t('themeLight') },
           ]}
         />
 
         {/* Join code */}
         <div className="mb-4 rounded-xl border border-sky-400/20 bg-sky-400/6 p-4 text-center">
-          <div className="mb-1.5 text-xs font-bold tracking-[1px] text-sky-400 uppercase">{t('kodaZaPovabilo')}</div>
+          <div className="mb-1.5 text-xs font-bold tracking-[1px] text-sky-400 uppercase">{t('inviteCode')}</div>
           <div className="text-4xl font-black tracking-[8px] text-slate-800 dark:text-slate-200">
             {household.join_code}
           </div>
-          <div className="mt-1 text-xs text-slate-300 dark:text-slate-600">Deli to kodo z družino ali partnerjem</div>
+          <div className="mt-1 text-xs text-slate-300 dark:text-slate-600">{t('shareCode')}</div>
         </div>
 
         {/* Members */}
         <div className="mb-5">
           <div className="mb-2 text-sm font-bold text-slate-500 dark:text-slate-400">
-            {t('člani')} ({members.length})
+            {t('members')} ({members.length})
           </div>
           {members.map((m) => (
             <div
@@ -263,23 +258,23 @@ export default function AppShell({ user, household, members, signOut }) {
               <Avatar name={m.display_name} />
               <div className="flex-1">
                 <div className="text-sm font-semibold text-slate-800 dark:text-slate-200">
-                  {m.display_name || 'Uporabnik'}
+                  {m.display_name || tc('user')}
                 </div>
                 <div className="text-xs text-slate-300 dark:text-slate-600">
-                  {m.role === 'owner' ? t('lastnik') : t('član')}
+                  {m.role === 'owner' ? t('owner') : t('member')}
                 </div>
               </div>
               {m.user_id === user.id ? (
-                <span className="text-xs font-semibold text-sky-400">Ti</span>
+                <span className="text-xs font-semibold text-sky-400">{t('you')}</span>
               ) : (
                 members.find((x) => x.user_id === user.id)?.role === 'owner' && (
                   <button
                     onClick={() =>
                       setConfirmAction({
-                        message: `Odstrani ${m.display_name || 'člana'} iz gospodinjstva?`,
+                        message: t('removeMember', { name: m.display_name || t('memberFallback') }),
                         onConfirm: async () => {
                           const { error } = await supabase.rpc('remove_household_member', { p_member_id: m.id });
-                          if (error) notifyError(error.message);
+                          if (error) notifyError(rpcErrorKey(error.message) ?? error.message);
                         },
                       })
                     }
@@ -295,23 +290,23 @@ export default function AppShell({ user, household, members, signOut }) {
 
         {/* Google Calendar */}
         <div className="mb-5">
-          <div className="mb-2.5 text-sm font-bold text-slate-500 dark:text-slate-400">📅 Google Koledar</div>
+          <div className="mb-2.5 text-sm font-bold text-slate-500 dark:text-slate-400">{t('googleCalendar')}</div>
           {calConnected ? (
             <div className="flex items-center gap-2.5 rounded-xl border border-green-500/20 bg-green-500/6 px-3.5 py-3">
               <div className="flex-1">
-                <div className="text-sm font-bold text-green-500">✓ Povezan</div>
+                <div className="text-sm font-bold text-green-500">{t('connected')}</div>
                 <div className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">{calConnection?.google_email}</div>
               </div>
               <button
                 onClick={() =>
                   setConfirmAction({
-                    message: 'Odklopi Google Koledar?',
+                    message: t('disconnectConfirm'),
                     onConfirm: () => removeCalConnection(calConnection.id),
                   })
                 }
                 className="cursor-pointer rounded-lg border border-red-500/20 bg-red-500/8 px-2.5 py-1.5 text-xs font-semibold text-red-500"
               >
-                Odklopi
+                {t('disconnect')}
               </button>
             </div>
           ) : (
@@ -322,7 +317,7 @@ export default function AppShell({ user, household, members, signOut }) {
               }}
               className="w-full cursor-pointer rounded-xl border border-indigo-500/30 bg-indigo-500/8 p-3.5 text-sm font-bold text-indigo-400"
             >
-              📅 Poveži Google Koledar
+              {t('connectCalendar')}
             </button>
           )}
         </div>
@@ -331,7 +326,7 @@ export default function AppShell({ user, household, members, signOut }) {
           onClick={signOut}
           className="w-full cursor-pointer rounded-xl border border-red-500/20 bg-red-500/5 p-3.5 text-base font-bold text-red-500"
         >
-          {t('odjava')}
+          {tc('signOut')}
         </button>
       </Modal>
     );
@@ -391,7 +386,7 @@ export default function AppShell({ user, household, members, signOut }) {
   if (mode === 'todo') {
     return (
       <div className="relative">
-        <TodoApp user={user} householdId={householdId} members={members} lang={lang} />
+        <TodoApp user={user} householdId={householdId} members={members} />
         <BottomNav mode={mode} onNavigate={navigate} />
         <Toaster />
       </div>
@@ -426,7 +421,6 @@ export default function AppShell({ user, household, members, signOut }) {
   return (
     <>
       <FreezerModule
-        lang={lang}
         items={items}
         dbAddItem={dbAddItem}
         dbUpdateItem={dbUpdateItem}

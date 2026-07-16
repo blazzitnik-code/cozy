@@ -1,15 +1,26 @@
 'use client';
 import { useState, useRef, useMemo } from 'react';
+import { useTranslations, useFormatter, useLocale } from 'next-intl';
 import { SHOP_SUGG } from '@/lib/constants';
 import { cx } from '@/lib/utils';
-import { Screen, Btn, Modal, ConfirmModal, LogoToggle, Input, Label, IconButton, EmptyState } from './ui';
+import {
+  Screen,
+  PageBody,
+  Btn,
+  Modal,
+  ConfirmModal,
+  LogoToggle,
+  Input,
+  Label,
+  IconButton,
+  EmptyState,
+  BackBtn,
+  CHIP_AMBER_ON,
+  CHIP_OFF,
+  POPOVER,
+} from './ui';
 
 const STORE_ICONS = ['🟢', '🟣', '🔵', '🟠', '🔴', '🟡', '⚫', '🏪'];
-
-// Amber-accent selectable chips (store tabs, quantity/store pickers)
-const CHIP_ON = 'border-amber-500/40 bg-amber-500/12 text-amber-500';
-const CHIP_OFF =
-  'border-indigo-500/20 dark:border-slate-600/30 bg-white/70 dark:bg-slate-800/50 text-slate-400 dark:text-slate-500';
 
 export default function ShoppingModule({
   shopItems,
@@ -27,6 +38,12 @@ export default function ShoppingModule({
   onToggleMode,
   onOpenSettings,
 }) {
+  const t = useTranslations('Shopping');
+  const tc = useTranslations('Common');
+  const format = useFormatter();
+  const locale = useLocale();
+  const shopSuggList = SHOP_SUGG[locale] ?? SHOP_SUGG.sl;
+
   // ─── SHOPPING UI STATE ───
   const [activeStore, setActiveStore] = useState('all');
   const [lastStore, setLastStore] = useState('mercator');
@@ -49,34 +66,59 @@ export default function ShoppingModule({
   // All known shopping names for autocomplete
   const shopKnown = useMemo(() => {
     const favNames = shopFavourites.map((f) => f.name);
-    const all = [...new Set([...favNames, ...SHOP_SUGG, ...shopArchive.map((a) => a.name)])];
+    const all = [...new Set([...favNames, ...shopSuggList, ...shopArchive.map((a) => a.name)])];
     return all;
-  }, [shopFavourites, shopArchive]);
+  }, [shopFavourites, shopArchive, shopSuggList]);
 
   // ─── SHOPPING LOGIC ───
   const shopVisible = activeStore === 'all' ? shopItems : shopItems.filter((i) => i.store === activeStore);
 
   // ─── SMART CATEGORIZATION ───
+  // Regexes match Slovenian AND English item names (shared lists can contain
+  // both); the section label is rendered from Shopping.sections.<key>.
+  // Word-boundary escapes (\bice\b, \boil\b, …) avoid false hits inside
+  // longer words ("juice", "toilet", "shampoo", "steak").
   const detectCategory = (name) => {
     const n = name.toLowerCase();
-    if (/zamrz|led|sladoled|ice/.test(n)) return { key: 'zamrznjeno', label: '🧊 Zamrznjeno', order: 1 };
-    if (/mleko|jogurt|sir|smetana|skuta|maslo|jajc/.test(n))
-      return { key: 'mlecni', label: '🥛 Mlečni izdelki', order: 2 };
-    if (/piščan|govej|svinjsk|mlet|šunka|salama|riba|losos|puran|meso/.test(n))
-      return { key: 'meso', label: '🥩 Meso & ribe', order: 3 };
-    if (/jabolko|hruška|banana|jagod|pomaranč|limona|grozdje|sadje|avokado|borovnic/.test(n))
-      return { key: 'sadje', label: '🍎 Sadje', order: 4 };
-    if (/zelenjav|solata|paradižnik|kumara|paprika|čebula|česen|krompir|brokoli|korenje|grah|špinač/.test(n))
-      return { key: 'zelenjava', label: '🥬 Zelenjava', order: 5 };
-    if (/kruh|žemlja|burek|pica|torta|kolač|pecivo|rogljič/.test(n))
-      return { key: 'pekarna', label: '🍞 Pekarna', order: 6 };
-    if (/riž|testenin|moka|sladkor|sol|olje|kis|začimb|poper|kava|čaj|konzerv/.test(n))
-      return { key: 'suho', label: '🥫 Suho blago', order: 7 };
-    if (/pivo|vino|sok|voda|pijač/.test(n)) return { key: 'pijace', label: '🥤 Pijače', order: 8 };
-    if (/pes|mačk|pasja|mačja|hrana za/.test(n)) return { key: 'zivali', label: '🐾 Za živali', order: 9 };
-    if (/pralni|detergent|gobic|toaletni|wc|šampon|gel|milo|zobna|krema|dezodor/.test(n))
-      return { key: 'cistila', label: '🧴 Čistila & nega', order: 10 };
-    return { key: 'drugo', label: '🛒 Ostalo', order: 99 };
+    if (/zamrz|led|sladoled|frozen|ice cream|\bice\b/.test(n)) return { key: 'zamrznjeno', order: 1 };
+    if (/mleko|jogurt|sir|smetana|skuta|maslo|jajc|milk|yogurt|yoghurt|cheese|butter|cream|\begg/.test(n))
+      return { key: 'mlecni', order: 2 };
+    if (
+      /piščan|govej|svinjsk|mlet|šunka|salama|riba|losos|puran|meso|chicken|beef|pork|\bham\b|salami|fish|salmon|turkey|meat|shrimp|sausage|bass/.test(
+        n,
+      )
+    )
+      return { key: 'meso', order: 3 };
+    if (
+      /jabolko|hruška|banana|jagod|pomaranč|limona|grozdje|sadje|avokado|borovnic|apple|pear|strawberr|orange|lemon|grape|fruit|avocado|blueberr|peach|melon/.test(
+        n,
+      )
+    )
+      return { key: 'sadje', order: 4 };
+    if (
+      /zelenjav|solata|paradižnik|kumara|paprika|čebula|česen|krompir|brokoli|korenje|grah|špinač|vegetable|lettuce|tomato|cucumber|bell pepper|onion|garlic|potato|broccoli|carrot|peas|spinach|salad/.test(
+        n,
+      )
+    )
+      return { key: 'zelenjava', order: 5 };
+    if (/kruh|žemlja|burek|pica|torta|kolač|pecivo|rogljič|bread|pizza|cake|pastry|croissant|\bbun\b|bagel/.test(n))
+      return { key: 'pekarna', order: 6 };
+    if (
+      /riž|testenin|moka|sladkor|sol|olje|kis|začimb|poper|kava|čaj|konzerv|rice|pasta|flour|sugar|salt|\bpepper\b|spice|\boil\b|vinegar|coffee|\btea\b|canned|cereal/.test(
+        n,
+      )
+    )
+      return { key: 'suho', order: 7 };
+    if (/pivo|vino|sok|voda|pijač|beer|wine|juice|water|soda|drink|cola|lemonade/.test(n))
+      return { key: 'pijace', order: 8 };
+    if (/pes|mačk|pasja|mačja|hrana za|\bdog\b|\bcat\b|pet food/.test(n)) return { key: 'zivali', order: 9 };
+    if (
+      /pralni|detergent|gobic|toaletni|wc|šampon|gel|milo|zobna|krema|dezodor|laundry|toilet|shampoo|soap|toothpaste|deodorant|sponge|cleaner|\bdish\b/.test(
+        n,
+      )
+    )
+      return { key: 'cistila', order: 10 };
+    return { key: 'drugo', order: 99 };
   };
 
   const sortedShop = useMemo(() => {
@@ -94,7 +136,7 @@ export default function ShoppingModule({
     const groups = {};
     unchecked.forEach((item) => {
       const cat = detectCategory(item.name);
-      if (!groups[cat.key]) groups[cat.key] = { label: cat.label, order: cat.order, items: [] };
+      if (!groups[cat.key]) groups[cat.key] = { key: cat.key, order: cat.order, items: [] };
       groups[cat.key].items.push(item);
     });
     return { groups: Object.values(groups).sort((a, b) => a.order - b.order), checked };
@@ -168,23 +210,18 @@ export default function ShoppingModule({
     const byDate = {};
     shopArchive.forEach((a) => {
       const d = new Date(a.completed_at);
-      const k = d.toLocaleDateString('sl-SI', { day: 'numeric', month: 'long', year: 'numeric' });
+      const k = format.dateTime(d, 'fullDate');
       if (!byDate[k]) byDate[k] = [];
       byDate[k].push(a);
     });
     return (
       <Screen glow2="bg-radial from-amber-500/12 to-transparent to-70% dark:from-amber-500/6">
-        <div className="relative z-1 px-4 pt-4 pb-[calc(100px+env(safe-area-inset-bottom))]">
+        <PageBody>
           <div className="mb-5 flex items-center gap-3 pt-3">
-            <button
-              onClick={() => setShowShopArchive(false)}
-              className="cursor-pointer rounded-xl border border-indigo-500/20 bg-white/90 px-4 py-2.5 text-sm font-semibold text-slate-500 dark:border-slate-600/30 dark:bg-slate-800/80 dark:text-slate-400"
-            >
-              ← Nazaj
-            </button>
-            <h2 className="text-xl font-extrabold">🧾 Zgodovina nakupov</h2>
+            <BackBtn onClick={() => setShowShopArchive(false)} />
+            <h2 className="text-xl font-extrabold">{t('historyTitle')}</h2>
           </div>
-          {shopArchive.length === 0 && <EmptyState icon="🧾">Še ni opravljenih nakupov</EmptyState>}
+          {shopArchive.length === 0 && <EmptyState icon="🧾">{t('historyEmpty')}</EmptyState>}
           {Object.entries(byDate).map(([date, ditems]) => (
             <div key={date} className="mb-4">
               <h3 className="mb-2 text-sm font-bold text-slate-500 dark:text-slate-400">{date}</h3>
@@ -209,7 +246,7 @@ export default function ShoppingModule({
               })}
             </div>
           ))}
-        </div>
+        </PageBody>
       </Screen>
     );
   }
@@ -326,7 +363,7 @@ export default function ShoppingModule({
 
   return (
     <Screen glow2="bg-radial from-amber-500/12 to-transparent to-70% dark:from-amber-500/6">
-      <div className="relative z-1 px-4 pt-4 pb-[calc(100px+env(safe-area-inset-bottom))]">
+      <PageBody>
         {/* Header */}
         <div className="mb-3.5 flex items-start justify-between pt-3">
           <LogoToggle mode="shopping" onToggle={onToggleMode} />
@@ -343,10 +380,10 @@ export default function ShoppingModule({
               onClick={() => setActiveStore('all')}
               className={cx(
                 'shrink-0 cursor-pointer rounded-xl border px-3.5 py-2 text-sm font-bold',
-                activeStore === 'all' ? CHIP_ON : CHIP_OFF,
+                activeStore === 'all' ? CHIP_AMBER_ON : CHIP_OFF,
               )}
             >
-              Vse ({shopItems.filter((i) => !i.checked).length})
+              {t('allCount', { count: shopItems.filter((i) => !i.checked).length })}
             </button>
             {shopStores.map((s) => {
               const cnt = shopItems.filter((i) => i.store === s.id && !i.checked).length;
@@ -359,7 +396,7 @@ export default function ShoppingModule({
                   }}
                   className={cx(
                     'shrink-0 cursor-pointer rounded-xl border px-3.5 py-2 text-sm font-bold',
-                    activeStore === s.id ? CHIP_ON : CHIP_OFF,
+                    activeStore === s.id ? CHIP_AMBER_ON : CHIP_OFF,
                   )}
                 >
                   {s.icon} {s.name} ({cnt})
@@ -385,9 +422,9 @@ export default function ShoppingModule({
               if (e.key === 'Enter') shopAddItem(shopInput);
             }}
             placeholder={
-              'Dodaj' +
-              (activeStore !== 'all' ? ' v ' + shopStores.find((s) => s.id === activeStore)?.name : '') +
-              '...'
+              activeStore === 'all'
+                ? t('addPlaceholder')
+                : t('addToPlaceholder', { store: shopStores.find((s) => s.id === activeStore)?.name })
             }
             className="box-border w-full rounded-xl border border-amber-500/30 bg-white/90 py-3.5 pr-12.5 pl-4 text-lg font-medium text-slate-800 outline-none dark:bg-slate-800/80 dark:text-slate-200"
           />
@@ -400,7 +437,7 @@ export default function ShoppingModule({
             </button>
           )}
           {shopSugg.length > 0 && shopInput && (
-            <div className="absolute inset-x-0 top-[calc(100%+4px)] z-10 rounded-xl border border-indigo-500/20 bg-white p-1 shadow-lg shadow-black/40 dark:border-slate-600/30 dark:bg-slate-800">
+            <div className={cx(POPOVER, 'absolute inset-x-0 top-[calc(100%+4px)] z-10')}>
               {shopSugg.map((s, i) => (
                 <button
                   key={i}
@@ -417,14 +454,15 @@ export default function ShoppingModule({
         {/* Count + "Bought" button */}
         <div className="mb-3 flex items-center justify-between">
           <span className="text-sm text-slate-400 dark:text-slate-500">
-            {uncheckedCount} za kupiti{checkedCount > 0 ? ` · ${checkedCount} ✓` : ''}
+            {t('toBuy', { count: uncheckedCount })}
+            {checkedCount > 0 ? ` · ${checkedCount} ✓` : ''}
           </span>
           {checkedCount > 0 && (
             <button
               onClick={shopClearChecked}
               className="cursor-pointer rounded-lg border border-green-500/20 bg-green-500/10 px-3.5 py-1.5 text-sm font-bold text-green-500"
             >
-              🛒 Kupljeno
+              {t('boughtBtn')}
             </button>
           )}
         </div>
@@ -432,9 +470,9 @@ export default function ShoppingModule({
         {/* Items — always grouped by category */}
         <div className="flex flex-col gap-4">
           {shopByCategory.groups.map((group) => (
-            <div key={group.label}>
+            <div key={group.key}>
               <div className="mb-1.5 pl-0.5 text-xs font-bold tracking-[1px] text-slate-300 uppercase dark:text-slate-600">
-                {group.label}
+                {t('sections.' + group.key)}
               </div>
               <div className="flex flex-col gap-1">
                 {group.items.map((item) => (
@@ -446,7 +484,7 @@ export default function ShoppingModule({
           {shopByCategory.checked.length > 0 && (
             <div>
               <div className="mb-1.5 pl-0.5 text-xs font-bold tracking-[1px] text-slate-300 uppercase dark:text-slate-600">
-                ✓ Kupljeno
+                {t('boughtSection')}
               </div>
               <div className="flex flex-col gap-1">
                 {shopByCategory.checked.map((item) => (
@@ -457,8 +495,8 @@ export default function ShoppingModule({
           )}
         </div>
 
-        {shopItems.length === 0 && <EmptyState icon="🛒">Seznam je prazen — dodaj prvi izdelek!</EmptyState>}
-      </div>
+        {shopItems.length === 0 && <EmptyState icon="🛒">{t('empty')}</EmptyState>}
+      </PageBody>
 
       {/* Shopping item detail modal */}
       {shopDetail && (
@@ -505,10 +543,10 @@ export default function ShoppingModule({
                 {shopDetail.name} <span className="text-sm text-slate-300 dark:text-slate-600">✎</span>
               </h2>
             )}
-            {shopDetail.favourite && <span className="text-sm font-semibold text-amber-500">⭐ Priljubljen</span>}
+            {shopDetail.favourite && <span className="text-sm font-semibold text-amber-500">{t('favourite')}</span>}
           </div>
 
-          <Label>Količina</Label>
+          <Label>{tc('quantity')}</Label>
           <Input
             value={shopDetail.qty}
             onChange={(e) => {
@@ -516,7 +554,7 @@ export default function ShoppingModule({
               setShopDetail((d) => ({ ...d, qty: q }));
               dbShopUpdate(shopDetail.id, { qty: q });
             }}
-            placeholder="npr. 1kg, 3×, 500ml..."
+            placeholder={t('qtyPlaceholder')}
             className="mb-2"
           />
           <div className="mb-5 flex flex-wrap gap-1.5">
@@ -540,7 +578,7 @@ export default function ShoppingModule({
           </div>
 
           {/* Store picker */}
-          <Label>Trgovina</Label>
+          <Label>{t('store')}</Label>
           <div className="mb-4 flex flex-wrap gap-1.5">
             {shopStores.map((s) => (
               <button
@@ -574,7 +612,7 @@ export default function ShoppingModule({
                   : 'border-indigo-500/20 bg-white/80 text-slate-500 dark:border-slate-600/30 dark:bg-slate-800/60 dark:text-slate-400',
               )}
             >
-              {shopDetail.favourite ? '⭐ Priljubljen' : '☆ Priljubljen'}
+              {shopDetail.favourite ? t('favourite') : t('favouriteOff')}
             </button>
           </div>
 
@@ -585,7 +623,7 @@ export default function ShoppingModule({
             }}
             className="w-full cursor-pointer rounded-xl border border-red-500/20 bg-red-500/5 p-3 text-sm font-semibold text-red-500 opacity-80"
           >
-            🗑 Odstrani s seznama
+            {t('removeFromList')}
           </button>
         </Modal>
       )}
@@ -600,7 +638,7 @@ export default function ShoppingModule({
             setNewStore({ name: '', icon: '🔵' });
           }}
         >
-          <h3 className="mb-4 text-center text-lg font-extrabold">Trgovine</h3>
+          <h3 className="mb-4 text-center text-lg font-extrabold">{t('stores')}</h3>
 
           {/* All stores — select, edit or delete */}
           {shopStores.map((s) => {
@@ -640,10 +678,10 @@ export default function ShoppingModule({
                         }}
                         disabled={!editingStore.name}
                       >
-                        Shrani
+                        {tc('save')}
                       </Btn>
                       <Btn v="ghost" onClick={() => setEditingStore(null)}>
-                        Prekliči
+                        {tc('cancel')}
                       </Btn>
                     </div>
                   </div>
@@ -686,7 +724,7 @@ export default function ShoppingModule({
                     <button
                       onClick={() =>
                         setConfirmAction({
-                          message: `Izbriši trgovino ${s.name}?`,
+                          message: t('deleteStoreConfirm', { name: s.name }),
                           onConfirm: async () => {
                             await dbDeleteStore(s.id);
                             if (activeStore === s.id) setActiveStore('all');
@@ -710,11 +748,11 @@ export default function ShoppingModule({
                 onClick={() => setShowAddStoreForm(true)}
                 className="w-full cursor-pointer rounded-xl border border-dashed border-indigo-500/20 bg-transparent p-3 text-sm font-semibold text-slate-400 dark:border-slate-600/30 dark:text-slate-500"
               >
-                + Nova trgovina
+                {t('newStoreBtn')}
               </button>
             ) : (
               <div>
-                <Label>Nova trgovina</Label>
+                <Label>{t('newStore')}</Label>
                 <div className="mb-3 grid grid-cols-4 gap-2">
                   {STORE_ICONS.map((ic) => (
                     <button
@@ -738,12 +776,12 @@ export default function ShoppingModule({
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && newStore.name) addNewStore();
                   }}
-                  placeholder="npr. Hofer, Spar..."
+                  placeholder={t('storePlaceholder')}
                   className="mb-2.5"
                 />
                 <div className="flex gap-2">
                   <Btn onClick={addNewStore} disabled={!newStore.name}>
-                    Dodaj
+                    {tc('add')}
                   </Btn>
                   <Btn
                     v="ghost"
@@ -752,7 +790,7 @@ export default function ShoppingModule({
                       setNewStore({ name: '', icon: '🔵' });
                     }}
                   >
-                    Prekliči
+                    {tc('cancel')}
                   </Btn>
                 </div>
               </div>

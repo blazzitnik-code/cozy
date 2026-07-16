@@ -1,5 +1,6 @@
 import './globals.css';
 import Script from 'next/script';
+import IntlProvider from '@/components/IntlProvider';
 
 export const metadata = {
   title: 'Cožy',
@@ -33,10 +34,12 @@ export default function RootLayout({ children }) {
       className="overflow-x-hidden overscroll-none bg-indigo-50 text-slate-800 antialiased scheme-light dark:bg-slate-950 dark:text-slate-200 dark:scheme-dark"
     >
       <head>
-        {/* Apply saved theme before first paint (dark: classes key off data-theme) */}
+        {/* Apply saved theme + language before first paint (dark: classes key off
+            data-theme; lang is a11y/spellcheck polish — the UI language itself
+            lives in IntlProvider) */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `try{var t=localStorage.getItem('zmrzko_theme');if(t)document.documentElement.dataset.theme=t}catch(e){}`,
+            __html: `try{var t=localStorage.getItem('zmrzko_theme');if(t)document.documentElement.dataset.theme=t;var l=localStorage.getItem('zmrzko_lang');if(l)document.documentElement.lang=l}catch(e){}`,
           }}
         />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -47,7 +50,9 @@ export default function RootLayout({ children }) {
         />
         <link rel="apple-touch-icon" href="/icon-192.png" />
       </head>
-      <body className="pt-[env(safe-area-inset-top)]">{children}</body>
+      <body className="pt-[env(safe-area-inset-top)]">
+        <IntlProvider>{children}</IntlProvider>
+      </body>
       <Script src="https://accounts.google.com/gsi/client" strategy="afterInteractive" />
     </html>
   );

@@ -1,23 +1,22 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { useHomeSettings } from '@/lib/hooks';
 import { cx } from '@/lib/utils';
-import { Modal, Input } from './ui';
+import { Modal, Input, Card, SectionHeader, ModalActions, POPOVER } from './ui';
 
 const LPP_BASE = 'https://data.lpp.si/api';
 const BIKE_API_KEY = process.env.NEXT_PUBLIC_BICIKELJ_API_KEY;
 const BIKE_CONTRACT = 'ljubljana';
 
 // Repeated class recipes local to this module
-const LBL = 'block text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-[0.5px] mb-1.5';
-const SECTION_LABEL = 'text-xs font-bold text-slate-300 dark:text-slate-600 uppercase tracking-[1px] mb-2.5';
+const DIM_LABEL = 'text-slate-300 dark:text-slate-600';
 const ROW = 'flex gap-1.5 mb-2 items-center';
 const CHIP =
   'flex-1 bg-white/70 dark:bg-slate-800/50 border border-indigo-500/15 dark:border-slate-600/20 rounded-lg py-2 px-3';
 const ADD_BTN = 'text-xs py-1 px-2.5 rounded-lg border-none bg-indigo-500/15 text-indigo-400 cursor-pointer font-bold';
 const RM_BTN = 'w-9 h-9 rounded-lg border-none bg-red-500/12 text-red-500 cursor-pointer shrink-0 text-sm';
-const TILE =
-  'bg-white/80 dark:bg-slate-800/60 border border-indigo-500/15 dark:border-slate-600/20 rounded-xl py-3 px-2 text-center';
+const TILE = 'rounded-xl py-3 px-2 text-center';
 
 async function fetchLppStations() {
   try {
@@ -67,7 +66,7 @@ function StationSearch({ placeholder, stations, onSelect }) {
     <div className="relative mb-2">
       <Input size="xs" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={placeholder} />
       {results.length > 0 && (
-        <div className="absolute inset-x-0 top-full z-50 mt-1 overflow-hidden rounded-lg border border-indigo-500/15 bg-white shadow-lg shadow-black/40 dark:border-slate-600/20 dark:bg-slate-800">
+        <div className={cx(POPOVER, 'absolute inset-x-0 top-full z-50 mt-1 overflow-hidden rounded-lg p-0')}>
           {results.map((s, i) => (
             <div
               key={i}
@@ -91,6 +90,8 @@ function StationSearch({ placeholder, stations, onSelect }) {
 
 // ─── EDIT MODAL ───
 function EditModal({ settings, onSave, onClose }) {
+  const t = useTranslations('HomeModule');
+  const tc = useTranslations('Common');
   const [homeAddress, setHomeAddress] = useState(settings?.home_address || '');
   const [destinations, setDestinations] = useState(settings?.destinations?.length ? settings.destinations : []);
   const [shortcuts, setShortcuts] = useState(settings?.shortcuts?.length ? settings.shortcuts : []);
@@ -121,25 +122,25 @@ function EditModal({ settings, onSave, onClose }) {
 
   return (
     <Modal onClose={onClose}>
-      <h3 className="mb-5 text-lg font-bold text-slate-800 dark:text-slate-200">🏠 Nastavitve</h3>
+      <h3 className="mb-5 text-lg font-bold text-slate-800 dark:text-slate-200">{t('settingsTitle')}</h3>
 
       {/* Home address */}
-      <label className={LBL}>Domači naslov</label>
+      <SectionHeader className="mb-1.5">{t('homeAddress')}</SectionHeader>
       <Input
         size="xs"
         value={homeAddress}
         onChange={(e) => setHomeAddress(e.target.value)}
-        placeholder="npr. Slovenska 1, Ljubljana"
+        placeholder={t('homeAddressPlaceholder')}
         className="mb-5"
       />
 
       {/* Destinations */}
       <div className="mb-5">
         <div className="mb-2 flex items-center justify-between">
-          <label className={LBL}>📍 Navigacija (max 3)</label>
+          <SectionHeader className="mb-1.5">{t('navigation')}</SectionHeader>
           {destinations.length < 3 && (
             <button onClick={() => setDestinations([...destinations, { name: '', address: '' }])} className={ADD_BTN}>
-              + Dodaj
+              {t('addBtn')}
             </button>
           )}
         </div>
@@ -153,7 +154,7 @@ function EditModal({ settings, onSave, onClose }) {
                 n[i] = { ...n[i], name: e.target.value };
                 setDestinations(n);
               }}
-              placeholder="Ime"
+              placeholder={tc('name')}
               className="max-w-22.5"
             />
             <Input
@@ -164,7 +165,7 @@ function EditModal({ settings, onSave, onClose }) {
                 n[i] = { ...n[i], address: e.target.value };
                 setDestinations(n);
               }}
-              placeholder="Naslov"
+              placeholder={t('address')}
               className="flex-1"
             />
             <button onClick={() => setDestinations(destinations.filter((_, j) => j !== i))} className={RM_BTN}>
@@ -177,10 +178,10 @@ function EditModal({ settings, onSave, onClose }) {
       {/* Shortcuts */}
       <div className="mb-5">
         <div className="mb-2 flex items-center justify-between">
-          <label className={LBL}>🔗 Bližnjice (max 6)</label>
+          <SectionHeader className="mb-1.5">{t('shortcuts')}</SectionHeader>
           {shortcuts.length < 6 && (
             <button onClick={() => setShortcuts([...shortcuts, { name: '', url: '', emoji: '' }])} className={ADD_BTN}>
-              + Dodaj
+              {t('addBtn')}
             </button>
           )}
         </div>
@@ -204,7 +205,7 @@ function EditModal({ settings, onSave, onClose }) {
                 n[i] = { ...n[i], name: e.target.value };
                 setShortcuts(n);
               }}
-              placeholder="Ime"
+              placeholder={tc('name')}
               className="max-w-22.5"
             />
             <Input
@@ -228,13 +229,13 @@ function EditModal({ settings, onSave, onClose }) {
       {/* LPP bus stops */}
       <div className="mb-5">
         <div className="mb-2 flex items-center justify-between">
-          <label className={LBL}>🚌 LPP postaje (max 3)</label>
+          <SectionHeader className="mb-1.5">{t('lppStops')}</SectionHeader>
         </div>
         {busStops.map((s, i) => (
           <div key={i} className={ROW}>
             <div className={CHIP}>
               <div className="text-sm font-semibold text-slate-800 dark:text-slate-200">{s.name}</div>
-              <div className="text-xs text-slate-400 dark:text-slate-500">Koda: {s.code}</div>
+              <div className="text-xs text-slate-400 dark:text-slate-500">{t('codeLabel', { code: s.code })}</div>
             </div>
             <button onClick={() => setBusStops(busStops.filter((_, j) => j !== i))} className={RM_BTN}>
               ✕
@@ -243,10 +244,10 @@ function EditModal({ settings, onSave, onClose }) {
         ))}
         {busStops.length < 3 &&
           (loadingStations ? (
-            <div className="py-2 text-xs text-slate-400 dark:text-slate-500">Nalagam postaje...</div>
+            <div className="py-2 text-xs text-slate-400 dark:text-slate-500">{t('loadingStations')}</div>
           ) : lppStations.length > 0 ? (
             <StationSearch
-              placeholder="Išči postajo LPP..."
+              placeholder={t('searchLpp')}
               stations={lppStations}
               onSelect={(s) =>
                 setBusStops([
@@ -257,7 +258,7 @@ function EditModal({ settings, onSave, onClose }) {
             />
           ) : (
             <div className="py-2 text-xs text-slate-400 dark:text-slate-500">
-              Iskanje ni na voljo — vnesi kodo postaje ročno na <span className="text-indigo-400">opendata.si/lpp</span>
+              {t('searchUnavailable')} <span className="text-indigo-400">opendata.si/lpp</span>
             </div>
           ))}
       </div>
@@ -265,13 +266,15 @@ function EditModal({ settings, onSave, onClose }) {
       {/* BicikeLJ stations */}
       <div className="mb-6">
         <div className="mb-2 flex items-center justify-between">
-          <label className={LBL}>🚲 BicikeLJ (max 3)</label>
+          <SectionHeader className="mb-1.5">{t('bikeStations')}</SectionHeader>
         </div>
         {bikeStations.map((s, i) => (
           <div key={i} className={ROW}>
             <div className={CHIP}>
               <div className="text-sm font-semibold text-slate-800 dark:text-slate-200">{s.name}</div>
-              <div className="text-xs text-slate-400 dark:text-slate-500">Postaja #{s.number}</div>
+              <div className="text-xs text-slate-400 dark:text-slate-500">
+                {t('stationNumber', { number: s.number })}
+              </div>
             </div>
             <button onClick={() => setBikeStations(bikeStations.filter((_, j) => j !== i))} className={RM_BTN}>
               ✕
@@ -280,36 +283,24 @@ function EditModal({ settings, onSave, onClose }) {
         ))}
         {bikeStations.length < 3 &&
           (loadingStations ? (
-            <div className="py-2 text-xs text-slate-400 dark:text-slate-500">Nalagam postaje...</div>
+            <div className="py-2 text-xs text-slate-400 dark:text-slate-500">{t('loadingStations')}</div>
           ) : (
             <StationSearch
-              placeholder="Išči postajo BicikeLJ..."
+              placeholder={t('searchBike')}
               stations={allBikeStations.map((s) => ({ name: s.name, number: s.number }))}
               onSelect={(s) => setBikeStations([...bikeStations, { name: s.name, number: s.number }])}
             />
           ))}
       </div>
 
-      <div className="flex gap-2">
-        <button
-          onClick={handleSave}
-          className="flex-1 cursor-pointer rounded-xl border-none bg-linear-135 from-orange-500 to-orange-600 p-3.5 text-base font-bold text-white"
-        >
-          Shrani
-        </button>
-        <button
-          onClick={onClose}
-          className="flex-1 cursor-pointer rounded-xl border border-indigo-500/15 bg-transparent p-3.5 text-base font-semibold text-slate-500 dark:border-slate-600/20 dark:text-slate-400"
-        >
-          Prekliči
-        </button>
-      </div>
+      <ModalActions tone="orange" onSave={handleSave} onCancel={onClose} />
     </Modal>
   );
 }
 
 // ─── MAIN COMPONENT ───
 export default function HomeModule({ user, householdId }) {
+  const t = useTranslations('HomeModule');
   const { settings, loading, saveSettings } = useHomeSettings(householdId, user.id);
   const [editing, setEditing] = useState(false);
   const [busData, setBusData] = useState({});
@@ -360,15 +351,12 @@ export default function HomeModule({ user, householdId }) {
   if (!settings?.home_address) {
     return (
       <div className="mb-5">
-        <div className={SECTION_LABEL}>Promet & bližnjice</div>
-        <div
-          onClick={() => setEditing(true)}
-          className="cursor-pointer rounded-2xl border border-indigo-500/15 bg-white/80 px-4 py-5 text-center dark:border-slate-600/20 dark:bg-slate-800/60"
-        >
+        <SectionHeader className={DIM_LABEL}>{t('sectionTitle')}</SectionHeader>
+        <Card onClick={() => setEditing(true)} className="cursor-pointer px-4 py-5 text-center">
           <div className="mb-2 text-4xl">🏠</div>
-          <div className="mb-1 text-sm font-bold text-slate-800 dark:text-slate-200">Nastavi promet & bližnjice</div>
-          <div className="text-xs text-slate-400 dark:text-slate-500">Avtobusi, navigacija, bližnjice do aplikacij</div>
-        </div>
+          <div className="mb-1 text-sm font-bold text-slate-800 dark:text-slate-200">{t('setupTitle')}</div>
+          <div className="text-xs text-slate-400 dark:text-slate-500">{t('setupDesc')}</div>
+        </Card>
         {editing && <EditModal settings={settings} onSave={handleSave} onClose={() => setEditing(false)} />}
       </div>
     );
@@ -378,7 +366,7 @@ export default function HomeModule({ user, householdId }) {
   return (
     <div className="mb-5">
       <div className="mb-2.5 flex items-center justify-between">
-        <div className={SECTION_LABEL}>Promet & bližnjice</div>
+        <SectionHeader className={DIM_LABEL}>{t('sectionTitle')}</SectionHeader>
         <button
           onClick={() => setEditing(true)}
           className="cursor-pointer border-none bg-transparent p-1 text-base text-slate-400 dark:text-slate-500"
@@ -395,13 +383,13 @@ export default function HomeModule({ user, householdId }) {
           rel="noopener noreferrer"
           className="no-underline"
         >
-          <div className="flex items-center gap-3 rounded-xl border border-indigo-500/15 bg-white/80 px-3.5 py-3 dark:border-slate-600/20 dark:bg-slate-800/60">
+          <Card className="flex items-center gap-3 rounded-xl px-3.5 py-3">
             <span className="text-2xl">🚦</span>
             <div className="flex-1">
-              <div className="text-sm font-bold text-slate-800 dark:text-slate-200">Promet</div>
-              <div className="text-xs text-slate-400 dark:text-slate-500">Poglej v Google Maps →</div>
+              <div className="text-sm font-bold text-slate-800 dark:text-slate-200">{t('traffic')}</div>
+              <div className="text-xs text-slate-400 dark:text-slate-500">{t('viewInMaps')}</div>
             </div>
-          </div>
+          </Card>
         </a>
 
         {/* Destinations grid */}
@@ -415,13 +403,13 @@ export default function HomeModule({ user, householdId }) {
                 rel="noopener noreferrer"
                 className="no-underline"
               >
-                <div className={TILE}>
+                <Card className={TILE}>
                   <div className="mb-1 text-xl">📍</div>
                   <div className="overflow-hidden text-xs font-bold text-ellipsis whitespace-nowrap text-slate-800 dark:text-slate-200">
                     {dest.name}
                   </div>
-                  <div className="mt-0.5 text-[10px] text-sky-400">Navigiraj →</div>
-                </div>
+                  <div className="mt-0.5 text-[10px] text-sky-400">{t('navigate')}</div>
+                </Card>
               </a>
             ))}
           </div>
@@ -438,12 +426,12 @@ export default function HomeModule({ user, householdId }) {
                 rel="noopener noreferrer"
                 className="no-underline"
               >
-                <div className={TILE}>
+                <Card className={TILE}>
                   <div className="mb-1 text-2xl">{s.emoji || '🔗'}</div>
                   <div className="overflow-hidden text-xs font-bold text-ellipsis whitespace-nowrap text-slate-800 dark:text-slate-200">
                     {s.name}
                   </div>
-                </div>
+                </Card>
               </a>
             ))}
           </div>
@@ -453,10 +441,7 @@ export default function HomeModule({ user, householdId }) {
         {busStops.map((stop, i) => {
           const arrivals = busData[stop.code] || [];
           return (
-            <div
-              key={i}
-              className="rounded-xl border border-indigo-500/15 bg-white/80 px-3.5 py-3 dark:border-slate-600/20 dark:bg-slate-800/60"
-            >
+            <Card key={i} className="rounded-xl px-3.5 py-3">
               <div className={cx('flex items-center gap-2', arrivals.length > 0 && 'mb-2')}>
                 <span className="text-lg">🚌</span>
                 <div className="flex-1 text-sm font-bold text-slate-800 dark:text-slate-200">{stop.name}</div>
@@ -468,7 +453,7 @@ export default function HomeModule({ user, householdId }) {
                 </button>
               </div>
               {arrivals.length === 0 ? (
-                <div className="text-xs text-slate-400 dark:text-slate-500">Ni podatkov</div>
+                <div className="text-xs text-slate-400 dark:text-slate-500">{t('noData')}</div>
               ) : (
                 arrivals.slice(0, 3).map((arr, j) => {
                   const eta = arr.eta_min ?? arr.eta ?? arr.eta_seconds;
@@ -490,13 +475,13 @@ export default function HomeModule({ user, householdId }) {
                           etaMin <= 2 ? 'text-green-500' : 'text-slate-400 dark:text-slate-500',
                         )}
                       >
-                        {etaMin <= 0 ? '🟢 Prihaja' : `${etaMin} min`}
+                        {etaMin <= 0 ? t('arriving') : t('minutes', { min: etaMin })}
                       </span>
                     </div>
                   );
                 })
               )}
-            </div>
+            </Card>
           );
         })}
 
@@ -508,7 +493,7 @@ export default function HomeModule({ user, householdId }) {
               const available = data?.available_bikes ?? '?';
               const stands = data?.available_bike_stands ?? '?';
               return (
-                <div key={i} className={TILE}>
+                <Card key={i} className={TILE}>
                   <div className="mb-1 text-lg">🚲</div>
                   <div className="mb-0.5 overflow-hidden text-xs font-bold text-ellipsis whitespace-nowrap text-slate-800 dark:text-slate-200">
                     {station.name}
@@ -521,8 +506,10 @@ export default function HomeModule({ user, householdId }) {
                   >
                     {available}
                   </div>
-                  <div className="mt-0.5 text-[10px] text-slate-400 dark:text-slate-500">{stands} mest</div>
-                </div>
+                  <div className="mt-0.5 text-[10px] text-slate-400 dark:text-slate-500">
+                    {typeof stands === 'number' ? t('stands', { count: stands }) : t('standsUnknown')}
+                  </div>
+                </Card>
               );
             })}
           </div>

@@ -2,9 +2,14 @@
 import { useAuth, useHousehold } from '@/lib/hooks';
 import AppShell from '@/components/AppShell';
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
+import { rpcErrorKey } from '@/lib/intl';
 import { Screen, Loader, Input, Label, Btn } from '@/components/ui';
 
 export default function Home() {
+  // Root-namespace t: `error` state may hold a message key (Errors.rpc.* /
+  // Auth.invalidCode) or a raw DB message — t.has() picks the right rendering.
+  const t = useTranslations();
   const { user, loading: authLoading, signInWithGoogle, signOut } = useAuth();
   const { household, members, loading: hhLoading, createHousehold, joinHousehold } = useHousehold(user);
   const [hhMode, setHhMode] = useState(null); // 'create' | 'join'
@@ -28,7 +33,7 @@ export default function Home() {
               Cožy
             </span>
           </div>
-          <p className="mb-8 text-base text-slate-400 dark:text-slate-500">Domača aplikacija za gospodinjstvo</p>
+          <p className="mb-8 text-base text-slate-400 dark:text-slate-500">{t('Auth.tagline')}</p>
 
           <button
             onClick={signInWithGoogle}
@@ -53,7 +58,7 @@ export default function Home() {
                 d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
               />
             </svg>
-            Prijava z Google
+            {t('Auth.signInGoogle')}
           </button>
         </div>
       </Screen>
@@ -68,16 +73,14 @@ export default function Home() {
           <div className="mb-8 text-center">
             <div className="mb-3 text-5xl">👋</div>
             <h1 className="mb-1 text-2xl font-extrabold">
-              Zdravo, {user.user_metadata?.full_name?.split(' ')[0] || 'uporabnik'}!
+              {t('Auth.hello', { name: user.user_metadata?.full_name?.split(' ')[0] || t('Auth.userFallback') })}
             </h1>
-            <p className="text-sm text-slate-400 dark:text-slate-500">
-              Ustvari gospodinjstvo ali se pridruži obstoječemu
-            </p>
+            <p className="text-sm text-slate-400 dark:text-slate-500">{t('Auth.createOrJoin')}</p>
           </div>
 
           {error && (
             <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-center text-sm text-red-500">
-              {error}
+              {t.has(error) ? t(error) : error}
             </div>
           )}
 
@@ -91,10 +94,8 @@ export default function Home() {
                 className="cursor-pointer rounded-2xl border border-sky-400/30 bg-sky-400/8 p-5 text-left text-slate-800 dark:text-slate-200"
               >
                 <div className="mb-2 text-3xl">🏠</div>
-                <div className="mb-1 text-lg font-bold">Ustvari gospodinjstvo</div>
-                <div className="text-sm text-slate-400 dark:text-slate-500">
-                  Začni novo in povabi družino ali partnerja
-                </div>
+                <div className="mb-1 text-lg font-bold">{t('Auth.createHousehold')}</div>
+                <div className="text-sm text-slate-400 dark:text-slate-500">{t('Auth.createHouseholdDesc')}</div>
               </button>
               <button
                 onClick={() => {
@@ -104,32 +105,32 @@ export default function Home() {
                 className="cursor-pointer rounded-2xl border border-indigo-500/20 bg-white/70 p-5 text-left text-slate-800 dark:border-slate-600/30 dark:bg-slate-800/50 dark:text-slate-200"
               >
                 <div className="mb-2 text-3xl">🔗</div>
-                <div className="mb-1 text-lg font-bold">Pridruži se</div>
-                <div className="text-sm text-slate-400 dark:text-slate-500">Vnesi kodo od nekoga ki te je povabil</div>
+                <div className="mb-1 text-lg font-bold">{t('Auth.join')}</div>
+                <div className="text-sm text-slate-400 dark:text-slate-500">{t('Auth.joinDesc')}</div>
               </button>
               <button
                 onClick={signOut}
                 className="mt-2 cursor-pointer border-none bg-transparent p-3 text-sm text-slate-300 dark:text-slate-600"
               >
-                Odjava
+                {t('Common.signOut')}
               </button>
             </div>
           )}
 
           {hhMode === 'create' && (
             <div>
-              <Label>Tvoje ime</Label>
+              <Label>{t('Auth.yourName')}</Label>
               <Input
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="npr. Janez"
+                placeholder={t('Auth.namePlaceholderCreate')}
                 className="mb-3.5"
               />
-              <Label>Ime gospodinjstva</Label>
+              <Label>{t('Auth.householdName')}</Label>
               <Input
                 value={hhName}
                 onChange={(e) => setHhName(e.target.value)}
-                placeholder="npr. Novakovi"
+                placeholder={t('Auth.householdNamePlaceholder')}
                 className="mb-5"
               />
               <Btn
@@ -137,15 +138,15 @@ export default function Home() {
                   setSubmitting(true);
                   setError('');
                   try {
-                    await createHousehold(hhName || 'Moje gospodinjstvo', displayName || 'Uporabnik');
+                    await createHousehold(hhName || t('Auth.defaultHouseholdName'), displayName || t('Common.user'));
                   } catch (e) {
-                    setError(e.message);
+                    setError(rpcErrorKey(e.message) ?? e.message);
                   }
                   setSubmitting(false);
                 }}
                 disabled={submitting}
               >
-                {submitting ? 'Ustvarjam...' : 'Ustvari gospodinjstvo'}
+                {submitting ? t('Auth.creating') : t('Auth.createHousehold')}
               </Btn>
               <button
                 onClick={() => {
@@ -154,25 +155,25 @@ export default function Home() {
                 }}
                 className="mt-2 w-full cursor-pointer border-none bg-transparent p-3 text-sm text-slate-400 dark:text-slate-500"
               >
-                ← Nazaj
+                {t('Common.back')}
               </button>
             </div>
           )}
 
           {hhMode === 'join' && (
             <div>
-              <Label>Tvoje ime</Label>
+              <Label>{t('Auth.yourName')}</Label>
               <Input
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="npr. Ana"
+                placeholder={t('Auth.namePlaceholderJoin')}
                 className="mb-3.5"
               />
-              <Label>Koda gospodinjstva</Label>
+              <Label>{t('Auth.joinCode')}</Label>
               <input
                 value={joinCode}
                 onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                placeholder="npr. A4F2BC"
+                placeholder={t('Auth.joinCodePlaceholder')}
                 maxLength={6}
                 className="mb-5 box-border w-full rounded-xl border border-indigo-500/25 bg-white/90 px-4 py-3.5 text-center text-2xl font-extrabold tracking-[8px] text-slate-800 outline-none dark:border-indigo-500/30 dark:bg-slate-800/80 dark:text-slate-200"
               />
@@ -182,15 +183,15 @@ export default function Home() {
                   setSubmitting(true);
                   setError('');
                   try {
-                    await joinHousehold(joinCode, displayName || 'Uporabnik');
+                    await joinHousehold(joinCode, displayName || t('Common.user'));
                   } catch (e) {
-                    setError('Neveljavna koda. Preveri in poskusi znova.');
+                    setError('Auth.invalidCode');
                   }
                   setSubmitting(false);
                 }}
                 disabled={submitting || joinCode.length < 4}
               >
-                {submitting ? 'Pridružujem...' : 'Pridruži se'}
+                {submitting ? t('Auth.joining') : t('Auth.join')}
               </Btn>
               <button
                 onClick={() => {
@@ -199,7 +200,7 @@ export default function Home() {
                 }}
                 className="mt-2 w-full cursor-pointer border-none bg-transparent p-3 text-sm text-slate-400 dark:text-slate-500"
               >
-                ← Nazaj
+                {t('Common.back')}
               </button>
             </div>
           )}

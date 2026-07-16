@@ -1,7 +1,8 @@
 'use client';
 import { useTodoItems } from '@/lib/hooks';
-import { getSt, fmtTime, cx, dueTone, DUE_BAR, DUE_BADGE } from '@/lib/utils';
-import { Screen, SectionHeader, IconButton } from './ui';
+import { useTranslations, useFormatter } from 'next-intl';
+import { getSt, cx, dueTone, DUE_BAR, DUE_BADGE } from '@/lib/utils';
+import { Screen, PageBody, Card, SectionHeader, IconButton } from './ui';
 import HomeModule from './HomeModule';
 
 // Calendar person tones
@@ -11,6 +12,7 @@ const EVENT_LABEL = { me: 'text-indigo-500', partner: 'text-pink-500' };
 
 // ─── TODO HOME CARD (used in Home screen preview) ───
 function TodoListHomeCard({ list, householdId, onNavigate }) {
+  const format = useFormatter();
   const { items } = useTodoItems(householdId, list.id);
   const done = items.filter((i) => i.checked).length;
   const total = items.length;
@@ -20,10 +22,7 @@ function TodoListHomeCard({ list, householdId, onNavigate }) {
   const isPast = daysLeft !== null && daysLeft < 0;
   const tone = dueTone(daysLeft);
   return (
-    <div
-      onClick={onNavigate}
-      className="mb-2 flex cursor-pointer items-center gap-2.5 rounded-xl border border-indigo-500/15 bg-white/80 px-3.5 py-3 dark:border-slate-600/20 dark:bg-slate-800/60"
-    >
+    <Card onClick={onNavigate} className="mb-2 flex cursor-pointer items-center gap-2.5 rounded-xl px-3.5 py-3">
       <span className="shrink-0 text-xl">{list.emoji}</span>
       <div className="min-w-0 flex-1">
         <div className={cx('text-sm font-bold text-slate-800 dark:text-slate-200', total > 0 && 'mb-1')}>
@@ -45,10 +44,10 @@ function TodoListHomeCard({ list, householdId, onNavigate }) {
       )}
       {dueDate && (
         <span className={cx('shrink-0 rounded-lg px-1.75 py-0.5 text-xs font-bold', DUE_BADGE[tone])}>
-          {isPast ? '🔴' : dueDate.toLocaleDateString('sl-SI', { day: 'numeric', month: 'short' })}
+          {isPast ? '🔴' : format.dateTime(dueDate, 'dayShort')}
         </span>
       )}
-    </div>
+    </Card>
   );
 }
 
@@ -63,14 +62,17 @@ export default function HomeScreen({
   navigate,
   onOpenSettings,
 }) {
+  const t = useTranslations('HomeScreen');
+  const format = useFormatter();
+  const fmtTime = (d) => format.dateTime(new Date(d), 'time');
   const expiredC = items.filter((i) => getSt(i) === 'expired').length;
   const warningC = items.filter((i) => getSt(i) === 'warning').length;
   const toBuyC = shopItems.filter((i) => !i.checked).length;
-  const today = new Date().toLocaleDateString('sl-SI', { weekday: 'long', day: 'numeric', month: 'long' });
+  const today = format.dateTime(new Date(), 'weekdayFull');
 
   return (
     <Screen>
-      <div className="relative z-1 px-4 pt-4 pb-[calc(100px+env(safe-area-inset-bottom))]">
+      <PageBody>
         {/* Header */}
         <div className="mb-6 flex items-start justify-between pt-3">
           <div>
@@ -86,34 +88,28 @@ export default function HomeScreen({
 
         {/* Quick stats */}
         <div className="mb-5 grid grid-cols-2 gap-2.5">
-          <div
-            onClick={() => navigate('freezer')}
-            className="cursor-pointer rounded-2xl border border-indigo-500/15 bg-white/80 p-4 dark:border-slate-600/20 dark:bg-slate-800/60"
-          >
+          <Card onClick={() => navigate('freezer')} className="cursor-pointer p-4">
             <div className="mb-2 text-3xl">❄️</div>
             <div className="text-3xl font-extrabold text-slate-800 dark:text-slate-200">{items.length}</div>
-            <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">v zamrzovalniku</div>
+            <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">{t('inFreezer')}</div>
             {(expiredC > 0 || warningC > 0) && (
               <div className={cx('mt-1.5 text-xs font-bold', expiredC > 0 ? 'text-red-500' : 'text-amber-500')}>
-                {expiredC > 0 ? `${expiredC} poteklo` : `${warningC} kmalu poteče`}
+                {expiredC > 0 ? t('expired', { count: expiredC }) : t('expiringSoon', { count: warningC })}
               </div>
             )}
-          </div>
-          <div
-            onClick={() => navigate('shopping')}
-            className="cursor-pointer rounded-2xl border border-indigo-500/15 bg-white/80 p-4 dark:border-slate-600/20 dark:bg-slate-800/60"
-          >
+          </Card>
+          <Card onClick={() => navigate('shopping')} className="cursor-pointer p-4">
             <div className="mb-2 text-3xl">🛒</div>
             <div className="text-3xl font-extrabold text-slate-800 dark:text-slate-200">{toBuyC}</div>
-            <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">za kupiti</div>
-            {toBuyC === 0 && <div className="mt-1.5 text-xs font-bold text-green-500">Vse kupljeno ✓</div>}
-          </div>
+            <div className="text-xs font-semibold text-slate-500 dark:text-slate-400">{t('toBuy')}</div>
+            {toBuyC === 0 && <div className="mt-1.5 text-xs font-bold text-green-500">{t('allBought')}</div>}
+          </Card>
         </div>
 
         {/* Today's calendar events */}
         {calConnected && todayCalEvents.length > 0 && (
           <div className="mb-5">
-            <SectionHeader>Danes</SectionHeader>
+            <SectionHeader>{t('today')}</SectionHeader>
             {todayCalEvents
               .sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''))
               .map((ev) => {
@@ -143,7 +139,9 @@ export default function HomeScreen({
                         </div>
                       )}
                     </div>
-                    {ev.is_all_day && <div className="text-[10px] text-slate-400 dark:text-slate-500">Ves dan</div>}
+                    {ev.is_all_day && (
+                      <div className="text-[10px] text-slate-400 dark:text-slate-500">{t('allDay')}</div>
+                    )}
                   </div>
                 );
               })}
@@ -153,7 +151,7 @@ export default function HomeScreen({
         {/* Active todo lists preview */}
         {todoLists.length > 0 && (
           <div className="mb-5">
-            <SectionHeader>Opravila</SectionHeader>
+            <SectionHeader>{t('todos')}</SectionHeader>
             {todoLists.slice(0, 3).map((list) => (
               <TodoListHomeCard
                 key={list.id}
@@ -169,30 +167,27 @@ export default function HomeScreen({
         <HomeModule user={user} householdId={householdId} />
 
         {/* Coming soon modules */}
-        <SectionHeader>Prihaja kmalu</SectionHeader>
+        <SectionHeader>{t('comingSoon')}</SectionHeader>
         {[
           {
             icon: '🍽️',
-            title: 'Jedilnik',
-            desc: 'Tedenski jedilnik & recepti',
+            title: t('mealPlan'),
+            desc: t('mealPlanDesc'),
             badgeClass: 'text-amber-500 bg-amber-500/9 border-amber-500/20',
           },
         ].map((m) => (
-          <div
-            key={m.title}
-            className="mb-2 flex items-center gap-3.5 rounded-2xl border border-indigo-500/15 bg-white/80 px-4 py-3.5 opacity-65 dark:border-slate-600/20 dark:bg-slate-800/60"
-          >
+          <Card key={m.title} className="mb-2 flex items-center gap-3.5 px-4 py-3.5 opacity-65">
             <span className="text-3xl">{m.icon}</span>
             <div className="flex-1">
               <div className="text-sm font-bold text-slate-800 dark:text-slate-200">{m.title}</div>
               <div className="text-xs text-slate-500 dark:text-slate-400">{m.desc}</div>
             </div>
             <div className={cx('rounded-full border px-2.5 py-1 text-xs font-bold whitespace-nowrap', m.badgeClass)}>
-              Kmalu
+              {t('soon')}
             </div>
-          </div>
+          </Card>
         ))}
-      </div>
+      </PageBody>
     </Screen>
   );
 }

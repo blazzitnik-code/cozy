@@ -1,16 +1,20 @@
 'use client';
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { useT } from '@/lib/i18n';
+import { useTranslations, useFormatter, useLocale } from 'next-intl';
+import { useCatLabel, useExpiryText } from '@/lib/intl';
 import { normalizujNiz } from '@/lib/hooks';
 import { CATS, SUGG, FICONS, QO } from '@/lib/constants';
-import { getSt, fmtD, wksUntil, wksShort, localDateStr, cx, STATUS_TEXT, STATUS_CARD, STATUS_BADGE } from '@/lib/utils';
+import { getSt, localDateStr, cx, STATUS_TEXT, STATUS_CARD, STATUS_BADGE } from '@/lib/utils';
 import {
   Screen,
+  PageBody,
+  Card,
   Pill,
   FC,
   Btn,
   Modal,
   ConfirmModal,
+  ModalActions,
   SwipeCard,
   LogoToggle,
   Input,
@@ -18,26 +22,25 @@ import {
   IconButton,
   EmptyState,
   Fab,
+  BackBtn,
+  CHIP_SKY_ON,
+  CHIP_INDIGO_ON,
+  CHIP_OFF,
+  POPOVER,
 } from './ui';
 
 // Repeated class recipes local to this module
-const BACK_BTN =
-  'bg-white/90 dark:bg-slate-800/80 border border-indigo-500/20 dark:border-slate-600/30 rounded-xl py-2.5 px-4 text-slate-500 dark:text-slate-400 text-sm cursor-pointer font-semibold';
 const SEARCH_INP =
   'w-full box-border py-3.5 pr-4 pl-9.5 bg-white/90 dark:bg-slate-800/80 border border-indigo-500/20 dark:border-slate-600/30 rounded-xl text-slate-800 dark:text-slate-200 outline-none font-medium text-sm';
 const STEPPER_MINUS =
   'w-11 h-11 rounded-xl border border-indigo-500/20 dark:border-slate-600/30 bg-white/80 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 text-2xl cursor-pointer flex items-center justify-center';
 const STEPPER_PLUS =
   'w-11 h-11 rounded-xl border border-indigo-500/30 bg-indigo-500/10 text-indigo-400 text-2xl cursor-pointer flex items-center justify-center';
-// Sky-accent selectable chips (freezer pickers)
-const CHIP_ON = 'border-sky-400/50 bg-sky-400/12 text-sky-400';
-const CHIP_OFF =
-  'border-indigo-500/20 dark:border-slate-600/30 bg-white/70 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400';
-// Indigo-accent selectable chips (quantity picker)
-const CHIP2_ON = 'border-indigo-500/50 bg-indigo-500/15 text-indigo-400';
 
 // ─── FREEZER DROPDOWN ───
 function FreezerDD({ freezers, selected, onChange, onAdd }) {
+  const t = useTranslations('Freezer');
+  const tc = useTranslations('Common');
   const [open, setOpen] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [newName, setNewName] = useState('');
@@ -55,10 +58,10 @@ function FreezerDD({ freezers, selected, onChange, onAdd }) {
   }, []);
   const allSel = selected.length === 0;
   const lbl = allSel
-    ? 'Vse'
+    ? tc('all')
     : selected.length === 1
       ? freezers.find((f) => f.id === selected[0])?.icon + ' ' + freezers.find((f) => f.id === selected[0])?.name
-      : selected.length + ' izbrani';
+      : t('selectedCount', { count: selected.length });
   const toggle = (id) => {
     if (id === 'all') {
       onChange([]);
@@ -102,7 +105,7 @@ function FreezerDD({ freezers, selected, onChange, onAdd }) {
         </span>
       </button>
       {open && (
-        <div className="absolute top-[calc(100%+6px)] right-0 z-60 min-w-55 rounded-2xl border border-indigo-500/20 bg-white p-1.5 shadow-lg shadow-black/40 dark:border-slate-600/30 dark:bg-slate-800">
+        <div className={cx(POPOVER, 'absolute top-[calc(100%+6px)] right-0 z-60 min-w-55 rounded-2xl p-1.5')}>
           <button
             onClick={() => {
               toggle('all');
@@ -113,7 +116,7 @@ function FreezerDD({ freezers, selected, onChange, onAdd }) {
               allSel ? 'bg-sky-400/12 text-sky-400' : 'bg-transparent text-slate-500 dark:text-slate-400',
             )}
           >
-            <span className={check(allSel)}>{allSel ? '✓' : ''}</span> Vse
+            <span className={check(allSel)}>{allSel ? '✓' : ''}</span> {tc('all')}
           </button>
           {freezers.map((f) => {
             const on = allSel || selected.includes(f.id);
@@ -138,7 +141,7 @@ function FreezerDD({ freezers, selected, onChange, onAdd }) {
                 onClick={() => setShowAdd(true)}
                 className="flex w-full cursor-pointer items-center gap-2 rounded-xl border-none bg-transparent px-3 py-2.5 text-left text-sm font-semibold text-sky-400"
               >
-                + Nov zamrzovalnik
+                {t('newFreezer')}
               </button>
             ) : (
               <div className="flex flex-col gap-2 px-1.5 py-2">
@@ -159,7 +162,7 @@ function FreezerDD({ freezers, selected, onChange, onAdd }) {
                 <input
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
-                  placeholder="Ime zamrzovalnika..."
+                  placeholder={t('freezerNamePlaceholder')}
                   autoFocus
                   className="box-border w-full rounded-lg border border-indigo-500/20 bg-white/90 px-2.5 py-2 text-sm text-slate-800 outline-none dark:border-slate-600/30 dark:bg-slate-800/80 dark:text-slate-200"
                   onKeyDown={(e) => {
@@ -177,7 +180,7 @@ function FreezerDD({ freezers, selected, onChange, onAdd }) {
                         : 'cursor-default bg-white/80 opacity-50 dark:bg-slate-800/60',
                     )}
                   >
-                    Dodaj
+                    {tc('add')}
                   </button>
                   <button
                     onClick={() => {
@@ -186,7 +189,7 @@ function FreezerDD({ freezers, selected, onChange, onAdd }) {
                     }}
                     className="flex-1 cursor-pointer rounded-lg border border-indigo-500/20 bg-transparent p-2 text-sm font-semibold text-slate-400 dark:border-slate-600/30 dark:text-slate-500"
                   >
-                    Prekliči
+                    {tc('cancel')}
                   </button>
                 </div>
               </div>
@@ -215,7 +218,7 @@ function LabelInp({ value, onChange, labels, placeholder }) {
         placeholder={placeholder}
       />
       {sug.length > 0 && (
-        <div className="absolute inset-x-0 top-[calc(100%+4px)] z-10 rounded-xl border border-indigo-500/20 bg-white p-1 shadow-lg shadow-black/40 dark:border-slate-600/30 dark:bg-slate-800">
+        <div className={cx(POPOVER, 'absolute inset-x-0 top-[calc(100%+4px)] z-10')}>
           {sug.map((s, i) => (
             <button
               key={i}
@@ -232,7 +235,6 @@ function LabelInp({ value, onChange, labels, placeholder }) {
 }
 
 export default function FreezerModule({
-  lang,
   items,
   dbAddItem,
   dbUpdateItem,
@@ -248,7 +250,14 @@ export default function FreezerModule({
   onToggleMode,
   onOpenSettings,
 }) {
-  const t = useT(lang);
+  const t = useTranslations('Freezer');
+  const tc = useTranslations('Common');
+  const locale = useLocale();
+  const format = useFormatter();
+  const catLabel = useCatLabel();
+  const expiryText = useExpiryText();
+  const sugg = SUGG[locale] ?? SUGG.sl;
+  const qo = QO[locale] ?? QO.sl;
 
   // ─── FREEZER UI STATE ───
   const [screen, setScreen] = useState('home');
@@ -343,8 +352,7 @@ export default function FreezerModule({
     fa.forEach((a) => {
       const d = new Date(a.archived_at);
       const k = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
-      if (!byMonth[k])
-        byMonth[k] = { label: d.toLocaleDateString('sl-SI', { month: 'long', year: 'numeric' }), items: [] };
+      if (!byMonth[k]) byMonth[k] = { label: format.dateTime(d, 'monthYear'), items: [] };
       byMonth[k].items.push(a);
     });
     const byCat = {};
@@ -367,45 +375,34 @@ export default function FreezerModule({
         {/* MODAL — EDIT ARCHIVED ITEM */}
         {editArchived && (
           <Modal onClose={() => setEditArchived(null)}>
-            <h3 className="mb-4 text-lg font-bold">
-              {t('urediArhiv')}
-              {editArchived.name}
-            </h3>
+            <h3 className="mb-4 text-lg font-bold">{t('editArchived', { name: editArchived.name })}</h3>
             <div className="mb-3">
-              <Label>{t('ime')}</Label>
+              <Label>{tc('name')}</Label>
               <Input
                 value={editArchived.name}
                 onChange={(e) => setEditArchived((p) => ({ ...p, name: e.target.value }))}
               />
             </div>
             <div className="mb-5">
-              <Label>{t('količina')}</Label>
+              <Label>{tc('quantity')}</Label>
               <Input
                 value={editArchived.qty}
                 onChange={(e) => setEditArchived((p) => ({ ...p, qty: e.target.value }))}
               />
             </div>
-            <div className="mb-2.5 flex gap-2">
-              <button
-                onClick={async () => {
-                  await dbUpdateArchived(editArchived.id, { name: editArchived.name, qty: editArchived.qty });
-                  setEditArchived(null);
-                }}
-                className="flex-1 cursor-pointer rounded-xl border-none bg-linear-135 from-sky-500 to-indigo-500 p-3.25 text-base font-bold text-white"
-              >
-                {t('shrani')}
-              </button>
-              <button
-                onClick={() => setEditArchived(null)}
-                className="flex-1 cursor-pointer rounded-xl border border-indigo-500/20 bg-transparent p-3.25 text-base font-semibold text-slate-400 dark:border-slate-600/30 dark:text-slate-500"
-              >
-                {t('prekliči')}
-              </button>
-            </div>
+            <ModalActions
+              className="mb-2.5"
+              saveLabel={t('save')}
+              onSave={async () => {
+                await dbUpdateArchived(editArchived.id, { name: editArchived.name, qty: editArchived.qty });
+                setEditArchived(null);
+              }}
+              onCancel={() => setEditArchived(null)}
+            />
             <button
               onClick={() =>
                 setConfirmAction({
-                  message: t('izbrišiVprašanje'),
+                  message: t('deleteFromArchiveQuestion'),
                   onConfirm: async () => {
                     await dbDeleteArchived(editArchived.id);
                     setEditArchived(null);
@@ -414,12 +411,12 @@ export default function FreezerModule({
               }
               className="w-full cursor-pointer rounded-xl border border-red-500/30 bg-red-500/10 p-3.25 text-base font-semibold text-red-500"
             >
-              {t('izbrišiArhiv')}
+              {t('deleteFromArchive')}
             </button>
             <button
               onClick={() =>
                 setConfirmAction({
-                  message: t('vrniVprašanje'),
+                  message: t('returnQuestion'),
                   onConfirm: async () => {
                     await dbUnarchiveItem(editArchived);
                     setEditArchived(null);
@@ -428,17 +425,15 @@ export default function FreezerModule({
               }
               className="mt-2 w-full cursor-pointer rounded-xl border border-green-500/30 bg-green-500/10 p-3.25 text-base font-semibold text-green-500"
             >
-              {t('vrniVZamrzovalnik')}
+              {t('returnToFreezer')}
             </button>
           </Modal>
         )}
 
-        <div className="relative z-1 px-4 pt-4 pb-[calc(100px+env(safe-area-inset-bottom))]">
+        <PageBody>
           <div className="mb-4 flex items-center gap-3 pt-3">
-            <button onClick={() => setShowArchive(false)} className={BACK_BTN}>
-              {t('nazaj')}
-            </button>
-            <h2 className="text-xl font-extrabold">{t('arhiv')}</h2>
+            <BackBtn onClick={() => setShowArchive(false)} />
+            <h2 className="text-xl font-extrabold">{t('archive')}</h2>
           </div>
 
           {/* Search */}
@@ -449,7 +444,7 @@ export default function FreezerModule({
             <input
               value={archSearch}
               onChange={(e) => setArchSearch(e.target.value)}
-              placeholder={t('išičVArhivu')}
+              placeholder={t('searchArchive')}
               className={SEARCH_INP}
             />
             {archSearch && (
@@ -465,7 +460,7 @@ export default function FreezerModule({
           {/* Category filter pills */}
           <div className="mb-3 flex flex-wrap gap-1.5">
             <Pill small active={archCatF.length === 0} onClick={() => setArchCatF([])}>
-              {t('vse')}
+              {tc('all')}
             </Pill>
             {Object.entries(categories).map(([k, v]) => {
               const cnt = archived.filter((a) => a.cat === k).length;
@@ -486,35 +481,37 @@ export default function FreezerModule({
           {/* Stats row with waste tracking */}
           <div className="mb-3.5 grid grid-cols-4 gap-1.5">
             {[
-              [t('zadetki'), tot, 'text-sky-400', 'text-slate-400 dark:text-slate-500'],
-              [t('povprMes'), mc ? Math.round(tot / mc) : 0, 'text-indigo-400', 'text-slate-400 dark:text-slate-500'],
-              [t('porabljeno2'), usedCount, 'text-green-500', 'text-green-500'],
-              [t('zavrženo'), wastedCount, 'text-red-500', 'text-red-500'],
+              [t('results'), tot, 'text-sky-400', 'text-slate-400 dark:text-slate-500'],
+              [
+                t('avgPerMonth'),
+                mc ? Math.round(tot / mc) : 0,
+                'text-indigo-400',
+                'text-slate-400 dark:text-slate-500',
+              ],
+              [t('used'), usedCount, 'text-green-500', 'text-green-500'],
+              [t('wasted'), wastedCount, 'text-red-500', 'text-red-500'],
             ].map(([l, v, valCls, lblCls]) => (
-              <div
-                key={l}
-                className="rounded-xl border border-indigo-500/15 bg-white/80 px-2 py-2.5 text-center dark:border-slate-600/20 dark:bg-slate-800/60"
-              >
+              <Card key={l} className="rounded-xl px-2 py-2.5 text-center">
                 <div className={cx('text-[9px] font-semibold tracking-[1px] uppercase', lblCls)}>{l}</div>
                 <div className={cx('mt-0.5 text-2xl font-extrabold', valCls)}>{v}</div>
-              </div>
+              </Card>
             ))}
           </div>
 
           {/* View toggle */}
           <div className="mb-3.5 flex gap-1.5">
             <Pill small active={archView === 'monthly'} onClick={() => setArchView('monthly')}>
-              {t('mesečno')}
+              {t('monthly')}
             </Pill>
             <Pill small active={archView === 'category'} onClick={() => setArchView('category')}>
-              {t('kategorije')}
+              {t('byCategory')}
             </Pill>
             <Pill small active={archView === 'item'} onClick={() => setArchView('item')}>
-              {t('poIzdelku')}
+              {t('byItem')}
             </Pill>
           </div>
 
-          {tot === 0 && <EmptyState icon="📭">{t('niZadetkov')}</EmptyState>}
+          {tot === 0 && <EmptyState icon="📭">{tc('noResults')}</EmptyState>}
 
           {/* MONTHLY VIEW */}
           {archView === 'monthly' &&
@@ -547,16 +544,16 @@ export default function FreezerModule({
                               it.wasted ? 'text-red-500' : 'text-slate-800 dark:text-slate-200',
                             )}
                           >
-                            {it.name} {it.wasted && <span className="text-xs opacity-70">· zavrženo</span>}
+                            {it.name} {it.wasted && <span className="text-xs opacity-70">· {t('wastedLower')}</span>}
                           </div>
                           <div className="text-xs text-slate-300 dark:text-slate-600">
                             {it.qty}
-                            {it.packets > 1 ? ' / ' + it.packets + 'p' : ''}
+                            {it.packets > 1 ? ' / ' + t('packetsShort', { count: it.packets }) : ''}
                             {it.label ? ' · ' + it.label : ''}
                           </div>
                         </div>
                         <div className="shrink-0 text-xs text-slate-300 dark:text-slate-600">
-                          {fmtD(it.archived_at)}
+                          {format.dateTime(new Date(it.archived_at), 'day')}
                         </div>
                       </div>
                     );
@@ -574,7 +571,7 @@ export default function FreezerModule({
                   <div key={ck} className="mb-4" style={{ '--cat': cat.color }}>
                     <div className="mb-1.5 flex justify-between">
                       <h3 className="text-sm font-bold text-(--cat)">
-                        {cat.icon} {cat.label}
+                        {cat.icon} {catLabel(ck, cat)}
                       </h3>
                       <span className="text-xs font-semibold text-slate-300 dark:text-slate-600">{ci.length}</span>
                     </div>
@@ -600,14 +597,18 @@ export default function FreezerModule({
                           )}
                         >
                           {it.name}
-                          {it.wasted ? ' · zavrženo' : ''}
+                          {it.wasted ? ' · ' + t('wastedLower') : ''}
                         </div>
                         <div className="text-xs text-slate-300 dark:text-slate-600">{it.qty}</div>
-                        <div className="text-xs text-slate-300 dark:text-slate-600">{fmtD(it.archived_at)}</div>
+                        <div className="text-xs text-slate-300 dark:text-slate-600">
+                          {format.dateTime(new Date(it.archived_at), 'day')}
+                        </div>
                       </div>
                     ))}
                     {ci.length > 5 && (
-                      <div className="px-3 py-1 text-xs text-slate-300 dark:text-slate-600">+ še {ci.length - 5}</div>
+                      <div className="px-3 py-1 text-xs text-slate-300 dark:text-slate-600">
+                        {t('moreCount', { count: ci.length - 5 })}
+                      </div>
                     )}
                   </div>
                 );
@@ -624,8 +625,7 @@ export default function FreezerModule({
                 ie.forEach((e) => {
                   const d = new Date(e.archived_at);
                   const k = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
-                  if (!mb[k])
-                    mb[k] = { label: d.toLocaleDateString('sl-SI', { month: 'short', year: '2-digit' }), count: 0 };
+                  if (!mb[k]) mb[k] = { label: format.dateTime(d, 'monthShortYY'), count: 0 };
                   mb[k].count++;
                 });
                 const mx = Math.max(...Object.values(mb).map((m) => m.count));
@@ -636,8 +636,10 @@ export default function FreezerModule({
                       <div>
                         <div className="text-sm font-bold text-slate-800 dark:text-slate-200">{name}</div>
                         <div className="text-xs font-semibold text-(--cat)">
-                          Skupaj: {ie.length}× | {cat.label}
-                          {wastedInItem > 0 && <span className="text-red-500"> · {wastedInItem}× zavrženo</span>}
+                          {t('totalTimes', { count: ie.length, label: catLabel(ck, cat) })}
+                          {wastedInItem > 0 && (
+                            <span className="text-red-500"> · {t('wastedTimes', { count: wastedInItem })}</span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -669,7 +671,7 @@ export default function FreezerModule({
                   </div>
                 );
               })}
-        </div>
+        </PageBody>
         <ConfirmModal action={confirmAction} onClose={() => setConfirmAction(null)} />
       </Screen>
     );
@@ -681,7 +683,7 @@ export default function FreezerModule({
   if (screen === 'home') {
     return (
       <Screen>
-        <div className="relative z-1 px-4 pt-4 pb-[calc(100px+env(safe-area-inset-bottom))]">
+        <PageBody>
           <div className="mb-3.5 flex items-start justify-between pt-3">
             <LogoToggle mode="freezer" onToggle={onToggleMode} />
             <div className="flex items-center gap-2">
@@ -709,7 +711,7 @@ export default function FreezerModule({
                     filterStatus === 'expired' ? 'border-red-500/60 bg-red-500/25' : 'border-red-500/25 bg-red-500/12',
                   )}
                 >
-                  🔴 {expC} poteklo
+                  {t('expiredCount', { count: expC })}
                 </button>
               )}
               {warnC > 0 && (
@@ -722,7 +724,7 @@ export default function FreezerModule({
                       : 'border-amber-500/20 bg-amber-500/10',
                   )}
                 >
-                  🟠 {warnC} kmalu
+                  {t('soonCount', { count: warnC })}
                 </button>
               )}
               {filterStatus && (
@@ -744,7 +746,7 @@ export default function FreezerModule({
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder={t('išči')}
+                placeholder={tc('search')}
                 className={cx(SEARCH_INP, search && 'pr-9.5')}
               />
               {search && (
@@ -775,7 +777,7 @@ export default function FreezerModule({
           {showCatFilter && (
             <div className="mb-3 flex flex-wrap gap-1.5 rounded-xl border border-indigo-500/15 bg-white/70 px-3 py-2.5 dark:border-slate-600/20 dark:bg-slate-800/50">
               <Pill small active={filterCat.length === 0} onClick={() => setFilterCat([])}>
-                Vse
+                {tc('all')}
               </Pill>
               {Object.entries(categories).map(([k, v]) => {
                 const cnt = vis.filter((i) => i.cat === k).length;
@@ -789,7 +791,7 @@ export default function FreezerModule({
                       setFilterCat((prev) => (prev.includes(k) ? prev.filter((c) => c !== k) : [...prev, k]))
                     }
                   >
-                    {v.icon} {v.label} ({cnt})
+                    {v.icon} {catLabel(k, v)} ({cnt})
                   </Pill>
                 ) : null;
               })}
@@ -833,7 +835,7 @@ export default function FreezerModule({
                           <div className="flex flex-wrap items-center gap-0.75 text-xs text-slate-400 dark:text-slate-500">
                             <span>
                               {item.qty}
-                              {item.packets > 1 ? ' · ' + item.packets + 'p' : ''}
+                              {item.packets > 1 ? ' · ' + t('packetsShort', { count: item.packets }) : ''}
                             </span>
                             {allF && frz && (
                               <>
@@ -857,9 +859,11 @@ export default function FreezerModule({
                             STATUS_BADGE[status],
                           )}
                         >
-                          {wksShort(item.expiry)}
+                          {expiryText(item.expiry, { short: true })}
                         </div>
-                        <div className="text-[10px] text-slate-300 dark:text-slate-600">{fmtD(item.expiry)}</div>
+                        <div className="text-[10px] text-slate-300 dark:text-slate-600">
+                          {format.dateTime(new Date(item.expiry), 'day')}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -870,10 +874,10 @@ export default function FreezerModule({
 
           {filtered.length === 0 && (
             <EmptyState icon={items.length === 0 ? '❄️' : '🔍'}>
-              {items.length === 0 ? 'Zamrzovalnik je prazen!' : 'Ni zadetkov'}
+              {items.length === 0 ? t('empty') : tc('noResults')}
             </EmptyState>
           )}
-        </div>
+        </PageBody>
 
         <Fab
           onClick={() => {
@@ -905,14 +909,14 @@ export default function FreezerModule({
             if (editMode && editData) {
               return (
                 <Modal onClose={() => setEditMode(false)}>
-                  <h3 className="mb-5 text-center text-lg font-extrabold">✏️ Uredi izdelek</h3>
-                  <Label>Ime</Label>
+                  <h3 className="mb-5 text-center text-lg font-extrabold">{t('editItem')}</h3>
+                  <Label>{tc('name')}</Label>
                   <Input
                     value={editData.name}
                     onChange={(e) => setEditData((d) => ({ ...d, name: e.target.value }))}
                     className="mb-3.5"
                   />
-                  <Label>Kategorija</Label>
+                  <Label>{t('category')}</Label>
                   <div className="mb-3.5 flex flex-wrap gap-1.5">
                     {Object.entries(categories).map(([k, v]) => (
                       <button
@@ -926,20 +930,20 @@ export default function FreezerModule({
                             : 'border-indigo-500/20 bg-white/70 text-slate-500 dark:border-slate-600/30 dark:bg-slate-800/50 dark:text-slate-400',
                         )}
                       >
-                        {v.icon} {v.label}
+                        {v.icon} {catLabel(k, v)}
                       </button>
                     ))}
                   </div>
                   <div className="mb-3.5 grid grid-cols-2 gap-2.5">
                     <div>
-                      <Label>Količina</Label>
+                      <Label>{tc('quantity')}</Label>
                       <Input
                         value={editData.qty}
                         onChange={(e) => setEditData((d) => ({ ...d, qty: e.target.value }))}
                       />
                     </div>
                     <div>
-                      <Label>Paketi</Label>
+                      <Label>{t('packets')}</Label>
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => setEditData((d) => ({ ...d, packets: Math.max(1, d.packets - 1) }))}
@@ -957,17 +961,17 @@ export default function FreezerModule({
                       </div>
                     </div>
                   </div>
-                  <Label>Labela</Label>
+                  <Label>{t('label')}</Label>
                   <LabelInp
                     value={editData.label}
                     onChange={(v) => setEditData((d) => ({ ...d, label: v }))}
                     labels={existingLabels}
-                    placeholder="opcijsko"
+                    placeholder={tc('optional')}
                   />
                   <div className="h-3.5" />
                   <div className="mb-3.5 grid grid-cols-2 gap-2.5">
                     <div>
-                      <Label>Zamrznjeno</Label>
+                      <Label>{t('frozen')}</Label>
                       <Input
                         type="date"
                         value={editData.frozen}
@@ -975,7 +979,7 @@ export default function FreezerModule({
                       />
                     </div>
                     <div>
-                      <Label>Rok uporabe</Label>
+                      <Label>{t('expiryDate')}</Label>
                       <Input
                         type="date"
                         value={editData.expiry}
@@ -983,7 +987,7 @@ export default function FreezerModule({
                       />
                     </div>
                   </div>
-                  <Label>Zamrzovalnik</Label>
+                  <Label>{t('freezer')}</Label>
                   <div className="mb-5 flex flex-wrap gap-1.5">
                     {freezers.map((f) => (
                       <button
@@ -991,7 +995,7 @@ export default function FreezerModule({
                         onClick={() => setEditData((d) => ({ ...d, freezer: f.id }))}
                         className={cx(
                           'cursor-pointer rounded-xl border px-3.5 py-2.25 text-sm font-bold',
-                          editData.freezer === f.id ? CHIP_ON : CHIP_OFF,
+                          editData.freezer === f.id ? CHIP_SKY_ON : CHIP_OFF,
                         )}
                       >
                         {f.icon} {f.name}
@@ -1015,10 +1019,10 @@ export default function FreezerModule({
                       setEditMode(false);
                     }}
                   >
-                    💾 Shrani
+                    {t('save')}
                   </Btn>
                   <Btn v="ghost" onClick={() => setEditMode(false)} className="mt-2">
-                    Prekliči
+                    {tc('cancel')}
                   </Btn>
                 </Modal>
               );
@@ -1031,30 +1035,35 @@ export default function FreezerModule({
                   <span className="text-6xl">{cat.icon}</span>
                   <h2 className="mt-2 mb-1 text-2xl font-extrabold">{item.name}</h2>
                   {/* Status with full text */}
-                  <div className={cx('mb-1 text-base font-bold', STATUS_TEXT[status])}>{wksUntil(item.expiry)}</div>
+                  <div className={cx('mb-1 text-base font-bold', STATUS_TEXT[status])}>{expiryText(item.expiry)}</div>
                 </div>
 
                 {/* Key info: frozen date + expiry first */}
                 <div className="mb-2.5 grid grid-cols-2 gap-2.5">
-                  <FC label="Zamrznjeno" value={fmtD(item.frozen)} />
-                  <FC label="Rok uporabe" value={fmtD(item.expiry)} />
+                  <FC label={t('frozen')} value={format.dateTime(new Date(item.frozen), 'day')} />
+                  <FC label={t('expiryDate')} value={format.dateTime(new Date(item.expiry), 'day')} />
                 </div>
                 <div className="mb-2.5 grid grid-cols-2 gap-2.5">
-                  <FC label="Količina" value={item.qty + (item.packets > 1 ? ' / ' + item.packets + ' pak.' : '')} />
-                  <FC label="Zamrzovalnik" value={frz ? frz.icon + ' ' + frz.name : '—'} />
+                  <FC
+                    label={tc('quantity')}
+                    value={item.qty + (item.packets > 1 ? ' / ' + t('packetsAbbr', { count: item.packets }) : '')}
+                  />
+                  <FC label={t('freezer')} value={frz ? frz.icon + ' ' + frz.name : '—'} />
                 </div>
                 {/* Category + label row */}
                 <div className={cx('mb-4 grid gap-2.5', item.label ? 'grid-cols-2' : 'grid-cols-1')}>
-                  <FC label="Kategorija" value={cat.label} />
-                  {item.label && <FC label="Labela" value={item.label} />}
+                  <FC label={t('category')} value={catLabel(item.cat, cat)} />
+                  {item.label && <FC label={t('label')} value={item.label} />}
                 </div>
 
                 {/* Quick packet decrement */}
                 {item.packets > 1 && (
                   <div className="mb-3.5 flex items-center justify-between rounded-xl border border-indigo-500/15 bg-indigo-500/6 px-4 py-3">
                     <div>
-                      <div className="text-sm font-bold text-indigo-400">Odštej paket</div>
-                      <div className="text-xs text-slate-400 dark:text-slate-500">Trenutno: {item.packets}</div>
+                      <div className="text-sm font-bold text-indigo-400">{t('subtractPacket')}</div>
+                      <div className="text-xs text-slate-400 dark:text-slate-500">
+                        {t('currently', { count: item.packets })}
+                      </div>
                     </div>
                     <button
                       onClick={async () => {
@@ -1075,7 +1084,7 @@ export default function FreezerModule({
                     onClick={() => doArchive(item, false)}
                     className="flex-3 cursor-pointer rounded-xl border-none bg-linear-135 from-green-500 to-emerald-600 p-3.75 text-base font-bold text-white"
                   >
-                    ✓ Uporabljeno
+                    {t('usedBtn')}
                   </button>
                   <button
                     onClick={() => doArchive(item, true)}
@@ -1092,7 +1101,7 @@ export default function FreezerModule({
                     }}
                     className="flex-1 cursor-pointer rounded-xl border border-sky-400/30 bg-sky-400/8 p-3 text-sm font-semibold text-sky-400"
                   >
-                    ✏️ Uredi
+                    {t('edit')}
                   </button>
                   <button
                     onClick={async () => {
@@ -1106,7 +1115,7 @@ export default function FreezerModule({
                         : 'bg-white/80 text-slate-500 dark:bg-slate-800/60 dark:text-slate-400',
                     )}
                   >
-                    {item.sticky ? '📌 Odpni' : '📌 Pripni'}
+                    {item.sticky ? t('unpin') : t('pin')}
                   </button>
                   <button
                     onClick={async () => {
@@ -1115,7 +1124,7 @@ export default function FreezerModule({
                     }}
                     className="flex-1 cursor-pointer rounded-xl border border-red-500/15 bg-transparent p-3 text-sm font-semibold text-slate-400 dark:text-slate-500"
                   >
-                    Zbriši
+                    {t('delete')}
                   </button>
                 </div>
               </Modal>
@@ -1129,22 +1138,19 @@ export default function FreezerModule({
   // ═══════════════════════════
   // FREEZER - ADD (SIMPLIFIED)
   // ═══════════════════════════
-  const stepLabels = addStep < 2 ? [t('korak1'), t('korak2')] : [t('korak1'), t('korak2'), t('korak3')];
+  const stepLabels = addStep < 2 ? [t('step1'), t('step2')] : [t('step1'), t('step2'), t('step3')];
 
   return (
     <Screen>
-      <div className="relative z-1 min-h-screen px-4 pt-4 pb-[calc(100px+env(safe-area-inset-bottom))]">
+      <PageBody className="min-h-screen">
         <div className="mb-6 flex items-center justify-between">
-          <button
+          <BackBtn
             onClick={() => {
               if (addStep === 0) setScreen('home');
               else setAddStep(addStep - 1);
             }}
-            className={BACK_BTN}
-          >
-            {t('nazaj')}
-          </button>
-          <h2 className="text-lg font-extrabold">{t('dodajVZamrzovalnik')}</h2>
+          />
+          <h2 className="text-lg font-extrabold">{t('addToFreezer')}</h2>
           <button
             onClick={() => setScreen('home')}
             className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl border border-indigo-500/20 bg-white/90 text-lg text-slate-500 dark:border-slate-600/30 dark:bg-slate-800/80 dark:text-slate-400"
@@ -1178,7 +1184,7 @@ export default function FreezerModule({
         {/* STEP 0: Name + Category */}
         {addStep === 0 && (
           <div>
-            <Label>{t('kajZamrzuješ')}</Label>
+            <Label>{t('whatFreezing')}</Label>
             <input
               ref={inputRef}
               value={addData.name}
@@ -1186,11 +1192,11 @@ export default function FreezerModule({
                 setAddData((d) => ({ ...d, name: e.target.value }));
                 setSuggestions(
                   e.target.value.length >= 2
-                    ? SUGG.filter((s) => s.n.toLowerCase().includes(e.target.value.toLowerCase())).slice(0, 5)
+                    ? sugg.filter((s) => s.n.toLowerCase().includes(e.target.value.toLowerCase())).slice(0, 5)
                     : [],
                 );
               }}
-              placeholder={t('primerekIskanja')}
+              placeholder={t('namePlaceholder')}
               className="box-border w-full rounded-xl border border-indigo-500/25 bg-white/90 px-4 py-3.5 text-lg font-medium text-slate-800 outline-none dark:border-indigo-500/30 dark:bg-slate-800/80 dark:text-slate-200"
             />
             {suggestions.length > 0 && (
@@ -1214,7 +1220,7 @@ export default function FreezerModule({
                       <div>
                         <div className="font-semibold">{s.n}</div>
                         <div className="text-xs font-semibold text-(--cat)">
-                          {cat?.label} · rok {cat?.months} mes.
+                          {catLabel(s.c, cat)} · {t('shelfLife', { months: cat?.months ?? 6 })}
                         </div>
                       </div>
                     </button>
@@ -1224,7 +1230,7 @@ export default function FreezerModule({
             )}
             {addData.name.length >= 2 && suggestions.length === 0 && (
               <div className="mt-4">
-                <p className="mb-2.5 text-sm text-slate-400 dark:text-slate-500">{t('izberiKategorijo')}</p>
+                <p className="mb-2.5 text-sm text-slate-400 dark:text-slate-500">{t('selectCategory')}</p>
                 <div className="grid grid-cols-3 gap-2">
                   {Object.entries(categories).map(([k, v]) => (
                     <button
@@ -1239,7 +1245,7 @@ export default function FreezerModule({
                       className="cursor-pointer rounded-xl border border-indigo-500/15 bg-white/80 px-1.5 py-3.5 text-center text-slate-800 dark:border-slate-600/20 dark:bg-slate-800/60 dark:text-slate-200"
                     >
                       <div className="mb-1 text-2xl">{v.icon}</div>
-                      <div className="text-xs font-semibold text-(--cat)">{v.label}</div>
+                      <div className="text-xs font-semibold text-(--cat)">{catLabel(k, v)}</div>
                     </button>
                   ))}
                 </div>
@@ -1258,26 +1264,26 @@ export default function FreezerModule({
               <span className="text-5xl">{(categories[addData.cat] || CATS[addData.cat])?.icon}</span>
               <h3 className="mt-2 text-xl font-bold">{addData.name}</h3>
               <span className="text-sm font-semibold text-(--cat)">
-                {(categories[addData.cat] || CATS[addData.cat])?.label}
+                {catLabel(addData.cat, categories[addData.cat] || CATS[addData.cat])}
               </span>
             </div>
 
-            <Label>{t('količina')}</Label>
+            <Label>{tc('quantity')}</Label>
             <Input
               ref={inputRef}
               value={addData.qty}
               onChange={(e) => setAddData((d) => ({ ...d, qty: e.target.value }))}
-              placeholder="npr. 500g, 2 kosa, 1L"
+              placeholder={t('qtyPlaceholder')}
               className="mb-2"
             />
             <div className="mb-5 flex flex-wrap gap-1.5">
-              {QO.map((q) => (
+              {qo.map((q) => (
                 <button
                   key={q}
                   onClick={() => setAddData((d) => ({ ...d, qty: q }))}
                   className={cx(
                     'cursor-pointer rounded-xl border px-3 py-2 text-sm font-semibold',
-                    addData.qty === q ? CHIP2_ON : CHIP_OFF,
+                    addData.qty === q ? CHIP_INDIGO_ON : CHIP_OFF,
                   )}
                 >
                   {q}
@@ -1288,13 +1294,13 @@ export default function FreezerModule({
             {/* Auto-summary */}
             <div className="mb-5 rounded-xl border border-indigo-500/15 bg-white/70 px-4 py-3.5 dark:border-slate-600/20 dark:bg-slate-800/50">
               <div className="mb-1.5 flex justify-between text-sm text-slate-500 dark:text-slate-400">
-                <span>{t('rokUporabe')}:</span>
+                <span>{t('expiryDate')}:</span>
                 <span className="font-bold text-green-500">
-                  {addData.expiry ? fmtD(addData.expiry) : fmtD(recalc(addData.frozen, addData.cat))}
+                  {format.dateTime(new Date(addData.expiry || recalc(addData.frozen, addData.cat)), 'day')}
                 </span>
               </div>
               <div className="flex justify-between text-sm text-slate-500 dark:text-slate-400">
-                <span>{t('zamrzovalnik')}:</span>
+                <span>{t('freezer')}:</span>
                 <span className="font-semibold text-slate-800 dark:text-slate-200">
                   {freezers.find((f) => f.id === addData.freezer)?.icon}{' '}
                   {freezers.find((f) => f.id === addData.freezer)?.name}
@@ -1321,10 +1327,10 @@ export default function FreezerModule({
                 setScreen('home');
               }}
             >
-              {t('dodajVZamrzovalnik')}
+              {t('addToFreezer')}
             </Btn>
             <Btn v="ghost" disabled={!addData.qty} onClick={() => setAddStep(2)} className="mt-2">
-              {t('večOpcij')}
+              {t('moreOptions')}
             </Btn>
           </div>
         )}
@@ -1336,11 +1342,11 @@ export default function FreezerModule({
               <span className="text-5xl">{(categories[addData.cat] || CATS[addData.cat])?.icon}</span>
               <h3 className="mt-2 text-xl font-bold">{addData.name}</h3>
               <span className="text-sm text-slate-400 dark:text-slate-500">
-                {addData.qty} · {(categories[addData.cat] || CATS[addData.cat])?.label}
+                {addData.qty} · {catLabel(addData.cat, categories[addData.cat] || CATS[addData.cat])}
               </span>
             </div>
 
-            <Label>{t('paketi')}</Label>
+            <Label>{t('packets')}</Label>
             <div className="mb-4.5 flex items-center gap-3">
               <button
                 onClick={() => setAddData((d) => ({ ...d, packets: Math.max(1, d.packets - 1) }))}
@@ -1352,23 +1358,23 @@ export default function FreezerModule({
               <button onClick={() => setAddData((d) => ({ ...d, packets: d.packets + 1 }))} className={STEPPER_PLUS}>
                 +
               </button>
-              <span className="text-sm text-slate-400 dark:text-slate-500">{t('paketov')}</span>
+              <span className="text-sm text-slate-400 dark:text-slate-500">{t('packetsWord')}</span>
             </div>
 
             <Label>
-              {t('labela')} <span className="font-normal text-slate-300 dark:text-slate-600">({t('opcijsko')})</span>
+              {t('label')} <span className="font-normal text-slate-300 dark:text-slate-600">({tc('optional')})</span>
             </Label>
             <LabelInp
               value={addData.label}
               onChange={(v) => setAddData((d) => ({ ...d, label: v }))}
               labels={existingLabels}
-              placeholder={t('primerekLabele')}
+              placeholder={t('labelPlaceholder')}
             />
             <div className="h-4" />
 
             <div className="mb-3.5 grid grid-cols-2 gap-2.5">
               <div>
-                <Label>{t('zamrznjeno')}</Label>
+                <Label>{t('frozen')}</Label>
                 <Input
                   type="date"
                   value={addData.frozen}
@@ -1379,7 +1385,7 @@ export default function FreezerModule({
                 />
               </div>
               <div>
-                <Label>{t('rokUporabe')}</Label>
+                <Label>{t('expiryDate')}</Label>
                 <Input
                   type="date"
                   value={addData.expiry || recalc(addData.frozen, addData.cat)}
@@ -1388,7 +1394,7 @@ export default function FreezerModule({
               </div>
             </div>
 
-            <Label>{t('zamrzovalnik')}</Label>
+            <Label>{t('freezer')}</Label>
             <div className="mb-6 flex flex-wrap gap-2">
               {freezers.map((f) => (
                 <button
@@ -1396,7 +1402,7 @@ export default function FreezerModule({
                   onClick={() => setAddData((d) => ({ ...d, freezer: f.id }))}
                   className={cx(
                     'cursor-pointer rounded-xl border px-4 py-2.5 text-sm font-bold',
-                    addData.freezer === f.id ? CHIP_ON : CHIP_OFF,
+                    addData.freezer === f.id ? CHIP_SKY_ON : CHIP_OFF,
                   )}
                 >
                   {f.icon} {f.name}
@@ -1422,11 +1428,11 @@ export default function FreezerModule({
                 setScreen('home');
               }}
             >
-              {t('dodajVZamrzovalnik')}
+              {t('addToFreezer')}
             </Btn>
           </div>
         )}
-      </div>
+      </PageBody>
     </Screen>
   );
 }

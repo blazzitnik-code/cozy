@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
+import { useTranslations } from 'next-intl';
 import { subscribeToErrors } from '@/lib/notify';
 import { cx } from '@/lib/utils';
 
@@ -27,8 +28,18 @@ export function Screen({
   );
 }
 
+// Standard page content wrapper inside <Screen> (nav-safe bottom padding).
+export function PageBody({ children, className }) {
+  return (
+    <div className={cx('relative z-1 px-4 pt-4 pb-[calc(100px+env(safe-area-inset-bottom))]', className)}>
+      {children}
+    </div>
+  );
+}
+
 // Full-screen brand loader (auth + data loading gates).
 export function Loader() {
+  const t = useTranslations('Common');
   return (
     <Screen center>
       <div className="text-center">
@@ -38,11 +49,33 @@ export function Loader() {
             Cožy
           </span>
         </div>
-        <div className="mt-2 text-sm text-slate-300 dark:text-slate-600">Nalagam...</div>
+        {/* suppressHydrationWarning: this is the only text that hydrates against
+            server HTML — SSR always renders sl, the client may load en */}
+        <div className="mt-2 text-sm text-slate-300 dark:text-slate-600" suppressHydrationWarning>
+          {t('loading')}
+        </div>
       </div>
     </Screen>
   );
 }
+
+// ─── INTERACTION STATES ───
+// Press feedback + keyboard focus ring, baked into every shared primitive.
+export const PRESS =
+  'transition active:scale-[0.97] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400';
+export const PRESS_SM =
+  'transition active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400';
+
+// ─── SELECTABLE CHIP STATES (store tabs, pickers, pills, toggles) ───
+export const CHIP_OFF =
+  'border-indigo-500/20 bg-white/70 text-slate-500 dark:border-slate-600/30 dark:bg-slate-800/50 dark:text-slate-400';
+export const CHIP_SKY_ON = 'border-sky-400/50 bg-sky-400/12 text-sky-400';
+export const CHIP_INDIGO_ON = 'border-indigo-500/50 bg-indigo-500/15 text-indigo-400';
+export const CHIP_AMBER_ON = 'border-amber-500/40 bg-amber-500/12 text-amber-500';
+
+// Opaque dropdown/popover panel (autocomplete suggestions, menus)
+export const POPOVER =
+  'rounded-xl border border-indigo-500/20 bg-white p-1 shadow-lg shadow-black/40 dark:border-slate-600/30 dark:bg-slate-800';
 
 // ─── SMALL COMPONENTS ───
 export function Pill({ active, color, onClick, children, small }) {
@@ -52,15 +85,28 @@ export function Pill({ active, color, onClick, children, small }) {
       style={color ? { '--cat': color } : undefined}
       className={cx(
         'shrink-0 cursor-pointer rounded-full border font-semibold whitespace-nowrap',
+        PRESS_SM,
         small ? 'px-2.5 py-1.5 text-xs' : 'px-3.5 py-2 text-sm',
-        active
-          ? color
-            ? 'border-(--cat)/50 bg-(--cat)/13 text-(--cat)'
-            : 'border-sky-400/50 bg-sky-400/15 text-sky-400'
-          : 'border-indigo-500/20 bg-white/70 text-slate-500 dark:border-slate-600/30 dark:bg-slate-800/50 dark:text-slate-400',
+        active ? (color ? 'border-(--cat)/50 bg-(--cat)/13 text-(--cat)' : CHIP_SKY_ON) : CHIP_OFF,
       )}
     >
       {children}
+    </button>
+  );
+}
+
+export function BackBtn({ onClick, children, className }) {
+  const t = useTranslations('Common');
+  return (
+    <button
+      onClick={onClick}
+      className={cx(
+        'cursor-pointer rounded-xl border border-indigo-500/20 bg-white/90 px-4 py-2.5 text-sm font-semibold text-slate-500 dark:border-slate-600/30 dark:bg-slate-800/80 dark:text-slate-400',
+        PRESS,
+        className,
+      )}
+    >
+      {children ?? t('back')}
     </button>
   );
 }
@@ -90,6 +136,7 @@ export function Btn({ onClick, children, v = 'primary', disabled = false, classN
       disabled={disabled}
       className={cx(
         'w-full cursor-pointer rounded-xl p-3.75 text-base font-bold disabled:cursor-default disabled:opacity-40',
+        PRESS,
         BTN_VARIANTS[v] || BTN_VARIANTS.primary,
         className,
       )}
@@ -123,7 +170,7 @@ export function Input({ size = 'md', className, ...rest }) {
   return (
     <input
       className={cx(
-        'box-border w-full border border-indigo-500/25 bg-white/90 font-medium text-slate-800 outline-none dark:border-indigo-500/30 dark:bg-slate-800/80 dark:text-slate-200',
+        'box-border w-full border border-indigo-500/25 bg-white/90 font-medium text-slate-800 transition-colors outline-none focus:border-sky-400/60 dark:border-indigo-500/30 dark:bg-slate-800/80 dark:text-slate-200 dark:focus:border-sky-400/60',
         sizes[size],
         className,
       )}
@@ -165,6 +212,7 @@ export function IconButton({ onClick, children, className }) {
       onClick={onClick}
       className={cx(
         'cursor-pointer rounded-lg border border-indigo-500/15 bg-white/80 px-2.5 py-2 text-sm leading-none font-semibold text-slate-400 dark:border-slate-600/20 dark:bg-slate-800/60 dark:text-slate-500',
+        PRESS_SM,
         className,
       )}
     >
@@ -179,6 +227,7 @@ export function Fab({ onClick, children = '+', className }) {
       onClick={onClick}
       className={cx(
         'fixed bottom-[calc(74px+env(safe-area-inset-bottom))] left-1/2 z-50 flex h-15.5 w-15.5 -translate-x-1/2 cursor-pointer items-center justify-center rounded-full border-none bg-linear-135 from-sky-500 to-indigo-500 text-3xl font-light text-white shadow-xl ring-4 shadow-sky-500/40 ring-sky-500/10',
+        PRESS_SM,
         className,
       )}
     >
@@ -202,10 +251,7 @@ export function Avatar({ name, size = 32, className }) {
 }
 
 // Row of equal-width toggle buttons (language/theme switchers).
-const SEG_ACTIVE = {
-  sky: 'border-sky-400/50 bg-sky-400/12 text-sky-400',
-  indigo: 'border-indigo-500/50 bg-indigo-500/15 text-indigo-400',
-};
+const SEG_ACTIVE = { sky: CHIP_SKY_ON, indigo: CHIP_INDIGO_ON };
 
 export function Segmented({ options, value, onChange, tone = 'sky', className }) {
   return (
@@ -216,9 +262,8 @@ export function Segmented({ options, value, onChange, tone = 'sky', className })
           onClick={() => onChange(o.value)}
           className={cx(
             'flex-1 cursor-pointer rounded-xl border p-2.5 text-sm font-bold',
-            value === o.value
-              ? SEG_ACTIVE[tone] || SEG_ACTIVE.sky
-              : 'border-indigo-500/20 bg-white/80 text-slate-500 dark:border-slate-600/30 dark:bg-slate-800/60 dark:text-slate-400',
+            PRESS,
+            value === o.value ? SEG_ACTIVE[tone] || SEG_ACTIVE.sky : CHIP_OFF,
           )}
         >
           {o.label}
@@ -254,36 +299,76 @@ export function Modal({ children, onClose }) {
   );
 }
 
+// Save/Cancel pair for bottom-sheet modals.
+const ACTION_TONES = {
+  primary: 'bg-linear-135 from-sky-500 to-indigo-500',
+  violet: 'bg-linear-135 from-purple-500 to-indigo-500',
+  orange: 'bg-linear-135 from-orange-500 to-orange-600',
+  danger: 'bg-linear-135 from-red-500 to-red-600',
+};
+
+export function ModalActions({
+  onSave,
+  onCancel,
+  saveLabel,
+  cancelLabel,
+  tone = 'primary',
+  disabled = false,
+  className,
+}) {
+  const t = useTranslations('Common');
+  return (
+    <div className={cx('flex gap-2', className)}>
+      <button
+        onClick={onSave}
+        disabled={disabled}
+        className={cx(
+          'flex-1 cursor-pointer rounded-xl border-none p-3.5 text-base font-bold text-white disabled:cursor-default disabled:opacity-50',
+          PRESS,
+          ACTION_TONES[tone] || ACTION_TONES.primary,
+        )}
+      >
+        {saveLabel ?? t('save')}
+      </button>
+      <button
+        onClick={onCancel}
+        className={cx(
+          'flex-1 cursor-pointer rounded-xl border border-indigo-500/20 bg-transparent p-3.5 text-base font-semibold text-slate-500 dark:border-slate-600/30 dark:text-slate-400',
+          PRESS,
+        )}
+      >
+        {cancelLabel ?? t('cancel')}
+      </button>
+    </div>
+  );
+}
+
 export function ConfirmModal({ action, onClose }) {
+  const t = useTranslations('Common');
   if (!action) return null;
   return (
     <Modal onClose={onClose}>
       <p className="mt-1 mb-6 text-center text-base font-semibold text-slate-800 dark:text-slate-200">
         {action.message}
       </p>
-      <div className="flex gap-2.5">
-        <button
-          onClick={async () => {
-            await action.onConfirm();
-            onClose();
-          }}
-          className="flex-1 cursor-pointer rounded-xl border-none bg-linear-135 from-red-500 to-red-600 p-3.5 text-base font-bold text-white"
-        >
-          Potrdi
-        </button>
-        <button
-          onClick={onClose}
-          className="flex-1 cursor-pointer rounded-xl border border-indigo-500/20 bg-transparent p-3.5 text-base font-semibold text-slate-500 dark:border-slate-600/30 dark:text-slate-400"
-        >
-          Prekliči
-        </button>
-      </div>
+      <ModalActions
+        tone="danger"
+        saveLabel={t('confirm')}
+        onSave={async () => {
+          await action.onConfirm();
+          onClose();
+        }}
+        onCancel={onClose}
+      />
     </Modal>
   );
 }
 
 // ─── ERROR TOASTER (fed by lib/notify.js) ───
+// Messages are usually Errors.* keys (translated at render time, so they follow
+// the current locale); unknown strings (e.g. raw DB messages) pass through as-is.
 export function Toaster() {
+  const t = useTranslations();
   const [toasts, setToasts] = useState([]);
   useEffect(
     () =>
@@ -297,14 +382,14 @@ export function Toaster() {
   if (toasts.length === 0) return null;
   return (
     <div className="pointer-events-none fixed top-[calc(12px+env(safe-area-inset-top))] left-1/2 z-300 flex w-[calc(100%-32px)] max-w-[398px] -translate-x-1/2 flex-col gap-2">
-      {toasts.map((t) => (
+      {toasts.map((toast) => (
         <div
-          key={t.id}
-          onClick={() => setToasts((ts) => ts.filter((x) => x.id !== t.id))}
+          key={toast.id}
+          onClick={() => setToasts((ts) => ts.filter((x) => x.id !== toast.id))}
           className="pointer-events-auto flex cursor-pointer items-center gap-2.5 rounded-xl border border-red-500/40 bg-red-950/95 px-3.5 py-3 text-sm font-semibold text-red-300 shadow-lg shadow-black/40 backdrop-blur-sm"
         >
           <span className="text-base">⚠️</span>
-          <span className="flex-1">{t.message}</span>
+          <span className="flex-1">{t.has(toast.message) ? t(toast.message) : toast.message}</span>
         </div>
       ))}
     </div>
@@ -313,6 +398,7 @@ export function Toaster() {
 
 // ─── LOGO / MODE TOGGLE (freezer ↔ shopping) ───
 export function LogoToggle({ mode, onToggle }) {
+  const t = useTranslations('Nav');
   return (
     <button onClick={onToggle} className="cursor-pointer border-none bg-transparent p-0 text-left">
       {mode === 'freezer' ? (
@@ -331,28 +417,31 @@ export function LogoToggle({ mode, onToggle }) {
         </span>
       )}
       <div className="mt-0.5 text-left text-[10px] text-slate-300 dark:text-slate-600">
-        Tapni za {mode === 'freezer' ? 'nakupovalni seznam' : 'zamrzovalnik'}
+        {mode === 'freezer' ? t('tapForShopping') : t('tapForFreezer')}
       </div>
     </button>
   );
 }
 
 // ─── BOTTOM NAV ───
+// Tab names live in the Nav.* messages (rendered as aria-labels — the bar is icon-only).
 const NAV_TABS = [
-  { id: 'home', icon: '🏠', label: 'Dom' },
-  { id: 'freezer', icon: '❄️', label: 'Zmrzko' },
-  { id: 'shopping', icon: '🛒', label: 'Nakupi' },
-  { id: 'calendar', icon: '📅', label: 'Koledar' },
-  { id: 'todo', icon: '✅', label: 'Opravila' },
+  { id: 'home', icon: '🏠' },
+  { id: 'freezer', icon: '❄️' },
+  { id: 'shopping', icon: '🛒' },
+  { id: 'calendar', icon: '📅' },
+  { id: 'todo', icon: '✅' },
 ];
 
 export function BottomNav({ mode, onNavigate }) {
+  const t = useTranslations('Nav');
   return (
     <div className="fixed bottom-0 left-1/2 z-80 flex w-full max-w-[430px] -translate-x-1/2 border-t border-indigo-500/15 bg-white/97 pb-[env(safe-area-inset-bottom)] backdrop-blur-lg dark:border-slate-600/20 dark:bg-slate-950/97">
       {NAV_TABS.map((tab) => (
         <button
           key={tab.id}
           onClick={() => onNavigate(tab.id)}
+          aria-label={t(tab.id)}
           className={cx(
             'flex flex-1 cursor-pointer items-center justify-center border-none bg-transparent px-1 py-3.5 transition-colors duration-150',
             mode === tab.id ? 'text-violet-300' : 'text-slate-300 dark:text-slate-600',
@@ -367,6 +456,7 @@ export function BottomNav({ mode, onNavigate }) {
 
 // ─── SWIPEABLE CARD ───
 export function SwipeCard({ children, onSwipeLeft, onClick }) {
+  const t = useTranslations('Freezer');
   const [offsetX, setOffsetX] = useState(0);
   const [swiping, setSwiping] = useState(false);
   const startX = useRef(0);
@@ -412,7 +502,7 @@ export function SwipeCard({ children, onSwipeLeft, onClick }) {
           offsetX < -30 ? 'opacity-100' : 'opacity-0',
         )}
       >
-        <span className="text-sm font-extrabold text-white">✓ Porabljeno</span>
+        <span className="text-sm font-extrabold text-white">{t('usedSwipe')}</span>
       </div>
       <div
         onTouchStart={onTouchStart}

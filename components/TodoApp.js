@@ -1,22 +1,29 @@
 'use client';
 import { useState, useRef } from 'react';
+import { useTranslations, useFormatter } from 'next-intl';
 import { useTodoLists, useTodoArchivedLists, useTodoItems } from '@/lib/hooks';
 import { cx, dueTone, DUE_TEXT, DUE_BAR, DUE_BADGE } from '@/lib/utils';
-import { Screen, Modal, Input, SectionHeader } from './ui';
+import {
+  Screen,
+  PageBody,
+  Card,
+  Modal,
+  Input,
+  Label,
+  SectionHeader,
+  BackBtn,
+  ModalActions,
+  IconButton,
+  EmptyState,
+  POPOVER,
+} from './ui';
 
 const LIST_EMOJIS = ['📋', '🏖️', '🏠', '🛒', '🎉', '🪴', '🛠️', '✈️', '📚', '🥗', '🌾', '🎸', '🐶', '🌱', '💼'];
 
-// Repeated class recipes local to this module
-const LBL = 'block text-xs font-bold text-slate-400 dark:text-slate-500 mb-1.5';
-const BACK_BTN =
-  'bg-white/80 dark:bg-slate-800/60 border border-indigo-500/15 dark:border-slate-600/20 rounded-xl py-2.5 px-4 text-slate-400 dark:text-slate-500 text-sm cursor-pointer font-semibold';
-const SAVE_BTN =
-  'flex-1 p-3.5 rounded-xl border-none bg-linear-135 from-purple-500 to-indigo-500 text-white text-base font-bold cursor-pointer';
-const CANCEL_BTN =
-  'flex-1 p-3.5 rounded-xl border border-indigo-500/15 dark:border-slate-600/20 bg-transparent text-slate-400 dark:text-slate-500 text-base font-semibold cursor-pointer';
-
 // ─── MAIN TODO APP ───
-export default function TodoApp({ user, householdId, members, lang }) {
+export default function TodoApp({ user, householdId, members }) {
+  const t = useTranslations('Todo');
+  const format = useFormatter();
   const { lists, addList, updateList, archiveList, deleteList } = useTodoLists(householdId);
   const { lists: archivedLists, unarchiveList } = useTodoArchivedLists(householdId);
 
@@ -85,34 +92,29 @@ export default function TodoApp({ user, householdId, members, lang }) {
   if (screen === 'archive')
     return (
       <Screen>
-        <div className="px-4 pt-5 pb-[calc(100px+env(safe-area-inset-bottom))]">
+        <PageBody>
           <div className="mb-6 flex items-center gap-2.5">
-            <button onClick={() => setScreen('home')} className={BACK_BTN}>
-              ← Nazaj
-            </button>
-            <h2 className="text-xl font-bold text-slate-800 dark:text-slate-200">📦 Arhiv list</h2>
+            <BackBtn onClick={() => setScreen('home')} />
+            <h2 className="text-xl font-bold text-slate-800 dark:text-slate-200">{t('archiveTitle')}</h2>
           </div>
           {archivedLists.length === 0 ? (
-            <div className="px-5 py-15 text-center text-slate-400 dark:text-slate-500">
-              <div className="mb-3 text-5xl">😭</div>
-              <p>Ni arhiviranih list</p>
-            </div>
+            <EmptyState icon="😭">{t('noArchived')}</EmptyState>
           ) : (
             archivedLists.map((list) => (
-              <div
+              <Card
                 key={list.id}
                 onClick={() => {
                   setActiveArchivedList(list);
                   setScreen('archivedList');
                 }}
-                className="mb-2 cursor-pointer rounded-2xl border border-indigo-500/15 bg-white/80 px-4 py-3.5 dark:border-slate-600/20 dark:bg-slate-800/60"
+                className="mb-2 cursor-pointer px-4 py-3.5"
               >
                 <div className="mb-2.5 flex items-center gap-2.5">
                   <span className="text-2xl">{list.emoji}</span>
                   <div className="min-w-0 flex-1">
                     <div className="text-base font-semibold text-slate-800 dark:text-slate-200">{list.title}</div>
                     <div className="text-xs text-slate-400 dark:text-slate-500">
-                      Arhivirano: {new Date(list.archived_at).toLocaleDateString('sl-SI')}
+                      {t('archivedAt', { date: format.dateTime(new Date(list.archived_at), 'numericDate') })}
                     </div>
                   </div>
                 </div>
@@ -124,7 +126,7 @@ export default function TodoApp({ user, householdId, members, lang }) {
                     }}
                     className="h-9 flex-1 cursor-pointer rounded-lg border border-indigo-500/20 bg-indigo-500/12 text-sm font-bold text-indigo-500"
                   >
-                    ↩ Vrni nazaj
+                    {t('restore')}
                   </button>
                   <button
                     onClick={(e) => {
@@ -133,36 +135,30 @@ export default function TodoApp({ user, householdId, members, lang }) {
                     }}
                     className="h-9 flex-1 cursor-pointer rounded-lg border border-red-500/20 bg-red-500/8 text-sm font-bold text-red-500"
                   >
-                    🗑 Izbriši
+                    {t('delete')}
                   </button>
                 </div>
-              </div>
+              </Card>
             ))
           )}
-        </div>
+        </PageBody>
       </Screen>
     );
 
   // ─── HOME ───
   return (
     <Screen>
-      <div className="px-4 pt-5 pb-[calc(100px+env(safe-area-inset-bottom))]">
+      <PageBody>
         <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-3xl font-extrabold">{lang === 'en' ? '✅ To-do' : '✅ Opravila'}</h1>
-          <button
-            onClick={() => setScreen('archive')}
-            className="cursor-pointer rounded-lg border border-indigo-500/15 bg-white/80 px-3 py-2 text-sm font-semibold text-slate-400 dark:border-slate-600/20 dark:bg-slate-800/60 dark:text-slate-500"
-          >
-            📦
-          </button>
+          <h1 className="text-3xl font-extrabold">{t('title')}</h1>
+          <IconButton onClick={() => setScreen('archive')}>📦</IconButton>
         </div>
 
         {lists.length === 0 ? (
-          <div className="px-5 py-15 text-center text-slate-400 dark:text-slate-500">
-            <div className="mb-3 text-5xl">📋</div>
-            <p className="mb-2 text-base font-semibold text-slate-800 dark:text-slate-200">Ni aktivnih list</p>
-            <p className="text-sm">Ustvari prvo listo z gumbom +</p>
-          </div>
+          <EmptyState icon="📋">
+            <p className="mb-2 text-base font-semibold text-slate-800 dark:text-slate-200">{t('noLists')}</p>
+            <p>{t('createFirst')}</p>
+          </EmptyState>
         ) : (
           <div className="flex flex-col gap-2.5">
             {lists.map((list) => (
@@ -178,7 +174,7 @@ export default function TodoApp({ user, householdId, members, lang }) {
             ))}
           </div>
         )}
-      </div>
+      </PageBody>
 
       {/* FAB */}
       <button
@@ -191,7 +187,7 @@ export default function TodoApp({ user, householdId, members, lang }) {
       {/* New list modal */}
       {showNewList && (
         <Modal onClose={() => setShowNewList(false)}>
-          <h3 className="mb-4 text-lg font-bold text-slate-800 dark:text-slate-200">Nova lista</h3>
+          <h3 className="mb-4 text-lg font-bold text-slate-800 dark:text-slate-200">{t('newList')}</h3>
           <div className="mb-4 flex flex-wrap gap-1.5">
             {LIST_EMOJIS.map((e) => (
               <button
@@ -208,7 +204,7 @@ export default function TodoApp({ user, householdId, members, lang }) {
               </button>
             ))}
           </div>
-          <label className={LBL}>Naslov liste</label>
+          <Label className="mb-1.5 text-xs">{t('listTitle')}</Label>
           <Input
             size="sm"
             autoFocus
@@ -217,10 +213,10 @@ export default function TodoApp({ user, householdId, members, lang }) {
             onKeyDown={(e) => {
               if (e.key === 'Enter') handleAddList();
             }}
-            placeholder="npr. Gremo na morje, Za doma..."
+            placeholder={t('listTitlePlaceholder')}
             className="mb-3"
           />
-          <label className={LBL}>Rok (opcijsko)</label>
+          <Label className="mb-1.5 text-xs">{t('due')}</Label>
           <Input
             size="sm"
             type="date"
@@ -228,23 +224,13 @@ export default function TodoApp({ user, householdId, members, lang }) {
             onChange={(e) => setNewListDue(e.target.value)}
             className="mb-5"
           />
-          <div className="flex gap-2">
-            <button
-              onClick={handleAddList}
-              disabled={!newListTitle.trim()}
-              className={cx(
-                'flex-1 rounded-xl border-none p-3.5 text-base font-bold text-white',
-                newListTitle.trim()
-                  ? 'cursor-pointer bg-linear-135 from-purple-500 to-indigo-500'
-                  : 'cursor-default bg-white/70 opacity-50 dark:bg-slate-800/50',
-              )}
-            >
-              Ustvari listo
-            </button>
-            <button onClick={() => setShowNewList(false)} className={CANCEL_BTN}>
-              Prekliči
-            </button>
-          </div>
+          <ModalActions
+            tone="violet"
+            saveLabel={t('createList')}
+            disabled={!newListTitle.trim()}
+            onSave={handleAddList}
+            onCancel={() => setShowNewList(false)}
+          />
         </Modal>
       )}
     </Screen>
@@ -253,6 +239,8 @@ export default function TodoApp({ user, householdId, members, lang }) {
 
 // ─── LIST CARD (home screen) ───
 function TodoListCard({ list, householdId, onClick }) {
+  const t = useTranslations('Todo');
+  const format = useFormatter();
   const { items } = useTodoItems(householdId, list.id);
   const done = items.filter((i) => i.checked).length;
   const total = items.length;
@@ -263,23 +251,18 @@ function TodoListCard({ list, householdId, onClick }) {
   const tone = dueTone(daysLeft);
 
   return (
-    <div
-      onClick={onClick}
-      className="cursor-pointer rounded-2xl border border-indigo-500/15 bg-white/80 px-4 py-3.5 dark:border-slate-600/20 dark:bg-slate-800/60"
-    >
+    <Card onClick={onClick} className="cursor-pointer px-4 py-3.5">
       <div className={cx('flex items-center gap-2.5', total > 0 && 'mb-2.5')}>
         <span className="text-2xl">{list.emoji}</span>
         <div className="flex-1">
           <div className="text-base font-bold text-slate-800 dark:text-slate-200">{list.title}</div>
           {total > 0 && (
-            <div className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">
-              {done}/{total} opravljenih
-            </div>
+            <div className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">{t('progress', { done, total })}</div>
           )}
         </div>
         {dueDate && (
           <span className={cx('shrink-0 rounded-lg px-2 py-0.75 text-xs font-bold', DUE_BADGE[tone])}>
-            {isPast ? '🔴 zamujeno' : dueDate.toLocaleDateString('sl-SI', { day: 'numeric', month: 'short' })}
+            {isPast ? t('overdueBadge') : format.dateTime(dueDate, 'dayShort')}
           </span>
         )}
       </div>
@@ -291,12 +274,14 @@ function TodoListCard({ list, householdId, onClick }) {
           />
         </div>
       )}
-    </div>
+    </Card>
   );
 }
 
 // ─── LIST DETAIL SCREEN ───
 function TodoListScreen({ list, householdId, members, user, onBack, onArchive, onUpdateList, onUnarchive, readOnly }) {
+  const t = useTranslations('Todo');
+  const format = useFormatter();
   const { items, addItem, toggleItem, deleteItem, updateItem } = useTodoItems(householdId, list.id);
   const [newItem, setNewItem] = useState('');
   const [assignPicker, setAssignPicker] = useState(null); // item id
@@ -325,26 +310,21 @@ function TodoListScreen({ list, householdId, members, user, onBack, onArchive, o
 
   return (
     <Screen onClick={() => assignPicker && setAssignPicker(null)}>
-      <div className="px-4 pt-5 pb-[calc(100px+env(safe-area-inset-bottom))]">
+      <PageBody>
         {/* Header */}
         <div className="mb-4 flex items-center justify-between">
-          <button onClick={onBack} className={BACK_BTN}>
-            ← Nazaj
-          </button>
+          <BackBtn onClick={onBack} />
           {!readOnly && (
-            <button
-              onClick={onArchive}
-              className="cursor-pointer rounded-xl border border-indigo-500/15 bg-white/80 px-3.5 py-2.5 text-sm font-semibold text-slate-400 dark:border-slate-600/20 dark:bg-slate-800/60 dark:text-slate-500"
-            >
-              📦 Zaključi
-            </button>
+            <BackBtn onClick={onArchive} className="px-3.5">
+              {t('finish')}
+            </BackBtn>
           )}
           {readOnly && (
             <button
               onClick={onUnarchive}
               className="cursor-pointer rounded-xl border border-indigo-500/20 bg-indigo-500/12 px-3.5 py-2.5 text-sm font-bold text-indigo-500"
             >
-              ↩ Obnovi listo
+              {t('restoreList')}
             </button>
           )}
         </div>
@@ -370,15 +350,13 @@ function TodoListScreen({ list, householdId, members, user, onBack, onArchive, o
           </div>
           {dueDate && (
             <div className={cx('text-sm font-semibold', DUE_TEXT[tone])}>
-              rok: {dueDate.toLocaleDateString('sl-SI', { day: 'numeric', month: 'long' })}
-              {daysLeft !== null && daysLeft >= 0 && ` · še ${daysLeft} dni`}
-              {isPast && ' · zamujeno'}
+              {t('dueLabel', { date: format.dateTime(dueDate, 'dayMonthLong') })}
+              {daysLeft !== null && daysLeft >= 0 && ` · ${t('daysLeft', { days: daysLeft })}`}
+              {isPast && ` · ${t('overdueWord')}`}
             </div>
           )}
           {total > 0 && (
-            <div className="mt-1 text-xs text-slate-400 dark:text-slate-500">
-              {done}/{total} opravljenih
-            </div>
+            <div className="mt-1 text-xs text-slate-400 dark:text-slate-500">{t('progress', { done, total })}</div>
           )}
         </div>
 
@@ -403,7 +381,7 @@ function TodoListScreen({ list, householdId, members, user, onBack, onArchive, o
               onKeyDown={(e) => {
                 if (e.key === 'Enter') handleAdd();
               }}
-              placeholder="Dodaj opravilo..."
+              placeholder={t('addItemPlaceholder')}
               className="flex-1"
             />
             <button
@@ -424,8 +402,8 @@ function TodoListScreen({ list, householdId, members, user, onBack, onArchive, o
         {/* Open items */}
         {openItems.length > 0 && (
           <>
-            <SectionHeader>Odprto ({openItems.length})</SectionHeader>
-            <div className="mb-4 rounded-2xl border border-indigo-500/15 bg-white/80 px-3 py-1 dark:border-slate-600/20 dark:bg-slate-800/60">
+            <SectionHeader>{t('open', { count: openItems.length })}</SectionHeader>
+            <Card className="mb-4 px-3 py-1">
               {openItems.map((item, idx) => (
                 <TodoItemRow
                   key={item.id}
@@ -447,15 +425,15 @@ function TodoListScreen({ list, householdId, members, user, onBack, onArchive, o
                   }}
                 />
               ))}
-            </div>
+            </Card>
           </>
         )}
 
         {/* Done items */}
         {doneItems.length > 0 && (
           <>
-            <SectionHeader>Opravljeno ({doneItems.length})</SectionHeader>
-            <div className="mb-5 rounded-2xl border border-indigo-500/15 bg-white/80 px-3 py-1 opacity-65 dark:border-slate-600/20 dark:bg-slate-800/60">
+            <SectionHeader>{t('doneSection', { count: doneItems.length })}</SectionHeader>
+            <Card className="mb-5 px-3 py-1 opacity-65">
               {doneItems.map((item, idx) => (
                 <TodoItemRow
                   key={item.id}
@@ -477,15 +455,15 @@ function TodoListScreen({ list, householdId, members, user, onBack, onArchive, o
                   }}
                 />
               ))}
-            </div>
+            </Card>
           </>
         )}
-      </div>
+      </PageBody>
 
       {/* List edit modal */}
       {listEdit && (
         <Modal onClose={() => setListEdit(null)}>
-          <h3 className="mb-4 text-base font-bold text-slate-800 dark:text-slate-200">Uredi listo</h3>
+          <h3 className="mb-4 text-base font-bold text-slate-800 dark:text-slate-200">{t('editList')}</h3>
           <div className="mb-4 flex flex-wrap gap-1.5">
             {LIST_EMOJIS.map((e) => (
               <button
@@ -502,7 +480,7 @@ function TodoListScreen({ list, householdId, members, user, onBack, onArchive, o
               </button>
             ))}
           </div>
-          <label className={LBL}>Naslov liste</label>
+          <Label className="mb-1.5 text-xs">{t('listTitle')}</Label>
           <Input
             size="sm"
             autoFocus
@@ -510,7 +488,7 @@ function TodoListScreen({ list, householdId, members, user, onBack, onArchive, o
             onChange={(e) => setListEdit((d) => ({ ...d, title: e.target.value }))}
             className="mb-3"
           />
-          <label className={LBL}>Rok (opcijsko)</label>
+          <Label className="mb-1.5 text-xs">{t('due')}</Label>
           <Input
             size="sm"
             type="date"
@@ -518,33 +496,27 @@ function TodoListScreen({ list, householdId, members, user, onBack, onArchive, o
             onChange={(e) => setListEdit((d) => ({ ...d, due_date: e.target.value }))}
             className="mb-5"
           />
-          <div className="flex gap-2">
-            <button
-              onClick={async () => {
-                if (!listEdit.title.trim()) return;
-                await onUpdateList(list.id, {
-                  title: listEdit.title.trim(),
-                  emoji: listEdit.emoji,
-                  due_date: listEdit.due_date || null,
-                });
-                setListEdit(null);
-              }}
-              className={SAVE_BTN}
-            >
-              Shrani
-            </button>
-            <button onClick={() => setListEdit(null)} className={CANCEL_BTN}>
-              Prekliči
-            </button>
-          </div>
+          <ModalActions
+            tone="violet"
+            onSave={async () => {
+              if (!listEdit.title.trim()) return;
+              await onUpdateList(list.id, {
+                title: listEdit.title.trim(),
+                emoji: listEdit.emoji,
+                due_date: listEdit.due_date || null,
+              });
+              setListEdit(null);
+            }}
+            onCancel={() => setListEdit(null)}
+          />
         </Modal>
       )}
 
       {/* Item detail modal */}
       {itemDetail && (
         <Modal onClose={() => setItemDetail(null)}>
-          <h3 className="mb-4 text-base font-bold text-slate-800 dark:text-slate-200">Uredi opravilo</h3>
-          <label className={LBL}>Naslov</label>
+          <h3 className="mb-4 text-base font-bold text-slate-800 dark:text-slate-200">{t('editItem')}</h3>
+          <Label className="mb-1.5 text-xs">{t('itemTitle')}</Label>
           <Input
             size="sm"
             autoFocus
@@ -552,29 +524,23 @@ function TodoListScreen({ list, householdId, members, user, onBack, onArchive, o
             onChange={(e) => setItemDetail((d) => ({ ...d, title: e.target.value }))}
             className="mb-3.5"
           />
-          <label className={LBL}>Opombe</label>
+          <Label className="mb-1.5 text-xs">{t('notes')}</Label>
           <textarea
             value={itemDetail.notes || ''}
             onChange={(e) => setItemDetail((d) => ({ ...d, notes: e.target.value }))}
-            placeholder="Dodaj podrobnosti, opombe..."
+            placeholder={t('notesPlaceholder')}
             rows={4}
             className="mb-5 box-border w-full resize-none rounded-xl border border-indigo-500/25 bg-white/90 px-3.5 py-3 text-base leading-normal font-medium text-slate-800 outline-none dark:border-indigo-500/30 dark:bg-slate-800/80 dark:text-slate-200"
           />
-          <div className="flex gap-2">
-            <button
-              onClick={async () => {
-                if (!itemDetail.title.trim()) return;
-                await updateItem(itemDetail.id, { title: itemDetail.title.trim(), notes: itemDetail.notes || null });
-                setItemDetail(null);
-              }}
-              className={SAVE_BTN}
-            >
-              Shrani
-            </button>
-            <button onClick={() => setItemDetail(null)} className={CANCEL_BTN}>
-              Prekliči
-            </button>
-          </div>
+          <ModalActions
+            tone="violet"
+            onSave={async () => {
+              if (!itemDetail.title.trim()) return;
+              await updateItem(itemDetail.id, { title: itemDetail.title.trim(), notes: itemDetail.notes || null });
+              setItemDetail(null);
+            }}
+            onCancel={() => setItemDetail(null)}
+          />
         </Modal>
       )}
     </Screen>
@@ -583,6 +549,8 @@ function TodoListScreen({ list, householdId, members, user, onBack, onArchive, o
 
 // ─── ITEM ROW ───
 function TodoItemRow({ item, isLast, member, members, showPicker, onToggle, onDelete, onTap, onPickerOpen, onAssign }) {
+  const t = useTranslations('Todo');
+  const tc = useTranslations('Common');
   return (
     <div
       className={cx(
@@ -634,13 +602,13 @@ function TodoItemRow({ item, isLast, member, members, showPicker, onToggle, onDe
         {showPicker && (
           <div
             onClick={(e) => e.stopPropagation()}
-            className="absolute top-8.5 right-0 z-20 min-w-37.5 rounded-xl border border-indigo-500/15 bg-white p-1.5 shadow-lg shadow-black/40 dark:border-slate-600/20 dark:bg-slate-800"
+            className={cx(POPOVER, 'absolute top-8.5 right-0 z-20 min-w-37.5 p-1.5')}
           >
             <div
               onClick={() => onAssign(null)}
               className="cursor-pointer rounded-lg px-2.5 py-2 text-sm text-slate-400 dark:text-slate-500"
             >
-              Nihče
+              {t('nobody')}
             </div>
             {members.map((m) => (
               <div
@@ -648,7 +616,7 @@ function TodoItemRow({ item, isLast, member, members, showPicker, onToggle, onDe
                 onClick={() => onAssign(m.user_id)}
                 className="cursor-pointer rounded-lg px-2.5 py-2 text-sm font-medium text-slate-800 dark:text-slate-200"
               >
-                {m.display_name || 'Uporabnik'}
+                {m.display_name || tc('user')}
               </div>
             ))}
           </div>

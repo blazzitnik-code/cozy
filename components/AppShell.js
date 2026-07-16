@@ -37,7 +37,7 @@ export default function AppShell({ user, household, members, signOut }) {
     if (typeof window !== 'undefined') return localStorage.getItem('zmrzko_theme') || 'dark';
     return 'dark';
   });
-  const switchTheme = (th) => { setTheme(th); localStorage.setItem('zmrzko_theme', th); };
+  const switchTheme = (th) => { setTheme(th); localStorage.setItem('zmrzko_theme', th); document.documentElement.dataset.theme = th; };
   const isDark = theme === 'dark';
   const st = getStyles(isDark);
 

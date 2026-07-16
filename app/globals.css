@@ -1,5 +1,70 @@
 @import "tailwindcss";
 
+/* ─── DESIGN TOKENS ───────────────────────────────────────────────
+   Single source of truth for theme colors. Dark is the default
+   (:root); light overrides via <html data-theme="light">, toggled in
+   settings and applied pre-paint by the inline script in layout.js.
+   Rule: new colors go through tokens — no new hardcoded hex/rgba.
+   Consumed by lib/styles.js (getStyles) and components/ui.js;
+   module-internal colors migrate here when the visual design lands. */
+:root {
+  --page-bg: #0B1120;
+  --bg: linear-gradient(180deg, #0B1120 0%, #111827 40%, #0F172A 100%);
+  --glow-1: radial-gradient(circle, rgba(56, 189, 248, 0.08) 0%, transparent 70%);
+  --glow-2: radial-gradient(circle, rgba(99, 102, 241, 0.06) 0%, transparent 70%);
+
+  --surface: rgba(30, 41, 59, 0.6);
+  --surface-2: rgba(30, 41, 59, 0.5);
+  --border: rgba(71, 85, 105, 0.2);
+  --border-strong: rgba(71, 85, 105, 0.3);
+
+  --text-1: #E2E8F0;
+  --text-2: #94A3B8;
+  --text-3: #64748B;
+  --text-dim: #475569;
+
+  --input-bg: rgba(30, 41, 59, 0.8);
+  --input-border: rgba(99, 102, 241, 0.3);
+
+  --modal-bg: linear-gradient(180deg, #1E293B, #0F172A);
+  --modal-handle: #334155;
+
+  --nav-bg: rgba(11, 17, 32, 0.97);
+
+  /* Accents are theme-invariant for now */
+  --accent: #38BDF8;
+  --accent-2: #6366F1;
+  --accent-3: #818CF8;
+  --amber: #F59E0B;
+  --danger: #EF4444;
+  --success: #22C55E;
+}
+
+:root[data-theme="light"] {
+  --page-bg: #F0F4FF;
+  --bg: linear-gradient(180deg, #F0F4FF 0%, #E8EEFF 40%, #EEF2FF 100%);
+  --glow-1: radial-gradient(circle, rgba(56, 189, 248, 0.15) 0%, transparent 70%);
+  --glow-2: radial-gradient(circle, rgba(99, 102, 241, 0.1) 0%, transparent 70%);
+
+  --surface: rgba(255, 255, 255, 0.8);
+  --surface-2: rgba(255, 255, 255, 0.7);
+  --border: rgba(99, 102, 241, 0.15);
+  --border-strong: rgba(99, 102, 241, 0.2);
+
+  --text-1: #1E293B;
+  --text-2: #64748B;
+  --text-3: #94A3B8;
+  --text-dim: #CBD5E1;
+
+  --input-bg: rgba(255, 255, 255, 0.9);
+  --input-border: rgba(99, 102, 241, 0.25);
+
+  --modal-bg: linear-gradient(180deg, #FFFFFF, #F8FAFF);
+  --modal-handle: #CBD5E1;
+
+  --nav-bg: rgba(255, 255, 255, 0.97);
+}
+
 * {
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
@@ -8,8 +73,8 @@
 html, body {
   margin: 0;
   padding: 0;
-  background: #0B1120;
-  color: #E2E8F0;
+  background: var(--page-bg);
+  color: var(--text-1);
   font-family: 'Outfit', 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   -webkit-font-smoothing: antialiased;
   overscroll-behavior: none;

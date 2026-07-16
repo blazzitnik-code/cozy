@@ -26,6 +26,8 @@ export default function RootLayout({ children }) {
   return (
     <html lang="sl">
       <head>
+        {/* Apply saved theme before first paint (tokens in globals.css key off data-theme) */}
+        <script dangerouslySetInnerHTML={{ __html: `try{var t=localStorage.getItem('zmrzko_theme');if(t)document.documentElement.dataset.theme=t}catch(e){}` }} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />

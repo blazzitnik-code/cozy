@@ -28,18 +28,29 @@
 ## Structure
 
 ```
-app/page.js              — auth flow: login → create/join household → ZmrzkoApp
-components/ZmrzkoApp.js  — MEGA-FILE (~1800 lines): app shell, BottomNav, settings,
-                           home screen, freezer, shopping, calendar module
-components/TodoApp.js    — todo module (already extracted)
-components/HomeModule.js — traffic, shortcuts, LPP, BicikeLJ (already extracted)
-lib/hooks.js             — ALL Supabase access (17 hooks); generic useHouseholdTable
-lib/supabase.js          — client from env
-lib/i18n.js              — translations (useT) — only partially used
-supabase/migrations/     — schema (reconstructed from hooks.js; cloud was never pulled)
-supabase/seed.sql        — 10 global categories; REQUIRED, otherwise the app hangs
-                           on "Nalagam..." (hasCats check)
+app/page.js                  — auth flow: login → create/join household → AppShell
+components/AppShell.js       — app shell (~330 lines): ALL Supabase hooks, mode/lang/theme,
+                               calendar connection orchestration, settings modal, routing
+components/HomeScreen.js     — home mode: quick stats, today's events, todo previews
+components/FreezerModule.js  — freezer: list+filters, swipe archive, add flow, archive views
+components/ShoppingModule.js — shopping: store tabs, categorized list, history, modals
+components/CalendarModule.js — two-lane partner calendar + event detail modal
+components/TodoApp.js        — todo module
+components/HomeModule.js     — traffic, shortcuts, LPP, BicikeLJ
+components/ui.js             — shared UI: Pill, FC, Btn, Modal, ConfirmModal, BottomNav,
+                               SwipeCard, LogoToggle
+lib/hooks.js                 — ALL Supabase access (17 hooks); generic useHouseholdTable
+lib/constants.js             — CATS, SUGG, SHOP_SUGG, FICONS, QO
+lib/utils.js                 — expiry status + date/calendar formatting helpers
+lib/styles.js                — getStyles(isDark) + static dark style constants
+lib/supabase.js              — client from env
+lib/i18n.js                  — translations (useT) — only partially used
+supabase/migrations/         — schema (reconstructed from hooks.js; cloud was never pulled)
+supabase/seed.sql            — 10 global categories; REQUIRED, otherwise the app hangs
+                               on "Nalagam..." (hasCats check)
 ```
+
+Architecture: data hooks live in AppShell and flow into modules via props — modules own only their UI state. Reason: switching tabs unmounts modules; module-owned hooks would refetch and flicker on every switch, and unmount naturally resets per-module UI state.
 
 ## Database (essentials)
 
@@ -59,7 +70,6 @@ supabase/seed.sql        — 10 global categories; REQUIRED, otherwise the app h
 
 ## Known tech debt (deliberately deferred)
 
-- `ZmrzkoApp.js` mega-file → plan is to split into FreezerModule/ShoppingModule/CalendarModule + a shared `ui.js`.
 - Light theme and EN translations are half-implemented (dark colors hardcoded in many places).
 - DB writes mostly lack error handling (errors are silently swallowed).
 - `toISOString().split('T')[0]` timezone bug (UTC vs. local time around midnight).
@@ -70,5 +80,5 @@ supabase/seed.sql        — 10 global categories; REQUIRED, otherwise the app h
 1. ~~Local setup (Docker Supabase, migrations, env, CLAUDE.md)~~ ✅
 2. ~~Bump all dependency versions (Next 16, React 19, Tailwind 4, supabase-js)~~ ✅
 3. ~~Add MCP servers for Next + Supabase~~ ✅
-4. Split `ZmrzkoApp.js` into modules
+4. ~~Split `ZmrzkoApp.js` into modules (AppShell + HomeScreen/Freezer/Shopping/Calendar + ui.js)~~ ✅
 5. Then: theme/i18n decision, error handling

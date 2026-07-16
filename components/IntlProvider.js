@@ -1,6 +1,7 @@
 'use client';
 import { createContext, useContext, useState, useMemo, useCallback } from 'react';
 import { NextIntlClientProvider } from 'next-intl';
+import { MotionConfig } from 'motion/react';
 import sl from '@/messages/sl.json';
 import en from '@/messages/en.json';
 
@@ -61,7 +62,10 @@ export default function IntlProvider({ children }) {
         getMessageFallback={fallbackToSl}
         onError={onIntlError}
       >
-        {children}
+        {/* Global reduced-motion gating: with OS "reduce motion" on, Motion drops
+            transform/layout animations app-wide while opacity keeps fading.
+            Imperative animate() calls don't read this — gate those with useReducedMotion(). */}
+        <MotionConfig reducedMotion="user">{children}</MotionConfig>
       </NextIntlClientProvider>
     </LocaleContext.Provider>
   );

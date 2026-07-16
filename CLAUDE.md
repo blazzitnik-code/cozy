@@ -19,6 +19,7 @@
 - `supabase` — hosted MCP for the cloud project (`https://mcp.supabase.com/mcp`); requires one-time OAuth: run `claude /mcp` in a regular terminal → "supabase" → Authenticate.
 - `supabase-local` — local stack MCP (`http://127.0.0.1:55321/mcp`); no auth, works whenever `npx supabase start` is running. Prefer this one for local DB work.
 - `next-devtools` — official Next.js devtools MCP (`npx next-devtools-mcp`); most useful while `npm run dev` is running.
+- `motion` — free Motion registry MCP (`motion-studio-mcp` via npx, no API key): Motion docs + CSS spring/bounce easing generators. (The paid `npx motion-ai` AI Kit with premium examples needs a Motion+ key — deliberately skipped.)
 
 ## Env
 
@@ -47,6 +48,8 @@ components/ui.js             — shared UI: Screen, PageBody, Loader, Card, Inpu
                                ModalActions, ConfirmModal, Toaster, LogoToggle,
                                BottomNav, SwipeCard + shared class consts
                                (CHIP_OFF/CHIP_*_ON, POPOVER, PRESS/PRESS_SM)
+                               + Motion vocabulary (SPRING_FAST/SPRING_POP/
+                               POP/POPOVER_POP/LIST_ROW)
 lib/hooks.js                 — ALL Supabase access (17 hooks); generic useHouseholdTable
 lib/constants.js             — CATS; per-locale SUGG/SHOP_SUGG/QO ({ sl, en }); FICONS
 lib/utils.js                 — cx (clsx + tailwind-merge), expiry status + STATUS_*
@@ -91,11 +94,21 @@ Architecture: data hooks live in AppShell and flow into modules via props — mo
 - Palette recipe: page `bg-indigo-50 dark:bg-slate-950`; cards `bg-white/80 border-indigo-500/15 dark:bg-slate-800/60 dark:border-slate-600/20`; inputs `bg-white/90 border-indigo-500/25 dark:bg-slate-800/80 dark:border-indigo-500/30`; text `slate-800/500/400/300` ↔ `dark:slate-200/400/500/600` (primary → dim). Gradients via `bg-linear-135 from-… to-…` / `bg-radial`; gradient text via `bg-clip-text text-transparent`.
 - **Rule: no hardcoded hex/rgba.** Audit: `grep -rnE '#[0-9A-Fa-f]{3,8}\b|rgba?\(' app components lib --include='*.js' | grep -vE 'lib/constants\.js|fill="#|themeColor'` must stay empty (exclusions: CATS data colors, the Google logo SVG, the PWA themeColor meta).
 - Arbitrary values only where stock has no equivalent: app frame `max-w-[430px]`, `text-[9px]`/`text-[10px]` micro-captions, `env(safe-area-inset-*)`/`calc()` offsets, `tracking-[…]`, scrollbar hiding (`[scrollbar-width:none] [&::-webkit-scrollbar]:hidden`).
-- Inline `style` props are allowed ONLY for truly runtime-dynamic values: CSS-var bridges for data-driven colors (`style={{'--cat': cat.color}}` + `bg-(--cat)/13`), computed widths/heights (progress bars, chart bars), drag transforms (SwipeCard), Avatar size. Everything else is a class.
+- Inline `style` props are allowed ONLY for truly runtime-dynamic values: CSS-var bridges for data-driven colors (`style={{'--cat': cat.color}}` + `bg-(--cat)/13`), computed widths/heights (progress bars, chart bars), Motion animation/drag transforms (Motion writes inline `transform`/`opacity` — expected), Avatar size. Everything else is a class.
 - Conditional classes use `cx()` from `lib/utils.js` (clsx + tailwind-merge: later classes win per CSS property, so `className` overrides on shared components are safe — e.g. `<Card className="rounded-xl">`). Always **full literal class strings** — never concatenate class-name fragments (Tailwind's scanner can't see them). Caveat: twMerge does not merge across variants — a `dark:bg-*` on a component base can only be overridden by another `dark:bg-*`.
 - Repeated visual recipes live in `components/ui.js`, not inline: `PageBody` (page content wrapper), `Card` (surface), `BackBtn`, `ModalActions` (Save/Cancel pair, tones primary/violet/orange/danger), `POPOVER` (opaque dropdown panel), chip states (`CHIP_OFF` + `CHIP_SKY_ON`/`CHIP_INDIGO_ON`/`CHIP_AMBER_ON`). Reuse before writing a new one.
 - Interactive baseline: shared primitives ship press feedback + keyboard focus ring via the `PRESS`/`PRESS_SM` consts (`active:scale-*`, `focus-visible:outline-*`); `Input` highlights its border on focus. New tappable elements should include `PRESS`/`PRESS_SM`.
 - Errors: failed DB writes surface via `notifyError()` (`lib/notify.js`) → `<Toaster />`; never swallow write errors silently.
+
+## Motion / animations
+
+- **Micro-animations only** (~200 ms springs): enter/exit, layout moves, drag, small glyph pops. No page/tab/module transitions, no auth-flow transitions — deliberate scope.
+- Import from `motion/react` (plain imports, no LazyMotion — drag + layout need full `domMax` anyway). Shared recipes live in `components/ui.js` (`SPRING_FAST`, `SPRING_POP`, `POP`, `POPOVER_POP`, `LIST_ROW`) — reuse/spread these before inventing new values: `<motion.div {...LIST_ROW} key={item.id}>`.
+- **Reduced motion**: global `<MotionConfig reducedMotion="user">` in IntlProvider covers declarative animations; any imperative `animate()` call must gate itself with `useReducedMotion()` (see SwipeCard).
+- **CSS vs Motion**: class-swap transitions (colors, `PRESS`/`PRESS_SM`, chevron rotate) stay CSS. **Never add `whileTap` to elements that have `PRESS`/`PRESS_SM`** — Tailwind v4 `active:scale-*` (the `scale` property) composes with Motion's inline `transform`, so both would fire.
+- **Lists**: `<AnimatePresence initial={false} mode="popLayout">` around the map (`initial={false}` because modules remount on every tab switch), `relative` on the list container (popLayout positions exiting rows absolutely), stable DB-uuid keys only — never animate index-keyed lists (HomeModule edit rows, Calendar EventBlock). `layout` goes on rows, never on scroll containers.
+- **Modal is entrance-only by design** — all call sites conditional-render (`{state && <Modal>}`) and close via caller state setters, so exit animations can't run; do not wrap modal call sites in AnimatePresence.
+- Motion's animating inline `transform` creates a CSS containing block — never wrap `Screen`/`PageBody`/anything containing `fixed` UI in a motion element (an element animating itself, like Fab/Toaster, is fine).
 
 ## Conventions
 

@@ -66,6 +66,35 @@ export const PRESS =
 export const PRESS_SM =
   'transition active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400';
 
+// ─── MOTION ───
+// Shared micro-animation vocabulary (~200ms springs). Spread onto motion.*
+// elements: <motion.div {...LIST_ROW} key={item.id}>. Global reduced-motion
+// gating lives in IntlProvider (MotionConfig reducedMotion="user").
+export const SPRING_FAST = { type: 'spring', stiffness: 550, damping: 38 };
+export const SPRING_POP = { type: 'spring', stiffness: 800, damping: 30 }; // tiny glyphs, slight overshoot
+// Scale-pop for small glyphs (checkbox ✓ and similar).
+export const POP = {
+  initial: { scale: 0.4, opacity: 0 },
+  animate: { scale: 1, opacity: 1 },
+  transition: SPRING_POP,
+};
+// Dropdown/popover entrance (entrance-only — callers conditional-render, no exit).
+export const POPOVER_POP = {
+  initial: { opacity: 0, scale: 0.97, y: -4 },
+  animate: { opacity: 1, scale: 1, y: 0 },
+  transition: SPRING_FAST,
+};
+// List rows: enter/exit + layout reorder. Needs an <AnimatePresence
+// initial={false} mode="popLayout"> around the map and `relative` on the list
+// container; keys must be stable DB ids (never array indexes).
+export const LIST_ROW = {
+  layout: true,
+  initial: { opacity: 0, scale: 0.98 },
+  animate: { opacity: 1, scale: 1 },
+  exit: { opacity: 0, scale: 0.98 },
+  transition: SPRING_FAST,
+};
+
 // ─── SELECTABLE CHIP STATES (store tabs, pickers, pills, toggles) ───
 export const CHIP_OFF =
   'border-indigo-500/20 bg-white/70 text-slate-500 dark:border-slate-600/30 dark:bg-slate-800/50 dark:text-slate-400';

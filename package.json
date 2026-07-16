@@ -12,6 +12,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.110.7",
     "clsx": "^2.1.1",
+    "motion": "^12.42.2",
     "next": "^16.2.10",
     "next-intl": "^4.13.2",
     "react": "^19.2.7",

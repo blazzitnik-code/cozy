@@ -1,5 +1,6 @@
 'use client';
 import { useState, useRef, useMemo } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import { useTranslations, useFormatter, useLocale } from 'next-intl';
 import { SHOP_SUGG } from '@/lib/constants';
 import { cx } from '@/lib/utils';
@@ -18,12 +19,16 @@ import {
   CHIP_AMBER_ON,
   CHIP_OFF,
   POPOVER,
+  POPOVER_POP,
+  POP,
+  LIST_ROW,
 } from './ui';
 
 const STORE_ICONS = ['🟢', '🟣', '🔵', '🟠', '🔴', '🟡', '⚫', '🏪'];
 
 // Module scope on purpose: defined inside ShoppingModule its identity would
 // change every render, remounting all rows (and killing their transitions).
+// `ref` reaches the DOM node — required by AnimatePresence mode="popLayout".
 function ShopItemRow({
   item,
   allItems,
@@ -36,9 +41,12 @@ function ShopItemRow({
   onTouchEnd,
   onToggle,
   onOpenDetail,
+  ref,
 }) {
   return (
-    <div
+    <motion.div
+      ref={ref}
+      {...LIST_ROW}
       draggable={!item.checked}
       onDragStart={(e) => onDragStart(e, item)}
       onDragOver={(e) => onDragOver(e, item)}
@@ -67,7 +75,7 @@ function ShopItemRow({
             : 'border-indigo-500/20 bg-transparent dark:border-slate-600/30',
         )}
       >
-        {item.checked && '✓'}
+        {item.checked && <motion.span {...POP}>✓</motion.span>}
       </button>
       <div onClick={() => onOpenDetail(item)} className="min-w-0 flex-1 cursor-pointer">
         <span
@@ -90,7 +98,7 @@ function ShopItemRow({
         )}
       </div>
       {activeStore === 'all' && store && <span className="shrink-0 text-xs">{store.icon}</span>}
-    </div>
+    </motion.div>
   );
 }
 
@@ -468,7 +476,10 @@ export default function ShoppingModule({
             </button>
           )}
           {shopSugg.length > 0 && shopInput && (
-            <div className={cx(POPOVER, 'absolute inset-x-0 top-[calc(100%+4px)] z-10')}>
+            <motion.div
+              {...POPOVER_POP}
+              className={cx(POPOVER, 'absolute inset-x-0 top-[calc(100%+4px)] z-10 origin-top')}
+            >
               {shopSugg.map((s, i) => (
                 <button
                   key={i}
@@ -478,7 +489,7 @@ export default function ShoppingModule({
                   <span className="text-amber-500">+</span> {s}
                 </button>
               ))}
-            </div>
+            </motion.div>
           )}
         </div>
 
@@ -505,16 +516,18 @@ export default function ShoppingModule({
               <div className="mb-1.5 pl-0.5 text-xs font-bold tracking-[1px] text-slate-300 uppercase dark:text-slate-600">
                 {t('sections.' + group.key)}
               </div>
-              <div className="flex flex-col gap-1">
-                {group.items.map((item) => (
-                  <ShopItemRow
-                    key={item.id}
-                    item={item}
-                    allItems={group.items}
-                    store={shopStores.find((s) => s.id === item.store)}
-                    {...rowProps}
-                  />
-                ))}
+              <div className="relative flex flex-col gap-1">
+                <AnimatePresence initial={false} mode="popLayout">
+                  {group.items.map((item) => (
+                    <ShopItemRow
+                      key={item.id}
+                      item={item}
+                      allItems={group.items}
+                      store={shopStores.find((s) => s.id === item.store)}
+                      {...rowProps}
+                    />
+                  ))}
+                </AnimatePresence>
               </div>
             </div>
           ))}
@@ -523,16 +536,18 @@ export default function ShoppingModule({
               <div className="mb-1.5 pl-0.5 text-xs font-bold tracking-[1px] text-slate-300 uppercase dark:text-slate-600">
                 {t('boughtSection')}
               </div>
-              <div className="flex flex-col gap-1">
-                {shopByCategory.checked.map((item) => (
-                  <ShopItemRow
-                    key={item.id}
-                    item={item}
-                    allItems={shopByCategory.checked}
-                    store={shopStores.find((s) => s.id === item.store)}
-                    {...rowProps}
-                  />
-                ))}
+              <div className="relative flex flex-col gap-1">
+                <AnimatePresence initial={false} mode="popLayout">
+                  {shopByCategory.checked.map((item) => (
+                    <ShopItemRow
+                      key={item.id}
+                      item={item}
+                      allItems={shopByCategory.checked}
+                      store={shopStores.find((s) => s.id === item.store)}
+                      {...rowProps}
+                    />
+                  ))}
+                </AnimatePresence>
               </div>
             </div>
           )}

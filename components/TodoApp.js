@@ -1,5 +1,6 @@
 'use client';
 import { useState, useRef } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import { useTranslations, useFormatter } from 'next-intl';
 import { useTodoLists, useTodoArchivedLists, useTodoItems } from '@/lib/hooks';
 import { cx, dueTone, DUE_TEXT, DUE_BAR, DUE_BADGE } from '@/lib/utils';
@@ -7,6 +8,7 @@ import {
   Screen,
   PageBody,
   Card,
+  Fab,
   Modal,
   Input,
   Label,
@@ -16,6 +18,9 @@ import {
   IconButton,
   EmptyState,
   POPOVER,
+  POPOVER_POP,
+  POP,
+  LIST_ROW,
 } from './ui';
 
 const LIST_EMOJIS = ['📋', '🏖️', '🏠', '🛒', '🎉', '🪴', '🛠️', '✈️', '📚', '🥗', '🌾', '🎸', '🐶', '🌱', '💼'];
@@ -163,30 +168,30 @@ export default function TodoApp({ user, householdId, members }) {
             <p>{t('createFirst')}</p>
           </EmptyState>
         ) : (
-          <div className="flex flex-col gap-2.5">
-            {lists.map((list) => (
-              <TodoListCard
-                key={list.id}
-                list={list}
-                householdId={householdId}
-                onClick={() => {
-                  setActiveList(list);
-                  setScreen('list');
-                }}
-              />
-            ))}
+          <div className="relative flex flex-col gap-2.5">
+            <AnimatePresence initial={false} mode="popLayout">
+              {lists.map((list) => (
+                <motion.div {...LIST_ROW} key={list.id}>
+                  <TodoListCard
+                    list={list}
+                    householdId={householdId}
+                    onClick={() => {
+                      setActiveList(list);
+                      setScreen('list');
+                    }}
+                  />
+                </motion.div>
+              ))}
+            </AnimatePresence>
           </div>
         )}
       </PageBody>
 
-      {/* FAB */}
-      <button
-        aria-label={ta('add')}
+      {/* FAB (shared primitive, repositioned/recolored via twMerge overrides) */}
+      <Fab
         onClick={() => setShowNewList(true)}
-        className="fixed right-5 bottom-[calc(88px+env(safe-area-inset-bottom))] z-50 h-14 w-14 cursor-pointer rounded-full border-none bg-linear-135 from-purple-500 to-indigo-500 text-2xl text-white shadow-lg shadow-purple-500/35"
-      >
-        +
-      </button>
+        className="right-5 bottom-[calc(88px+env(safe-area-inset-bottom))] left-auto h-14 w-14 translate-x-0 from-purple-500 to-indigo-500 text-2xl shadow-lg ring-0 shadow-purple-500/35"
+      />
 
       {/* New list modal */}
       {showNewList && (
@@ -409,28 +414,30 @@ function TodoListScreen({ list, householdId, members, user, onBack, onArchive, o
         {openItems.length > 0 && (
           <>
             <SectionHeader>{t('open', { count: openItems.length })}</SectionHeader>
-            <Card className="mb-4 px-3 py-1">
-              {openItems.map((item, idx) => (
-                <TodoItemRow
-                  key={item.id}
-                  item={item}
-                  isLast={idx === openItems.length - 1}
-                  member={getMember(item.assigned_to)}
-                  members={members}
-                  showPicker={assignPicker === item.id}
-                  onToggle={() => toggleItem(item.id)}
-                  onDelete={() => deleteItem(item.id)}
-                  onTap={() => setItemDetail({ ...item })}
-                  onPickerOpen={(e) => {
-                    e.stopPropagation();
-                    setAssignPicker(item.id);
-                  }}
-                  onAssign={(userId) => {
-                    updateItem(item.id, { assigned_to: userId });
-                    setAssignPicker(null);
-                  }}
-                />
-              ))}
+            <Card className="relative mb-4 px-3 py-1">
+              <AnimatePresence initial={false} mode="popLayout">
+                {openItems.map((item, idx) => (
+                  <TodoItemRow
+                    key={item.id}
+                    item={item}
+                    isLast={idx === openItems.length - 1}
+                    member={getMember(item.assigned_to)}
+                    members={members}
+                    showPicker={assignPicker === item.id}
+                    onToggle={() => toggleItem(item.id)}
+                    onDelete={() => deleteItem(item.id)}
+                    onTap={() => setItemDetail({ ...item })}
+                    onPickerOpen={(e) => {
+                      e.stopPropagation();
+                      setAssignPicker(item.id);
+                    }}
+                    onAssign={(userId) => {
+                      updateItem(item.id, { assigned_to: userId });
+                      setAssignPicker(null);
+                    }}
+                  />
+                ))}
+              </AnimatePresence>
             </Card>
           </>
         )}
@@ -439,28 +446,30 @@ function TodoListScreen({ list, householdId, members, user, onBack, onArchive, o
         {doneItems.length > 0 && (
           <>
             <SectionHeader>{t('doneSection', { count: doneItems.length })}</SectionHeader>
-            <Card className="mb-5 px-3 py-1 opacity-65">
-              {doneItems.map((item, idx) => (
-                <TodoItemRow
-                  key={item.id}
-                  item={item}
-                  isLast={idx === doneItems.length - 1}
-                  member={getMember(item.assigned_to)}
-                  members={members}
-                  showPicker={assignPicker === item.id}
-                  onToggle={() => toggleItem(item.id)}
-                  onDelete={() => deleteItem(item.id)}
-                  onTap={() => setItemDetail({ ...item })}
-                  onPickerOpen={(e) => {
-                    e.stopPropagation();
-                    setAssignPicker(item.id);
-                  }}
-                  onAssign={(userId) => {
-                    updateItem(item.id, { assigned_to: userId });
-                    setAssignPicker(null);
-                  }}
-                />
-              ))}
+            <Card className="relative mb-5 px-3 py-1 opacity-65">
+              <AnimatePresence initial={false} mode="popLayout">
+                {doneItems.map((item, idx) => (
+                  <TodoItemRow
+                    key={item.id}
+                    item={item}
+                    isLast={idx === doneItems.length - 1}
+                    member={getMember(item.assigned_to)}
+                    members={members}
+                    showPicker={assignPicker === item.id}
+                    onToggle={() => toggleItem(item.id)}
+                    onDelete={() => deleteItem(item.id)}
+                    onTap={() => setItemDetail({ ...item })}
+                    onPickerOpen={(e) => {
+                      e.stopPropagation();
+                      setAssignPicker(item.id);
+                    }}
+                    onAssign={(userId) => {
+                      updateItem(item.id, { assigned_to: userId });
+                      setAssignPicker(null);
+                    }}
+                  />
+                ))}
+              </AnimatePresence>
             </Card>
           </>
         )}
@@ -554,12 +563,27 @@ function TodoListScreen({ list, householdId, members, user, onBack, onArchive, o
 }
 
 // ─── ITEM ROW ───
-function TodoItemRow({ item, isLast, member, members, showPicker, onToggle, onDelete, onTap, onPickerOpen, onAssign }) {
+// `ref` reaches the DOM node — required by AnimatePresence mode="popLayout".
+function TodoItemRow({
+  item,
+  isLast,
+  member,
+  members,
+  showPicker,
+  onToggle,
+  onDelete,
+  onTap,
+  onPickerOpen,
+  onAssign,
+  ref,
+}) {
   const t = useTranslations('Todo');
   const tc = useTranslations('Common');
   const ta = useTranslations('A11y');
   return (
-    <div
+    <motion.div
+      ref={ref}
+      {...LIST_ROW}
       className={cx(
         'flex items-center gap-2.5 py-2.75',
         !isLast && 'border-b border-indigo-500/15 dark:border-slate-600/20',
@@ -574,7 +598,7 @@ function TodoItemRow({ item, isLast, member, members, showPicker, onToggle, onDe
             : 'border-indigo-500/20 bg-transparent dark:border-slate-600/30',
         )}
       >
-        {item.checked && '✓'}
+        {item.checked && <motion.span {...POP}>✓</motion.span>}
       </button>
 
       <div onClick={onTap} className="min-w-0 flex-1 cursor-pointer">
@@ -607,9 +631,10 @@ function TodoItemRow({ item, isLast, member, members, showPicker, onToggle, onDe
           {member ? (member.display_name || '?')[0].toUpperCase() : '+'}
         </button>
         {showPicker && (
-          <div
+          <motion.div
+            {...POPOVER_POP}
             onClick={(e) => e.stopPropagation()}
-            className={cx(POPOVER, 'absolute top-8.5 right-0 z-20 min-w-37.5 p-1.5')}
+            className={cx(POPOVER, 'absolute top-8.5 right-0 z-20 min-w-37.5 origin-top-right p-1.5')}
           >
             <div
               onClick={() => onAssign(null)}
@@ -626,7 +651,7 @@ function TodoItemRow({ item, isLast, member, members, showPicker, onToggle, onDe
                 {m.display_name || tc('user')}
               </div>
             ))}
-          </div>
+          </motion.div>
         )}
       </div>
 
@@ -637,6 +662,6 @@ function TodoItemRow({ item, isLast, member, members, showPicker, onToggle, onDe
       >
         ✕
       </button>
-    </div>
+    </motion.div>
   );
 }

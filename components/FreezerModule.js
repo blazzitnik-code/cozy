@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useRef, useMemo } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import { useTranslations, useFormatter, useLocale } from 'next-intl';
 import { useCatLabel, useExpiryText } from '@/lib/intl';
 import { normalizujNiz } from '@/lib/hooks';
@@ -27,6 +28,8 @@ import {
   CHIP_INDIGO_ON,
   CHIP_OFF,
   POPOVER,
+  POPOVER_POP,
+  LIST_ROW,
 } from './ui';
 
 // Repeated class recipes local to this module
@@ -105,7 +108,13 @@ function FreezerDD({ freezers, selected, onChange, onAdd }) {
         </span>
       </button>
       {open && (
-        <div className={cx(POPOVER, 'absolute top-[calc(100%+6px)] right-0 z-60 min-w-55 rounded-2xl p-1.5')}>
+        <motion.div
+          {...POPOVER_POP}
+          className={cx(
+            POPOVER,
+            'absolute top-[calc(100%+6px)] right-0 z-60 min-w-55 origin-top-right rounded-2xl p-1.5',
+          )}
+        >
           <button
             onClick={() => {
               toggle('all');
@@ -195,7 +204,7 @@ function FreezerDD({ freezers, selected, onChange, onAdd }) {
               </div>
             )}
           </div>
-        </div>
+        </motion.div>
       )}
     </div>
   );
@@ -782,102 +791,116 @@ export default function FreezerModule({
             </button>
           </div>
 
-          {showCatFilter && (
-            <div className="mb-3 flex flex-wrap gap-1.5 rounded-xl border border-indigo-500/15 bg-white/70 px-3 py-2.5 dark:border-slate-600/20 dark:bg-slate-800/50">
-              <Pill small active={filterCat.length === 0} onClick={() => setFilterCat([])}>
-                {tc('all')}
-              </Pill>
-              {Object.entries(categories).map(([k, v]) => {
-                const cnt = vis.filter((i) => i.cat === k).length;
-                return cnt ? (
-                  <Pill
-                    key={k}
-                    small
-                    active={filterCat.includes(k)}
-                    color={v.color}
-                    onClick={() =>
-                      setFilterCat((prev) => (prev.includes(k) ? prev.filter((c) => c !== k) : [...prev, k]))
-                    }
-                  >
-                    {v.icon} {catLabel(k, v)} ({cnt})
+          <AnimatePresence initial={false}>
+            {showCatFilter && (
+              <motion.div
+                key="catFilter"
+                initial={{ height: 0, opacity: 0, marginBottom: 0 }}
+                animate={{ height: 'auto', opacity: 1, marginBottom: 12 }}
+                exit={{ height: 0, opacity: 0, marginBottom: 0 }}
+                transition={{ duration: 0.2, ease: 'easeOut' }}
+                className="overflow-hidden"
+              >
+                <div className="flex flex-wrap gap-1.5 rounded-xl border border-indigo-500/15 bg-white/70 px-3 py-2.5 dark:border-slate-600/20 dark:bg-slate-800/50">
+                  <Pill small active={filterCat.length === 0} onClick={() => setFilterCat([])}>
+                    {tc('all')}
                   </Pill>
-                ) : null;
-              })}
-            </div>
-          )}
+                  {Object.entries(categories).map(([k, v]) => {
+                    const cnt = vis.filter((i) => i.cat === k).length;
+                    return cnt ? (
+                      <Pill
+                        key={k}
+                        small
+                        active={filterCat.includes(k)}
+                        color={v.color}
+                        onClick={() =>
+                          setFilterCat((prev) => (prev.includes(k) ? prev.filter((c) => c !== k) : [...prev, k]))
+                        }
+                      >
+                        {v.icon} {catLabel(k, v)} ({cnt})
+                      </Pill>
+                    ) : null;
+                  })}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Items with swipe */}
-          <div className="flex flex-col gap-1.5">
-            {filtered.map((item) => {
-              const cat = categories[item.cat] || CATS.drugo;
-              const status = getSt(item);
-              const frz = freezers.find((f) => f.id === item.freezer);
-              return (
-                <SwipeCard
-                  key={item.id}
-                  onSwipeLeft={() => doArchive(item, false)}
-                  onClick={() => {
-                    setShowDetail(item);
-                    setEditMode(false);
-                  }}
-                >
-                  <div
-                    style={{ '--cat': cat.color }}
-                    className={cx(
-                      'relative cursor-pointer overflow-hidden rounded-2xl border px-3.5 py-3',
-                      STATUS_CARD[status],
-                    )}
-                  >
-                    <div className="absolute inset-y-0 left-0 w-1 rounded-l-2xl bg-(--cat)" />
-                    <div className="flex items-center justify-between">
-                      <div className="flex min-w-0 flex-1 items-center gap-2.5 pl-2">
-                        <span className="shrink-0 text-2xl">{cat.icon}</span>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-1.25">
-                            <span className="overflow-hidden text-sm font-bold text-ellipsis whitespace-nowrap text-slate-800 dark:text-slate-200">
-                              {item.packets > 1 && <span className="text-indigo-400">{item.packets}x </span>}
-                              {item.name}
-                            </span>
-                            {item.sticky && <span className="text-[10px]">📌</span>}
+          <div className="relative flex flex-col gap-1.5">
+            <AnimatePresence initial={false} mode="popLayout">
+              {filtered.map((item) => {
+                const cat = categories[item.cat] || CATS.drugo;
+                const status = getSt(item);
+                const frz = freezers.find((f) => f.id === item.freezer);
+                return (
+                  <motion.div {...LIST_ROW} key={item.id}>
+                    <SwipeCard
+                      onSwipeLeft={() => doArchive(item, false)}
+                      onClick={() => {
+                        setShowDetail(item);
+                        setEditMode(false);
+                      }}
+                    >
+                      <div
+                        style={{ '--cat': cat.color }}
+                        className={cx(
+                          'relative cursor-pointer overflow-hidden rounded-2xl border px-3.5 py-3',
+                          STATUS_CARD[status],
+                        )}
+                      >
+                        <div className="absolute inset-y-0 left-0 w-1 rounded-l-2xl bg-(--cat)" />
+                        <div className="flex items-center justify-between">
+                          <div className="flex min-w-0 flex-1 items-center gap-2.5 pl-2">
+                            <span className="shrink-0 text-2xl">{cat.icon}</span>
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-1.25">
+                                <span className="overflow-hidden text-sm font-bold text-ellipsis whitespace-nowrap text-slate-800 dark:text-slate-200">
+                                  {item.packets > 1 && <span className="text-indigo-400">{item.packets}x </span>}
+                                  {item.name}
+                                </span>
+                                {item.sticky && <span className="text-[10px]">📌</span>}
+                              </div>
+                              <div className="flex flex-wrap items-center gap-0.75 text-xs text-slate-400 dark:text-slate-500">
+                                <span>
+                                  {item.qty}
+                                  {item.packets > 1 ? ' · ' + t('packetsShort', { count: item.packets }) : ''}
+                                </span>
+                                {allF && frz && (
+                                  <>
+                                    <span>·</span>
+                                    <span>{frz.icon}</span>
+                                  </>
+                                )}
+                                {item.label && (
+                                  <>
+                                    <span>·</span>
+                                    <span className="font-semibold text-indigo-400">{item.label}</span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
                           </div>
-                          <div className="flex flex-wrap items-center gap-0.75 text-xs text-slate-400 dark:text-slate-500">
-                            <span>
-                              {item.qty}
-                              {item.packets > 1 ? ' · ' + t('packetsShort', { count: item.packets }) : ''}
-                            </span>
-                            {allF && frz && (
-                              <>
-                                <span>·</span>
-                                <span>{frz.icon}</span>
-                              </>
-                            )}
-                            {item.label && (
-                              <>
-                                <span>·</span>
-                                <span className="font-semibold text-indigo-400">{item.label}</span>
-                              </>
-                            )}
+                          <div className="ml-2 shrink-0 text-right">
+                            <div
+                              className={cx(
+                                'mb-0.5 inline-block rounded-lg px-2 py-0.75 text-xs font-extrabold',
+                                STATUS_BADGE[status],
+                              )}
+                            >
+                              {expiryText(item.expiry, { short: true })}
+                            </div>
+                            <div className="text-[10px] text-slate-300 dark:text-slate-600">
+                              {format.dateTime(new Date(item.expiry), 'day')}
+                            </div>
                           </div>
                         </div>
                       </div>
-                      <div className="ml-2 shrink-0 text-right">
-                        <div
-                          className={cx(
-                            'mb-0.5 inline-block rounded-lg px-2 py-0.75 text-xs font-extrabold',
-                            STATUS_BADGE[status],
-                          )}
-                        >
-                          {expiryText(item.expiry, { short: true })}
-                        </div>
-                        <div className="text-[10px] text-slate-300 dark:text-slate-600">
-                          {format.dateTime(new Date(item.expiry), 'day')}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </SwipeCard>
-              );
-            })}
+                    </SwipeCard>
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
           </div>
 
           {filtered.length === 0 && (

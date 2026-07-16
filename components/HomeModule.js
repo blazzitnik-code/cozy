@@ -1,10 +1,21 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { useHomeSettings } from '@/lib/hooks';
+import { cx } from '@/lib/utils';
+import { Modal, Input } from './ui';
 
 const LPP_BASE = 'https://data.lpp.si/api';
 const BIKE_API_KEY = process.env.NEXT_PUBLIC_BICIKELJ_API_KEY;
 const BIKE_CONTRACT = 'ljubljana';
+
+// Repeated class recipes local to this module
+const LBL = "block text-11 font-bold text-ink-3 uppercase tracking-[0.5px] mb-1.5";
+const SECTION_LABEL = "text-11 font-bold text-ink-dim uppercase tracking-[1px] mb-2.5";
+const ROW = "flex gap-1.5 mb-2 items-center";
+const CHIP = "flex-1 bg-surface-2 border border-line rounded-10 py-2 px-3";
+const ADD_BTN = "text-11 py-1 px-2.5 rounded-8 border-none bg-accent-2/15 text-accent-3 cursor-pointer font-bold";
+const RM_BTN = "w-9 h-9 rounded-8 border-none bg-danger/12 text-danger cursor-pointer shrink-0 text-14";
+const TILE = "bg-surface border border-line rounded-14 py-3 px-2 text-center";
 
 async function fetchLppStations() {
   try {
@@ -37,20 +48,20 @@ function mapsTrafficLink(address) {
 }
 
 // ─── STATION SEARCH DROPDOWN ───
-function StationSearch({ placeholder, stations, onSelect, isDark, st }) {
+function StationSearch({ placeholder, stations, onSelect }) {
   const [query, setQuery] = useState('');
   const results = query.length > 1
     ? stations.filter(s => s.name?.toLowerCase().includes(query.toLowerCase())).slice(0, 6)
     : [];
 
   return (
-    <div style={{ position: 'relative', marginBottom: 8 }}>
-      <input value={query} onChange={e => setQuery(e.target.value)} placeholder={placeholder} style={st.INP} />
+    <div className="relative mb-2">
+      <Input size="xs" value={query} onChange={e => setQuery(e.target.value)} placeholder={placeholder} />
       {results.length > 0 && (
-        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: isDark ? '#1E293B' : '#fff', border: st.cardBorder, borderRadius: 10, zIndex: 50, overflow: 'hidden', boxShadow: '0 8px 24px rgba(0,0,0,0.3)', marginTop: 4 }}>
+        <div className="absolute top-full inset-x-0 bg-surface-solid border border-line rounded-10 z-50 overflow-hidden shadow-pop mt-1">
           {results.map((s, i) => (
             <div key={i} onClick={() => { onSelect(s); setQuery(''); }}
-              style={{ padding: '10px 12px', cursor: 'pointer', fontSize: 13, color: st.textPrimary, borderBottom: i < results.length - 1 ? `1px solid ${isDark ? 'rgba(71,85,105,0.15)' : 'rgba(99,102,241,0.08)'}` : 'none' }}>
+              className={cx("py-2.5 px-3 cursor-pointer text-13 text-ink", i < results.length - 1 && "border-b border-line")}>
               {s.name}
             </div>
           ))}
@@ -61,7 +72,7 @@ function StationSearch({ placeholder, stations, onSelect, isDark, st }) {
 }
 
 // ─── EDIT MODAL ───
-function EditModal({ settings, onSave, onClose, isDark, st }) {
+function EditModal({ settings, onSave, onClose }) {
   const [homeAddress, setHomeAddress] = useState(settings?.home_address || '');
   const [destinations, setDestinations] = useState(settings?.destinations?.length ? settings.destinations : []);
   const [shortcuts, setShortcuts] = useState(settings?.shortcuts?.length ? settings.shortcuts : []);
@@ -87,125 +98,106 @@ function EditModal({ settings, onSave, onClose, isDark, st }) {
     });
   };
 
-  const row = { display: 'flex', gap: 6, marginBottom: 8, alignItems: 'center' };
-  const chip = { flex: 1, background: isDark ? 'rgba(30,41,59,0.5)' : 'rgba(99,102,241,0.05)', border: st.cardBorder, borderRadius: 10, padding: '8px 12px' };
-
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 200 }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: isDark ? 'linear-gradient(180deg,#1E293B,#0F172A)' : '#fff', borderRadius: '24px 24px 0 0', width: '100%', maxWidth: 430, padding: '24px 20px 40px', maxHeight: '90vh', overflowY: 'auto' }}>
-        <div style={{ width: 36, height: 4, background: isDark ? '#334155' : '#CBD5E1', borderRadius: 2, margin: '0 auto 20px' }} />
-        <h3 style={{ fontSize: 18, fontWeight: 700, color: st.textPrimary, margin: '0 0 20px' }}>🏠 Nastavitve</h3>
+    <Modal onClose={onClose}>
+      <h3 className="text-18 font-bold text-ink mb-5">🏠 Nastavitve</h3>
 
-        {/* Home address */}
-        <label style={st.LBL}>Domači naslov</label>
-        <input value={homeAddress} onChange={e => setHomeAddress(e.target.value)} placeholder="npr. Slovenska 1, Ljubljana" style={{ ...st.INP, marginBottom: 20 }} />
+      {/* Home address */}
+      <label className={LBL}>Domači naslov</label>
+      <Input size="xs" value={homeAddress} onChange={e => setHomeAddress(e.target.value)} placeholder="npr. Slovenska 1, Ljubljana" className="mb-5" />
 
-        {/* Destinations */}
-        <div style={{ marginBottom: 20 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-            <label style={st.LBL}>📍 Navigacija (max 3)</label>
-            {destinations.length < 3 && <button onClick={() => setDestinations([...destinations, { name: '', address: '' }])} style={st.ADDBTN}>+ Dodaj</button>}
+      {/* Destinations */}
+      <div className="mb-5">
+        <div className="flex items-center justify-between mb-2">
+          <label className={LBL}>📍 Navigacija (max 3)</label>
+          {destinations.length < 3 && <button onClick={() => setDestinations([...destinations, { name: '', address: '' }])} className={ADD_BTN}>+ Dodaj</button>}
+        </div>
+        {destinations.map((d, i) => (
+          <div key={i} className={ROW}>
+            <Input size="xs" value={d.name} onChange={e => { const n = [...destinations]; n[i] = { ...n[i], name: e.target.value }; setDestinations(n); }} placeholder="Ime" className="max-w-[90px]" />
+            <Input size="xs" value={d.address} onChange={e => { const n = [...destinations]; n[i] = { ...n[i], address: e.target.value }; setDestinations(n); }} placeholder="Naslov" className="flex-1" />
+            <button onClick={() => setDestinations(destinations.filter((_, j) => j !== i))} className={RM_BTN}>✕</button>
           </div>
-          {destinations.map((d, i) => (
-            <div key={i} style={row}>
-              <input value={d.name} onChange={e => { const n = [...destinations]; n[i] = { ...n[i], name: e.target.value }; setDestinations(n); }} placeholder="Ime" style={{ ...st.INP, flex: '0 0 90px' }} />
-              <input value={d.address} onChange={e => { const n = [...destinations]; n[i] = { ...n[i], address: e.target.value }; setDestinations(n); }} placeholder="Naslov" style={{ ...st.INP, flex: 1 }} />
-              <button onClick={() => setDestinations(destinations.filter((_, j) => j !== i))} style={st.RMBTN}>✕</button>
-            </div>
-          ))}
-        </div>
-
-        {/* Shortcuts */}
-        <div style={{ marginBottom: 20 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-            <label style={st.LBL}>🔗 Bližnjice (max 6)</label>
-            {shortcuts.length < 6 && <button onClick={() => setShortcuts([...shortcuts, { name: '', url: '', emoji: '' }])} style={st.ADDBTN}>+ Dodaj</button>}
-          </div>
-          {shortcuts.map((s, i) => (
-            <div key={i} style={row}>
-              <input value={s.emoji} onChange={e => { const n = [...shortcuts]; n[i] = { ...n[i], emoji: e.target.value }; setShortcuts(n); }} placeholder="🔗" style={{ ...st.INP, flex: '0 0 48px', textAlign: 'center', fontSize: 18 }} />
-              <input value={s.name} onChange={e => { const n = [...shortcuts]; n[i] = { ...n[i], name: e.target.value }; setShortcuts(n); }} placeholder="Ime" style={{ ...st.INP, flex: '0 0 90px' }} />
-              <input value={s.url} onChange={e => { const n = [...shortcuts]; n[i] = { ...n[i], url: e.target.value }; setShortcuts(n); }} placeholder="https://..." style={{ ...st.INP, flex: 1 }} />
-              <button onClick={() => setShortcuts(shortcuts.filter((_, j) => j !== i))} style={st.RMBTN}>✕</button>
-            </div>
-          ))}
-        </div>
-
-        {/* LPP bus stops */}
-        <div style={{ marginBottom: 20 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-            <label style={st.LBL}>🚌 LPP postaje (max 3)</label>
-          </div>
-          {busStops.map((s, i) => (
-            <div key={i} style={row}>
-              <div style={chip}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: st.textPrimary }}>{s.name}</div>
-                <div style={{ fontSize: 11, color: st.textSecondary }}>Koda: {s.code}</div>
-              </div>
-              <button onClick={() => setBusStops(busStops.filter((_, j) => j !== i))} style={st.RMBTN}>✕</button>
-            </div>
-          ))}
-          {busStops.length < 3 && (
-            loadingStations
-              ? <div style={{ fontSize: 12, color: st.textSecondary, padding: '8px 0' }}>Nalagam postaje...</div>
-              : lppStations.length > 0
-                ? <StationSearch placeholder="Išči postajo LPP..." stations={lppStations}
-                    onSelect={s => setBusStops([...busStops, { name: s.name, code: s.ref_id || s.station_code || s.code || String(s.id || '') }])}
-                    isDark={isDark} st={st} />
-                : <div style={{ fontSize: 12, color: st.textSecondary, padding: '8px 0' }}>Iskanje ni na voljo — vnesi kodo postaje ročno na <span style={{ color: '#818CF8' }}>opendata.si/lpp</span></div>
-          )}
-        </div>
-
-        {/* BicikeLJ stations */}
-        <div style={{ marginBottom: 24 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-            <label style={st.LBL}>🚲 BicikeLJ (max 3)</label>
-          </div>
-          {bikeStations.map((s, i) => (
-            <div key={i} style={row}>
-              <div style={chip}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: st.textPrimary }}>{s.name}</div>
-                <div style={{ fontSize: 11, color: st.textSecondary }}>Postaja #{s.number}</div>
-              </div>
-              <button onClick={() => setBikeStations(bikeStations.filter((_, j) => j !== i))} style={st.RMBTN}>✕</button>
-            </div>
-          ))}
-          {bikeStations.length < 3 && (
-            loadingStations
-              ? <div style={{ fontSize: 12, color: st.textSecondary, padding: '8px 0' }}>Nalagam postaje...</div>
-              : <StationSearch placeholder="Išči postajo BicikeLJ..."
-                  stations={allBikeStations.map(s => ({ name: s.name, number: s.number }))}
-                  onSelect={s => setBikeStations([...bikeStations, { name: s.name, number: s.number }])}
-                  isDark={isDark} st={st} />
-          )}
-        </div>
-
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={handleSave} style={{ flex: 1, padding: 14, borderRadius: 14, border: 'none', background: 'linear-gradient(135deg,#F97316,#E85D04)', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>Shrani</button>
-          <button onClick={onClose} style={{ flex: 1, padding: 14, borderRadius: 14, border: st.cardBorder, background: 'transparent', color: st.textSecondary, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>Prekliči</button>
-        </div>
+        ))}
       </div>
-    </div>
+
+      {/* Shortcuts */}
+      <div className="mb-5">
+        <div className="flex items-center justify-between mb-2">
+          <label className={LBL}>🔗 Bližnjice (max 6)</label>
+          {shortcuts.length < 6 && <button onClick={() => setShortcuts([...shortcuts, { name: '', url: '', emoji: '' }])} className={ADD_BTN}>+ Dodaj</button>}
+        </div>
+        {shortcuts.map((s, i) => (
+          <div key={i} className={ROW}>
+            <input value={s.emoji} onChange={e => { const n = [...shortcuts]; n[i] = { ...n[i], emoji: e.target.value }; setShortcuts(n); }} placeholder="🔗" className="w-12 shrink-0 box-border bg-field border border-field-line rounded-10 text-ink outline-none py-2.5 px-1 text-center text-18" />
+            <Input size="xs" value={s.name} onChange={e => { const n = [...shortcuts]; n[i] = { ...n[i], name: e.target.value }; setShortcuts(n); }} placeholder="Ime" className="max-w-[90px]" />
+            <Input size="xs" value={s.url} onChange={e => { const n = [...shortcuts]; n[i] = { ...n[i], url: e.target.value }; setShortcuts(n); }} placeholder="https://..." className="flex-1" />
+            <button onClick={() => setShortcuts(shortcuts.filter((_, j) => j !== i))} className={RM_BTN}>✕</button>
+          </div>
+        ))}
+      </div>
+
+      {/* LPP bus stops */}
+      <div className="mb-5">
+        <div className="flex items-center justify-between mb-2">
+          <label className={LBL}>🚌 LPP postaje (max 3)</label>
+        </div>
+        {busStops.map((s, i) => (
+          <div key={i} className={ROW}>
+            <div className={CHIP}>
+              <div className="text-13 font-semibold text-ink">{s.name}</div>
+              <div className="text-11 text-ink-3">Koda: {s.code}</div>
+            </div>
+            <button onClick={() => setBusStops(busStops.filter((_, j) => j !== i))} className={RM_BTN}>✕</button>
+          </div>
+        ))}
+        {busStops.length < 3 && (
+          loadingStations
+            ? <div className="text-12 text-ink-3 py-2">Nalagam postaje...</div>
+            : lppStations.length > 0
+              ? <StationSearch placeholder="Išči postajo LPP..." stations={lppStations}
+                  onSelect={s => setBusStops([...busStops, { name: s.name, code: s.ref_id || s.station_code || s.code || String(s.id || '') }])} />
+              : <div className="text-12 text-ink-3 py-2">Iskanje ni na voljo — vnesi kodo postaje ročno na <span className="text-accent-3">opendata.si/lpp</span></div>
+        )}
+      </div>
+
+      {/* BicikeLJ stations */}
+      <div className="mb-6">
+        <div className="flex items-center justify-between mb-2">
+          <label className={LBL}>🚲 BicikeLJ (max 3)</label>
+        </div>
+        {bikeStations.map((s, i) => (
+          <div key={i} className={ROW}>
+            <div className={CHIP}>
+              <div className="text-13 font-semibold text-ink">{s.name}</div>
+              <div className="text-11 text-ink-3">Postaja #{s.number}</div>
+            </div>
+            <button onClick={() => setBikeStations(bikeStations.filter((_, j) => j !== i))} className={RM_BTN}>✕</button>
+          </div>
+        ))}
+        {bikeStations.length < 3 && (
+          loadingStations
+            ? <div className="text-12 text-ink-3 py-2">Nalagam postaje...</div>
+            : <StationSearch placeholder="Išči postajo BicikeLJ..."
+                stations={allBikeStations.map(s => ({ name: s.name, number: s.number }))}
+                onSelect={s => setBikeStations([...bikeStations, { name: s.name, number: s.number }])} />
+        )}
+      </div>
+
+      <div className="flex gap-2">
+        <button onClick={handleSave} className="flex-1 p-3.5 rounded-14 border-none bg-grad-orange text-white text-15 font-bold cursor-pointer">Shrani</button>
+        <button onClick={onClose} className="flex-1 p-3.5 rounded-14 border border-line bg-transparent text-ink-2 text-15 font-semibold cursor-pointer">Prekliči</button>
+      </div>
+    </Modal>
   );
 }
 
 // ─── MAIN COMPONENT ───
-export default function HomeModule({ user, householdId, isDark }) {
+export default function HomeModule({ user, householdId }) {
   const { settings, loading, saveSettings } = useHomeSettings(householdId, user.id);
   const [editing, setEditing] = useState(false);
   const [busData, setBusData] = useState({});
   const [bikeData, setBikeData] = useState({});
-
-  const st = {
-    cardBg: isDark ? 'rgba(15,23,42,0.8)' : 'rgba(255,255,255,0.9)',
-    cardBorder: isDark ? '1px solid rgba(71,85,105,0.2)' : '1px solid rgba(99,102,241,0.15)',
-    textPrimary: isDark ? '#E2E8F0' : '#1E293B',
-    textSecondary: isDark ? '#64748B' : '#94A3B8',
-    INP: { width: '100%', boxSizing: 'border-box', padding: '10px 12px', background: isDark ? 'rgba(30,41,59,0.8)' : 'rgba(255,255,255,0.9)', border: isDark ? '1px solid rgba(71,85,105,0.3)' : '1px solid rgba(99,102,241,0.2)', borderRadius: 10, color: isDark ? '#E2E8F0' : '#1E293B', fontSize: 14, outline: 'none' },
-    LBL: { fontSize: 11, fontWeight: 700, color: isDark ? '#64748B' : '#94A3B8', display: 'block', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 },
-    ADDBTN: { fontSize: 11, padding: '4px 10px', borderRadius: 8, border: 'none', background: 'rgba(99,102,241,0.15)', color: '#818CF8', cursor: 'pointer', fontWeight: 700 },
-    RMBTN: { width: 36, height: 36, borderRadius: 8, border: 'none', background: 'rgba(239,68,68,0.12)', color: '#EF4444', cursor: 'pointer', flexShrink: 0, fontSize: 14 },
-  };
 
   const refreshBus = useCallback(async () => {
     if (!settings?.bus_stops?.length) return;
@@ -246,53 +238,53 @@ export default function HomeModule({ user, householdId, isDark }) {
   const shortcuts = settings?.shortcuts || [];
   const busStops = settings?.bus_stops || [];
   const bikeStations = settings?.bike_stations || [];
-  const SECTION_LABEL = { fontSize: 11, fontWeight: 700, color: isDark ? '#334155' : '#CBD5E1', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 };
+  const gridCols = n => n === 1 ? "grid-cols-1" : n === 2 ? "grid-cols-2" : "grid-cols-3";
 
   // ─── EMPTY STATE ───
   if (!settings?.home_address) {
     return (
-      <div style={{ marginBottom: 20 }}>
-        <div style={SECTION_LABEL}>Promet & bližnjice</div>
-        <div onClick={() => setEditing(true)} style={{ background: st.cardBg, border: st.cardBorder, borderRadius: 16, padding: '20px 16px', textAlign: 'center', cursor: 'pointer' }}>
-          <div style={{ fontSize: 32, marginBottom: 8 }}>🏠</div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: st.textPrimary, marginBottom: 4 }}>Nastavi promet & bližnjice</div>
-          <div style={{ fontSize: 12, color: st.textSecondary }}>Avtobusi, navigacija, bližnjice do aplikacij</div>
+      <div className="mb-5">
+        <div className={SECTION_LABEL}>Promet & bližnjice</div>
+        <div onClick={() => setEditing(true)} className="bg-surface border border-line rounded-16 py-5 px-4 text-center cursor-pointer">
+          <div className="text-32 mb-2">🏠</div>
+          <div className="text-14 font-bold text-ink mb-1">Nastavi promet & bližnjice</div>
+          <div className="text-12 text-ink-3">Avtobusi, navigacija, bližnjice do aplikacij</div>
         </div>
-        {editing && <EditModal settings={settings} onSave={handleSave} onClose={() => setEditing(false)} isDark={isDark} st={st} />}
+        {editing && <EditModal settings={settings} onSave={handleSave} onClose={() => setEditing(false)} />}
       </div>
     );
   }
 
   // ─── MAIN DISPLAY ───
   return (
-    <div style={{ marginBottom: 20 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-        <div style={SECTION_LABEL}>Promet & bližnjice</div>
-        <button onClick={() => setEditing(true)} style={{ background: 'none', border: 'none', color: st.textSecondary, fontSize: 16, cursor: 'pointer', padding: 4 }}>✎</button>
+    <div className="mb-5">
+      <div className="flex items-center justify-between mb-2.5">
+        <div className={SECTION_LABEL}>Promet & bližnjice</div>
+        <button onClick={() => setEditing(true)} className="bg-transparent border-none text-ink-3 text-16 cursor-pointer p-1">✎</button>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div className="flex flex-col gap-2">
 
         {/* Traffic → Google Maps */}
-        <a href={mapsTrafficLink(settings.home_address)} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
-          <div style={{ background: st.cardBg, border: st.cardBorder, borderRadius: 14, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ fontSize: 22 }}>🚦</span>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 14, fontWeight: 700, color: st.textPrimary }}>Promet</div>
-              <div style={{ fontSize: 12, color: st.textSecondary }}>Poglej v Google Maps →</div>
+        <a href={mapsTrafficLink(settings.home_address)} target="_blank" rel="noopener noreferrer" className="no-underline">
+          <div className="bg-surface border border-line rounded-14 py-3 px-3.5 flex items-center gap-3">
+            <span className="text-22">🚦</span>
+            <div className="flex-1">
+              <div className="text-14 font-bold text-ink">Promet</div>
+              <div className="text-12 text-ink-3">Poglej v Google Maps →</div>
             </div>
           </div>
         </a>
 
         {/* Destinations grid */}
         {destinations.length > 0 && (
-          <div style={{ display: 'grid', gridTemplateColumns: destinations.length === 1 ? '1fr' : destinations.length === 2 ? '1fr 1fr' : '1fr 1fr 1fr', gap: 8 }}>
+          <div className={cx("grid gap-2", gridCols(destinations.length))}>
             {destinations.map((dest, i) => (
-              <a key={i} href={mapsNavLink(settings.home_address, dest.address)} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
-                <div style={{ background: st.cardBg, border: st.cardBorder, borderRadius: 14, padding: '12px 8px', textAlign: 'center' }}>
-                  <div style={{ fontSize: 20, marginBottom: 4 }}>📍</div>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: st.textPrimary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{dest.name}</div>
-                  <div style={{ fontSize: 10, color: '#0EA5E9', marginTop: 2 }}>Navigiraj →</div>
+              <a key={i} href={mapsNavLink(settings.home_address, dest.address)} target="_blank" rel="noopener noreferrer" className="no-underline">
+                <div className={TILE}>
+                  <div className="text-20 mb-1">📍</div>
+                  <div className="text-12 font-bold text-ink overflow-hidden text-ellipsis whitespace-nowrap">{dest.name}</div>
+                  <div className="text-10 text-accent mt-0.5">Navigiraj →</div>
                 </div>
               </a>
             ))}
@@ -301,12 +293,12 @@ export default function HomeModule({ user, householdId, isDark }) {
 
         {/* Shortcuts grid (always 2 cols except 1 = full width) */}
         {shortcuts.length > 0 && (
-          <div style={{ display: 'grid', gridTemplateColumns: shortcuts.length === 1 ? '1fr' : '1fr 1fr', gap: 8 }}>
+          <div className={cx("grid gap-2", shortcuts.length === 1 ? "grid-cols-1" : "grid-cols-2")}>
             {shortcuts.map((s, i) => (
-              <a key={i} href={s.url.startsWith('http') ? s.url : 'https://' + s.url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
-                <div style={{ background: st.cardBg, border: st.cardBorder, borderRadius: 14, padding: '12px 8px', textAlign: 'center' }}>
-                  <div style={{ fontSize: 22, marginBottom: 4 }}>{s.emoji || '🔗'}</div>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: st.textPrimary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</div>
+              <a key={i} href={s.url.startsWith('http') ? s.url : 'https://' + s.url} target="_blank" rel="noopener noreferrer" className="no-underline">
+                <div className={TILE}>
+                  <div className="text-22 mb-1">{s.emoji || '🔗'}</div>
+                  <div className="text-12 font-bold text-ink overflow-hidden text-ellipsis whitespace-nowrap">{s.name}</div>
                 </div>
               </a>
             ))}
@@ -317,21 +309,21 @@ export default function HomeModule({ user, householdId, isDark }) {
         {busStops.map((stop, i) => {
           const arrivals = busData[stop.code] || [];
           return (
-            <div key={i} style={{ background: st.cardBg, border: st.cardBorder, borderRadius: 14, padding: '12px 14px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: arrivals.length > 0 ? 8 : 0 }}>
-                <span style={{ fontSize: 18 }}>🚌</span>
-                <div style={{ fontSize: 14, fontWeight: 700, color: st.textPrimary, flex: 1 }}>{stop.name}</div>
-                <button onClick={refreshBus} style={{ background: 'none', border: 'none', color: st.textSecondary, cursor: 'pointer', fontSize: 14, padding: 4 }}>↻</button>
+            <div key={i} className="bg-surface border border-line rounded-14 py-3 px-3.5">
+              <div className={cx("flex items-center gap-2", arrivals.length > 0 && "mb-2")}>
+                <span className="text-18">🚌</span>
+                <div className="text-14 font-bold text-ink flex-1">{stop.name}</div>
+                <button onClick={refreshBus} className="bg-transparent border-none text-ink-3 cursor-pointer text-14 p-1">↻</button>
               </div>
               {arrivals.length === 0
-                ? <div style={{ fontSize: 12, color: st.textSecondary }}>Ni podatkov</div>
+                ? <div className="text-12 text-ink-3">Ni podatkov</div>
                 : arrivals.slice(0, 3).map((arr, j) => {
                     const eta = arr.eta_min ?? arr.eta ?? arr.eta_seconds;
                     const etaMin = arr.eta_seconds != null ? Math.round(arr.eta_seconds / 60) : eta;
                     return (
-                      <div key={j} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 13, padding: '4px 0', borderTop: j > 0 ? `1px solid ${isDark ? 'rgba(71,85,105,0.1)' : 'rgba(99,102,241,0.06)'}` : 'none' }}>
-                        <span style={{ fontWeight: 700, color: st.textPrimary }}>{arr.route_name || arr.route_id || arr.line || '—'}</span>
-                        <span style={{ color: etaMin <= 2 ? '#22C55E' : st.textSecondary, fontWeight: 600 }}>
+                      <div key={j} className={cx("flex items-center justify-between text-13 py-1", j > 0 && "border-t border-line/50")}>
+                        <span className="font-bold text-ink">{arr.route_name || arr.route_id || arr.line || '—'}</span>
+                        <span className={cx("font-semibold", etaMin <= 2 ? "text-success" : "text-ink-3")}>
                           {etaMin <= 0 ? '🟢 Prihaja' : `${etaMin} min`}
                         </span>
                       </div>
@@ -344,17 +336,17 @@ export default function HomeModule({ user, householdId, isDark }) {
 
         {/* BicikeLJ */}
         {bikeStations.length > 0 && (
-          <div style={{ display: 'grid', gridTemplateColumns: bikeStations.length === 1 ? '1fr' : bikeStations.length === 2 ? '1fr 1fr' : '1fr 1fr 1fr', gap: 8 }}>
+          <div className={cx("grid gap-2", gridCols(bikeStations.length))}>
             {bikeStations.map((station, i) => {
               const data = bikeData[station.number];
               const available = data?.available_bikes ?? '?';
               const stands = data?.available_bike_stands ?? '?';
               return (
-                <div key={i} style={{ background: st.cardBg, border: st.cardBorder, borderRadius: 14, padding: '12px 8px', textAlign: 'center' }}>
-                  <div style={{ fontSize: 18, marginBottom: 4 }}>🚲</div>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: st.textPrimary, marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{station.name}</div>
-                  <div style={{ fontSize: 22, fontWeight: 800, color: available === 0 ? '#EF4444' : '#22C55E', lineHeight: 1 }}>{available}</div>
-                  <div style={{ fontSize: 10, color: st.textSecondary, marginTop: 2 }}>{stands} mest</div>
+                <div key={i} className={TILE}>
+                  <div className="text-18 mb-1">🚲</div>
+                  <div className="text-11 font-bold text-ink mb-0.5 overflow-hidden text-ellipsis whitespace-nowrap">{station.name}</div>
+                  <div className={cx("text-22 font-extrabold leading-none", available === 0 ? "text-danger" : "text-success")}>{available}</div>
+                  <div className="text-10 text-ink-3 mt-0.5">{stands} mest</div>
                 </div>
               );
             })}
@@ -363,7 +355,7 @@ export default function HomeModule({ user, householdId, isDark }) {
 
       </div>
 
-      {editing && <EditModal settings={settings} onSave={handleSave} onClose={() => setEditing(false)} isDark={isDark} st={st} />}
+      {editing && <EditModal settings={settings} onSave={handleSave} onClose={() => setEditing(false)} />}
     </div>
   );
 }

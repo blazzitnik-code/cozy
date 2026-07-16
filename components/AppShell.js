@@ -242,7 +242,7 @@ export default function AppShell({ user, household, members, signOut }) {
     return (
       <>
         <HomeScreen
-          user={user} householdId={householdId} isDark={isDark}
+          user={user} householdId={householdId}
           items={items} shopItems={shopItems} todoLists={todoLists}
           todayCalEvents={todayCalEvents} calConnected={calConnected}
           navigate={navigate} onOpenSettings={openSettings}

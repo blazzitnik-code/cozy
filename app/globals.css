@@ -64,6 +64,7 @@
   --grad-danger: linear-gradient(135deg, #EF4444, #DC2626);
   --grad-violet: linear-gradient(135deg, #A855F7, #6366F1);
   --grad-indigo: linear-gradient(135deg, #6366F1, #818CF8);
+  --grad-orange: linear-gradient(135deg, #F97316, #E85D04);
   --grad-brand-freeze: linear-gradient(135deg, var(--text-1), #38BDF8);
   --grad-brand-shop: linear-gradient(135deg, var(--text-1), #F59E0B);
   --grad-brand-app: linear-gradient(135deg, var(--text-1), #C4B5FD);
@@ -200,6 +201,7 @@
 @utility bg-grad-danger { background-image: var(--grad-danger); }
 @utility bg-grad-violet { background-image: var(--grad-violet); }
 @utility bg-grad-indigo { background-image: var(--grad-indigo); }
+@utility bg-grad-orange { background-image: var(--grad-orange); }
 @utility bg-grad-brand-freeze { background-image: var(--grad-brand-freeze); }
 @utility bg-grad-brand-shop { background-image: var(--grad-brand-shop); }
 @utility bg-grad-brand-app { background-image: var(--grad-brand-app); }

@@ -42,7 +42,7 @@ function TodoListHomeCard({ list, householdId, onNavigate }) {
 }
 
 export default function HomeScreen({
-  user, householdId, isDark,
+  user, householdId,
   items, shopItems, todoLists, todayCalEvents, calConnected,
   navigate, onOpenSettings,
 }) {
@@ -121,7 +121,7 @@ export default function HomeScreen({
         )}
 
         {/* Home module: traffic, shortcuts, bus, bikes */}
-        <HomeModule user={user} householdId={householdId} isDark={isDark} />
+        <HomeModule user={user} householdId={householdId} />
 
         {/* Coming soon modules */}
         <SectionHeader>Prihaja kmalu</SectionHeader>

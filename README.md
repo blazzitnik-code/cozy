@@ -11,7 +11,7 @@ Domača PWA aplikacija za gospodinjstvo — narejena za dva (ali več) članov z
 
 ## Stack
 
-Next.js 14 (app router) · React 18 · Supabase (auth, Postgres, realtime) · PWA
+Next.js 16 (app router, Turbopack) · React 19 · Supabase (auth, Postgres, realtime) · Tailwind 4 (samo preflight) · PWA
 
 ## Lokalni razvoj
 

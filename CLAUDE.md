@@ -6,12 +6,18 @@
 
 ## Stack and commands
 
-- Next.js 14 app router (JS, no TypeScript), React 18, Supabase JS v2.
-- Inline styles everywhere — **Tailwind is in the config but NOT used**; do not introduce Tailwind classes.
+- Next.js 16 app router (JS, no TypeScript, Turbopack), React 19, Supabase JS v2.
+- Inline styles everywhere — **Tailwind 4 is loaded only for its preflight reset** (`@import "tailwindcss"` in `globals.css`); utility classes are NOT used, do not introduce them.
 - `npm run dev` — app on http://localhost:3000
 - `npx supabase start|stop|status` — local stack in Docker, ports **55321+** (API 55321, DB 55322, Studio 55323; intentionally non-default to avoid clashing with other projects)
 - `npx supabase db reset` — re-runs `supabase/migrations/` + `supabase/seed.sql` (wipes local data)
 - New migration: `npx supabase migration new <name>`
+
+## MCP servers (.mcp.json, project scope)
+
+- `supabase` — hosted MCP for the cloud project (`https://mcp.supabase.com/mcp`); requires one-time OAuth: run `claude /mcp` in a regular terminal → "supabase" → Authenticate.
+- `supabase-local` — local stack MCP (`http://127.0.0.1:55321/mcp`); no auth, works whenever `npx supabase start` is running. Prefer this one for local DB work.
+- `next-devtools` — official Next.js devtools MCP (`npx next-devtools-mcp`); most useful while `npm run dev` is running.
 
 ## Env
 
@@ -62,7 +68,7 @@ supabase/seed.sql        — 10 global categories; REQUIRED, otherwise the app h
 ## Agreed roadmap
 
 1. ~~Local setup (Docker Supabase, migrations, env, CLAUDE.md)~~ ✅
-2. Bump all dependency versions (+ adapt the code)
-3. Add MCP servers for Next + Supabase
+2. ~~Bump all dependency versions (Next 16, React 19, Tailwind 4, supabase-js)~~ ✅
+3. ~~Add MCP servers for Next + Supabase~~ ✅
 4. Split `ZmrzkoApp.js` into modules
 5. Then: theme/i18n decision, error handling

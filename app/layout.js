@@ -5,20 +5,21 @@ export const metadata = {
   title: 'Cožy',
   description: 'Domača aplikacija za gospodinjstvo',
   manifest: '/manifest.json',
-  themeColor: '#0B1120',
-  viewport: {
-    width: 'device-width',
-    initialScale: 1,
-    maximumScale: 1,
-    userScalable: false,
-    viewportFit: 'cover',
-    interactiveWidget: 'resizes-visual',
-  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
     title: 'Cožy',
   },
+};
+
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: 'cover',
+  interactiveWidget: 'resizes-visual',
+  themeColor: '#0B1120',
 };
 
 export default function RootLayout({ children }) {

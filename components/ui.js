@@ -62,10 +62,10 @@ const BTN_VARIANTS = {
   ghost: "bg-transparent text-ink-3 border border-line-strong",
 };
 
-export function Btn({ onClick, children, v = "primary", disabled = false, className, style }) {
+export function Btn({ onClick, children, v = "primary", disabled = false, className }) {
   return (
     <button
-      onClick={onClick} disabled={disabled} style={style}
+      onClick={onClick} disabled={disabled}
       className={cx("w-full p-3.75 rounded-14 text-16 font-bold cursor-pointer disabled:opacity-40 disabled:cursor-default", BTN_VARIANTS[v] || BTN_VARIANTS.primary, className)}
     >{children}</button>
   );

@@ -3,7 +3,6 @@ import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useItems, useArchived, useFreezers, useCategories, useShoppingItems, useShoppingArchived, useShoppingFavourites, useShoppingStores, useCalendarConnections, useCalendarEvents, useTodoLists } from '@/lib/hooks';
 import { useT } from '@/lib/i18n';
 import { supabase } from '@/lib/supabase';
-import { getStyles } from '@/lib/styles';
 import { localDateStr } from '@/lib/utils';
 import { Modal, ConfirmModal, BottomNav, Toaster, Loader, Segmented, Avatar } from './ui';
 import { notifyError } from '@/lib/notify';
@@ -38,8 +37,6 @@ export default function AppShell({ user, household, members, signOut }) {
     return 'dark';
   });
   const switchTheme = (th) => { setTheme(th); localStorage.setItem('zmrzko_theme', th); document.documentElement.dataset.theme = th; };
-  const isDark = theme === 'dark';
-  const st = getStyles(isDark);
 
   // ─── SUPABASE HOOKS (household-scoped) ───
   const { items, loading: itemsLoading, addItem: dbAddItem, updateItem: dbUpdateItem, deleteItem: dbDeleteItem } = useItems(householdId);

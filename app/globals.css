@@ -46,6 +46,7 @@
   --amber: #F59E0B;
   --danger: #EF4444;
   --success: #22C55E;
+  --violet: #A855F7;
 
   /* Calendar person lanes */
   --me: #6366F1;
@@ -129,6 +130,7 @@
   --color-amber: var(--amber);
   --color-danger: var(--danger);
   --color-success: var(--success);
+  --color-violet: var(--violet);
   --color-me: var(--me);
   --color-partner: var(--partner);
   --color-toast: var(--toast-bg);

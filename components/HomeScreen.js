@@ -1,10 +1,20 @@
 'use client';
 import { useTodoItems } from '@/lib/hooks';
-import { getSt, fmtTime } from '@/lib/utils';
+import { getSt, fmtTime, cx } from '@/lib/utils';
+import { Screen, SectionHeader, IconButton } from './ui';
 import HomeModule from './HomeModule';
 
+// Due-date urgency tones (full literal class strings for the Tailwind scanner)
+const DUE_BAR = { past: "bg-danger", urgent: "bg-amber", normal: "bg-violet" };
+const DUE_BADGE = { past: "bg-danger/13 text-danger", urgent: "bg-amber/13 text-amber", normal: "bg-violet/13 text-violet" };
+
+// Calendar person tones
+const EVENT_STRIP = { me: "bg-me", partner: "bg-partner" };
+const EVENT_BORDER = { me: "border-me/38", partner: "border-partner/38" };
+const EVENT_LABEL = { me: "text-me", partner: "text-partner" };
+
 // ─── TODO HOME CARD (used in Home screen preview) ───
-function TodoListHomeCard({ list, householdId, st, isDark, onNavigate }) {
+function TodoListHomeCard({ list, householdId, onNavigate }) {
   const { items } = useTodoItems(householdId, list.id);
   const done = items.filter(i => i.checked).length;
   const total = items.length;
@@ -13,26 +23,26 @@ function TodoListHomeCard({ list, householdId, st, isDark, onNavigate }) {
   const daysLeft = dueDate ? Math.ceil((dueDate - new Date()) / 864e5) : null;
   const isPast = daysLeft !== null && daysLeft < 0;
   const isUrgent = daysLeft !== null && daysLeft >= 0 && daysLeft <= 7;
-  const accent = isPast ? '#EF4444' : isUrgent ? '#F59E0B' : '#A855F7';
+  const tone = isPast ? 'past' : isUrgent ? 'urgent' : 'normal';
   return (
-    <div onClick={onNavigate} style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", background: st.cardBg, border: st.cardBorder, borderRadius: 14, marginBottom: 8, cursor: "pointer" }}>
-      <span style={{ fontSize: 20, flexShrink: 0 }}>{list.emoji}</span>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: st.textPrimary, marginBottom: total > 0 ? 4 : 0 }}>{list.title}</div>
+    <div onClick={onNavigate} className="flex items-center gap-2.5 py-3 px-3.5 bg-surface border border-line rounded-14 mb-2 cursor-pointer">
+      <span className="text-20 shrink-0">{list.emoji}</span>
+      <div className="flex-1 min-w-0">
+        <div className={cx("text-13 font-bold text-ink", total > 0 && "mb-1")}>{list.title}</div>
         {total > 0 && (
-          <div style={{ height: 3, background: isDark ? 'rgba(71,85,105,0.3)' : 'rgba(99,102,241,0.1)', borderRadius: 2 }}>
-            <div style={{ height: '100%', borderRadius: 2, width: pct + '%', background: accent, transition: 'width 0.3s' }} />
+          <div className="h-[3px] bg-line-strong rounded-2">
+            <div className={cx("h-full rounded-2 transition-[width] duration-300", DUE_BAR[tone])} style={{ width: pct + '%' }} />
           </div>
         )}
       </div>
-      {total > 0 && <span style={{ fontSize: 11, color: st.textSecondary, flexShrink: 0 }}>{done}/{total}</span>}
-      {dueDate && <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 7px', borderRadius: 7, background: accent + '20', color: accent, flexShrink: 0 }}>{isPast ? '🔴' : dueDate.toLocaleDateString('sl-SI', { day: 'numeric', month: 'short' })}</span>}
+      {total > 0 && <span className="text-11 text-ink-2 shrink-0">{done}/{total}</span>}
+      {dueDate && <span className={cx("text-11 font-bold px-[7px] py-0.5 rounded-8 shrink-0", DUE_BADGE[tone])}>{isPast ? '🔴' : dueDate.toLocaleDateString('sl-SI', { day: 'numeric', month: 'short' })}</span>}
     </div>
   );
 }
 
 export default function HomeScreen({
-  user, householdId, isDark, st,
+  user, householdId, isDark,
   items, shopItems, todoLists, todayCalEvents, calConnected,
   navigate, onOpenSettings,
 }) {
@@ -42,59 +52,58 @@ export default function HomeScreen({
   const today = new Date().toLocaleDateString("sl-SI", { weekday: "long", day: "numeric", month: "long" });
 
   return (
-    <div style={st.A}><div style={st.F1} /><div style={st.F2} />
-      <div style={{ position: "relative", zIndex: 1, padding: "16px 16px calc(100px + env(safe-area-inset-bottom))" }}>
+    <Screen>
+      <div className="relative z-1 pt-4 px-4 pb-[calc(100px+env(safe-area-inset-bottom))]">
 
         {/* Header */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", paddingTop: 12, marginBottom: 24 }}>
+        <div className="flex justify-between items-start pt-3 mb-6">
           <div>
-            <div style={{ fontSize: 28, fontWeight: 900 }}>
-              <span style={{ background: "linear-gradient(135deg,#E2E8F0,#C4B5FD)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Cožy</span>
+            <div className="text-28 font-black">
+              <span className="bg-grad-brand-app text-gradient">Cožy</span>
             </div>
-            <div style={{ fontSize: 12, color: st.textSecondary, marginTop: 2, textTransform: "capitalize" }}>{today}</div>
+            <div className="text-12 text-ink-2 mt-0.5 capitalize">{today}</div>
           </div>
-          <button onClick={onOpenSettings} style={{ background: "rgba(30,41,59,0.6)", border: "1px solid rgba(71,85,105,0.2)", borderRadius: 10, padding: "8px 10px", color: "#64748B", fontSize: 14, cursor: "pointer", fontWeight: 600, lineHeight: 1 }}>⚙️</button>
+          <IconButton onClick={onOpenSettings}>⚙️</IconButton>
         </div>
 
         {/* Quick stats */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
-          <div onClick={() => navigate("freezer")} style={{ background: st.cardBg, border: st.cardBorder, borderRadius: 18, padding: "16px", cursor: "pointer" }}>
-            <div style={{ fontSize: 28, marginBottom: 8 }}>❄️</div>
-            <div style={{ fontSize: 26, fontWeight: 800, color: st.textPrimary }}>{items.length}</div>
-            <div style={{ fontSize: 12, color: st.textSecondary, fontWeight: 600 }}>v zamrzovalniku</div>
+        <div className="grid grid-cols-2 gap-2.5 mb-5">
+          <div onClick={() => navigate("freezer")} className="bg-surface border border-line rounded-18 p-4 cursor-pointer">
+            <div className="text-28 mb-2">❄️</div>
+            <div className="text-26 font-extrabold text-ink">{items.length}</div>
+            <div className="text-12 text-ink-2 font-semibold">v zamrzovalniku</div>
             {(expiredC > 0 || warningC > 0) && (
-              <div style={{ marginTop: 6, fontSize: 11, color: expiredC > 0 ? "#EF4444" : "#F59E0B", fontWeight: 700 }}>
+              <div className={cx("mt-1.5 text-11 font-bold", expiredC > 0 ? "text-danger" : "text-amber")}>
                 {expiredC > 0 ? `${expiredC} poteklo` : `${warningC} kmalu poteče`}
               </div>
             )}
           </div>
-          <div onClick={() => navigate("shopping")} style={{ background: st.cardBg, border: st.cardBorder, borderRadius: 18, padding: "16px", cursor: "pointer" }}>
-            <div style={{ fontSize: 28, marginBottom: 8 }}>🛒</div>
-            <div style={{ fontSize: 26, fontWeight: 800, color: st.textPrimary }}>{toBuyC}</div>
-            <div style={{ fontSize: 12, color: st.textSecondary, fontWeight: 600 }}>za kupiti</div>
-            {toBuyC === 0 && <div style={{ marginTop: 6, fontSize: 11, color: "#22C55E", fontWeight: 700 }}>Vse kupljeno ✓</div>}
+          <div onClick={() => navigate("shopping")} className="bg-surface border border-line rounded-18 p-4 cursor-pointer">
+            <div className="text-28 mb-2">🛒</div>
+            <div className="text-26 font-extrabold text-ink">{toBuyC}</div>
+            <div className="text-12 text-ink-2 font-semibold">za kupiti</div>
+            {toBuyC === 0 && <div className="mt-1.5 text-11 text-success font-bold">Vse kupljeno ✓</div>}
           </div>
         </div>
 
         {/* Today's calendar events */}
         {calConnected && todayCalEvents.length > 0 && (
-          <div style={{ marginBottom: 20 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: st.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>Danes</div>
+          <div className="mb-5">
+            <SectionHeader>Danes</SectionHeader>
             {todayCalEvents.sort((a, b) => (a.start_time || '').localeCompare(b.start_time || '')).map(ev => {
-              const isMe = ev.user_id === user.id;
-              const color = isMe ? '#6366F1' : '#EC4899';
+              const person = ev.user_id === user.id ? 'me' : 'partner';
               return (
-                <div key={ev.id} onClick={() => navigate('calendar')} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: st.cardBg, border: `1px solid ${ev.is_important ? color + '60' : st.cardBorder.replace('1px solid ', '')}`, borderRadius: 14, marginBottom: 6, cursor: "pointer" }}>
-                  <div style={{ width: 3, height: 36, borderRadius: 2, background: color, flexShrink: 0 }} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: st.textPrimary, display: "flex", alignItems: "center", gap: 4 }}>
-                      {ev.is_important && <span style={{ fontSize: 11 }}>⭐</span>}
-                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ev.title}</span>
+                <div key={ev.id} onClick={() => navigate('calendar')} className={cx("flex items-center gap-2.5 py-2.5 px-3.5 bg-surface border rounded-14 mb-1.5 cursor-pointer", ev.is_important ? EVENT_BORDER[person] : "border-line")}>
+                  <div className={cx("w-[3px] h-9 rounded-2 shrink-0", EVENT_STRIP[person])} />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-13 font-bold text-ink flex items-center gap-1">
+                      {ev.is_important && <span className="text-11">⭐</span>}
+                      <span className="overflow-hidden text-ellipsis whitespace-nowrap">{ev.title}</span>
                     </div>
-                    {ev.label && <div style={{ fontSize: 11, color, fontWeight: 600, marginTop: 1 }}>{ev.label}</div>}
-                    {!ev.is_all_day && ev.start_time && <div style={{ fontSize: 11, color: st.textMuted }}>{fmtTime(ev.start_time)}{ev.end_time ? ` – ${fmtTime(ev.end_time)}` : ''}</div>}
+                    {ev.label && <div className={cx("text-11 font-semibold mt-px", EVENT_LABEL[person])}>{ev.label}</div>}
+                    {!ev.is_all_day && ev.start_time && <div className="text-11 text-ink-3">{fmtTime(ev.start_time)}{ev.end_time ? ` – ${fmtTime(ev.end_time)}` : ''}</div>}
                   </div>
-                  {ev.is_all_day && <div style={{ fontSize: 10, color: st.textMuted }}>Ves dan</div>}
+                  {ev.is_all_day && <div className="text-10 text-ink-3">Ves dan</div>}
                 </div>
               );
             })}
@@ -103,10 +112,10 @@ export default function HomeScreen({
 
         {/* Active todo lists preview */}
         {todoLists.length > 0 && (
-          <div style={{ marginBottom: 20 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: st.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>Opravila</div>
+          <div className="mb-5">
+            <SectionHeader>Opravila</SectionHeader>
             {todoLists.slice(0, 3).map(list => (
-              <TodoListHomeCard key={list.id} list={list} householdId={householdId} st={st} isDark={isDark} onNavigate={() => navigate("todo")} />
+              <TodoListHomeCard key={list.id} list={list} householdId={householdId} onNavigate={() => navigate("todo")} />
             ))}
           </div>
         )}
@@ -115,20 +124,20 @@ export default function HomeScreen({
         <HomeModule user={user} householdId={householdId} isDark={isDark} />
 
         {/* Coming soon modules */}
-        <div style={{ fontSize: 11, fontWeight: 700, color: st.textMuted, textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>Prihaja kmalu</div>
+        <SectionHeader>Prihaja kmalu</SectionHeader>
         {[
-          { icon: "🍽️", title: "Jedilnik", desc: "Tedenski jedilnik & recepti", color: "#F59E0B" },
+          { icon: "🍽️", title: "Jedilnik", desc: "Tedenski jedilnik & recepti", badgeClass: "text-amber bg-amber/9 border-amber/20" },
         ].map(m => (
-          <div key={m.title} style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 16px", background: st.cardBg, border: st.cardBorder, borderRadius: 16, marginBottom: 8, opacity: 0.65 }}>
-            <span style={{ fontSize: 26 }}>{m.icon}</span>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 14, fontWeight: 700, color: st.textPrimary }}>{m.title}</div>
-              <div style={{ fontSize: 12, color: st.textSecondary }}>{m.desc}</div>
+          <div key={m.title} className="flex items-center gap-3.5 py-3.5 px-4 bg-surface border border-line rounded-16 mb-2 opacity-65">
+            <span className="text-26">{m.icon}</span>
+            <div className="flex-1">
+              <div className="text-14 font-bold text-ink">{m.title}</div>
+              <div className="text-12 text-ink-2">{m.desc}</div>
             </div>
-            <div style={{ fontSize: 11, color: m.color, fontWeight: 700, background: m.color + "18", padding: "4px 10px", borderRadius: 20, border: `1px solid ${m.color}35`, whiteSpace: "nowrap" }}>Kmalu</div>
+            <div className={cx("text-11 font-bold py-1 px-2.5 rounded-20 border whitespace-nowrap", m.badgeClass)}>Kmalu</div>
           </div>
         ))}
       </div>
-    </div>
+    </Screen>
   );
 }

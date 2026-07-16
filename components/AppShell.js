@@ -16,7 +16,7 @@ import CalendarModule from './CalendarModule';
 // Owns all Supabase hooks, mode/lang/theme, calendar connection
 // orchestration and the settings modal; modules get data via props.
 // ═══════════════════════════
-export default function ZmrzkoApp({ user, household, members, signOut }) {
+export default function AppShell({ user, household, members, signOut }) {
   const householdId = household?.id;
 
   // ─── MODE: home | freezer | shopping | calendar | todo ───

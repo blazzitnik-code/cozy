@@ -1,6 +1,6 @@
 'use client';
 import { useAuth, useHousehold } from '@/lib/hooks';
-import ZmrzkoApp from '@/components/ZmrzkoApp';
+import AppShell from '@/components/AppShell';
 import { useState } from 'react';
 
 const A = { maxWidth: 430, margin: "0 auto", minHeight: "100vh", background: "linear-gradient(180deg,#0B1120 0%,#111827 40%,#0F172A 100%)", color: "#E2E8F0", fontFamily: "'Outfit','DM Sans',-apple-system,sans-serif", display: "flex", alignItems: "center", justifyContent: "center" };
@@ -135,5 +135,5 @@ export default function Home() {
   }
 
   // Logged in + has household → Main app
-  return <ZmrzkoApp user={user} household={household} members={members} signOut={signOut} />;
+  return <AppShell user={user} household={household} members={members} signOut={signOut} />;
 }

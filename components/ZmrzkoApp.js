@@ -3,104 +3,11 @@ import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { useItems, useArchived, useFreezers, useCategories, useShoppingItems, useShoppingArchived, useShoppingFavourites, useShoppingStores, useCalendarConnections, useCalendarEvents, useTodoLists, useTodoItems, normalizujNiz } from '@/lib/hooks';
 import { useT } from '@/lib/i18n';
 import { supabase } from '@/lib/supabase';
+import { CATS, SUGG, SHOP_SUGG, FICONS, QO } from '@/lib/constants';
+import { getSt, fmtD, wksUntil, wksShort, stCol, stBg, detectEventType, fmtTime } from '@/lib/utils';
+import { getStyles, A, F1, F2, INP, LBL } from '@/lib/styles';
 import TodoApp from './TodoApp';
 import HomeModule from './HomeModule';
-
-// ─── CATEGORIES ───
-const CATS = {
-  perutnina: { label: "Perutnina", icon: "🐔", color: "#F97316", months: 9 },
-  goveje: { label: "Goveje", icon: "🥩", color: "#DC2626", months: 12 },
-  svinjsko: { label: "Svinjsko", icon: "🥓", color: "#E11D48", months: 6 },
-  riba: { label: "Riba", icon: "🐟", color: "#0EA5E9", months: 6 },
-  zelenjava: { label: "Zelenjava", icon: "🥦", color: "#22C55E", months: 12 },
-  sadje: { label: "Sadje", icon: "🍓", color: "#A855F7", months: 12 },
-  pripravljena: { label: "Pripravljena jed", icon: "🍲", color: "#F59E0B", months: 3 },
-  pecivo: { label: "Pecivo", icon: "🍞", color: "#D97706", months: 6 },
-  psi: { label: "Za psa", icon: "🐕", color: "#8B5CF6", months: 6 },
-  drugo: { label: "Drugo", icon: "❄️", color: "#64748B", months: 6 },
-};
-
-const SUGG = [
-  { n: "Piščančja prsa", c: "perutnina" }, { n: "Piščančja bedra", c: "perutnina" },
-  { n: "Puranja prsa", c: "perutnina" }, { n: "Goveja zrezek", c: "goveje" },
-  { n: "Mleto goveje", c: "goveje" }, { n: "Goveja juha (kosti)", c: "goveje" },
-  { n: "Svinjski zrezek", c: "svinjsko" }, { n: "Svinjska rebra", c: "svinjsko" },
-  { n: "Mleto svinjsko", c: "svinjsko" }, { n: "Losos file", c: "riba" },
-  { n: "Brancin", c: "riba" }, { n: "Kozice", c: "riba" },
-  { n: "Brokoli", c: "zelenjava" }, { n: "Špinača", c: "zelenjava" },
-  { n: "Grah", c: "zelenjava" }, { n: "Mešana zelenjava", c: "zelenjava" },
-  { n: "Jagode", c: "sadje" }, { n: "Borovnice", c: "sadje" },
-  { n: "Bolognese", c: "pripravljena" }, { n: "Gulaž", c: "pripravljena" },
-  { n: "Piščančja juha", c: "pripravljena" }, { n: "Lazanja", c: "pripravljena" },
-  { n: "Kruh", c: "pecivo" }, { n: "Pica testo", c: "pecivo" },
-  { n: "Burek", c: "pecivo" }, { n: "Sladoled", c: "drugo" },
-  { n: "Maslo", c: "drugo" }, { n: "Pasja hrana - govedina", c: "psi" },
-  { n: "Pasja hrana - piščanec", c: "psi" },
-];
-
-// Shopping autocomplete items
-const SHOP_SUGG = [
-  "Mleko", "Jajca", "Kruh", "Maslo", "Sir", "Jogurt", "Smetana", "Skuta",
-  "Banane", "Jabolka", "Paradižnik", "Kumare", "Paprika", "Čebula", "Česen", "Krompir",
-  "Solata", "Korenje", "Limone", "Pomaranče", "Avokado",
-  "Piščančja prsa", "Mleto goveje", "Šunka", "Salama",
-  "Riž", "Testenine", "Moka", "Sladkor", "Sol", "Poper", "Olje", "Kis",
-  "Kava", "Čaj", "Sok", "Voda", "Pivo", "Vino",
-  "Toaletni papir", "Pralni prašek", "Detergent", "Gobice",
-  "Pasja hrana", "Priboljški za psa",
-  "Čokolada", "Keksi", "Čips", "Sladoled",
-];
-
-// ─── UTILS ───
-function getSt(item) {
-  const d = (new Date(item.expiry) - new Date()) / 864e5;
-  return d < 0 ? "expired" : d < 30 ? "warning" : "ok";
-}
-function fmtD(d) { return new Date(d).toLocaleDateString("sl-SI", { day: "numeric", month: "short", year: "numeric" }); }
-function wksUntil(d) {
-  const days = Math.ceil((new Date(d) - new Date()) / 864e5);
-  if (days < 0) { const w = Math.floor(Math.abs(days) / 7); return w === 0 ? Math.abs(days) + " dni čez rok" : w + " tednov čez rok"; }
-  if (days < 7) return "še " + days + " dni";
-  return "še " + Math.floor(days / 7) + " tednov";
-}
-function wksShort(d) {
-  const days = Math.ceil((new Date(d) - new Date()) / 864e5);
-  if (days < 0) { const w = Math.floor(Math.abs(days) / 7); return w === 0 ? Math.abs(days) + "d čez" : w + "t čez"; }
-  return days < 7 ? days + "d" : Math.floor(days / 7) + "t";
-}
-const stCol = s => s === "expired" ? "#EF4444" : s === "warning" ? "#F59E0B" : "#22C55E";
-const stBg = s => s === "expired" ? "rgba(239,68,68,0.08)" : s === "warning" ? "rgba(245,158,11,0.08)" : "rgba(34,197,94,0.04)";
-
-const FICONS = ["🏠", "🏡", "🏢", "🚗", "🏔️", "🏗️", "🏪", "⛺"];
-const CICONS = ["📦", "🦐", "🧀", "🥟", "🌽", "🍕", "🐕", "🥚", "🍰", "🫐", "🥜", "🍗"];
-const CCOLS = ["#EF4444", "#F97316", "#F59E0B", "#22C55E", "#0EA5E9", "#6366F1", "#A855F7", "#EC4899", "#64748B"];
-const QO = ["100g", "250g", "500g", "1kg", "1 kos", "2 kosa", "500ml", "1L"];
-
-// ─── STYLES ───
-// Theme-dependent styles — resolved via getStyles(isDark) inside components where the theme is known
-const getStyles = (isDark) => ({
-  A: { maxWidth: 430, margin: "0 auto", minHeight: "100vh", position: "relative", overflow: "hidden", background: isDark ? "linear-gradient(180deg,#0B1120 0%,#111827 40%,#0F172A 100%)" : "linear-gradient(180deg,#F0F4FF 0%,#E8EEFF 40%,#EEF2FF 100%)", color: isDark ? "#E2E8F0" : "#1E293B", fontFamily: "'Outfit','DM Sans',-apple-system,sans-serif" },
-  F1: { position: "absolute", top: -60, right: -60, width: 200, height: 200, background: isDark ? "radial-gradient(circle,rgba(56,189,248,0.08) 0%,transparent 70%)" : "radial-gradient(circle,rgba(56,189,248,0.15) 0%,transparent 70%)", borderRadius: "50%", pointerEvents: "none" },
-  F2: { position: "absolute", bottom: 100, left: -80, width: 250, height: 250, background: isDark ? "radial-gradient(circle,rgba(99,102,241,0.06) 0%,transparent 70%)" : "radial-gradient(circle,rgba(99,102,241,0.1) 0%,transparent 70%)", borderRadius: "50%", pointerEvents: "none" },
-  INP: { width: "100%", boxSizing: "border-box", padding: "14px 16px", background: isDark ? "rgba(30,41,59,0.8)" : "rgba(255,255,255,0.9)", border: isDark ? "1px solid rgba(99,102,241,0.3)" : "1px solid rgba(99,102,241,0.25)", borderRadius: 14, color: isDark ? "#E2E8F0" : "#1E293B", fontSize: 16, outline: "none", fontWeight: 500 },
-  LBL: { fontSize: 13, fontWeight: 700, color: isDark ? "#94A3B8" : "#64748B", display: "block", marginBottom: 8 },
-  cardBg: isDark ? "rgba(30,41,59,0.6)" : "rgba(255,255,255,0.8)",
-  cardBorder: isDark ? "1px solid rgba(71,85,105,0.2)" : "1px solid rgba(99,102,241,0.15)",
-  textPrimary: isDark ? "#E2E8F0" : "#1E293B",
-  textSecondary: isDark ? "#94A3B8" : "#64748B",
-  textMuted: isDark ? "#64748B" : "#94A3B8",
-  inputBg: isDark ? "rgba(30,41,59,0.8)" : "rgba(255,255,255,0.9)",
-  pillBg: isDark ? "rgba(30,41,59,0.5)" : "rgba(255,255,255,0.7)",
-  modalBg: isDark ? "linear-gradient(180deg,#1E293B,#0F172A)" : "linear-gradient(180deg,#FFFFFF,#F8FAFF)",
-  modalHandle: isDark ? "#334155" : "#CBD5E1",
-});
-
-// Static styles (theme-agnostic)
-const A = { maxWidth: 430, margin: "0 auto", minHeight: "100vh", position: "relative", overflow: "hidden", background: "linear-gradient(180deg,#0B1120 0%,#111827 40%,#0F172A 100%)", color: "#E2E8F0", fontFamily: "'Outfit','DM Sans',-apple-system,sans-serif" };
-const F1 = { position: "absolute", top: -60, right: -60, width: 200, height: 200, background: "radial-gradient(circle,rgba(56,189,248,0.08) 0%,transparent 70%)", borderRadius: "50%", pointerEvents: "none" };
-const F2 = { position: "absolute", bottom: 100, left: -80, width: 250, height: 250, background: "radial-gradient(circle,rgba(99,102,241,0.06) 0%,transparent 70%)", borderRadius: "50%", pointerEvents: "none" };
-const INP = { width: "100%", boxSizing: "border-box", padding: "14px 16px", background: "rgba(30,41,59,0.8)", border: "1px solid rgba(99,102,241,0.3)", borderRadius: 14, color: "#E2E8F0", fontSize: 16, outline: "none", fontWeight: 500 };
-const LBL = { fontSize: 13, fontWeight: 700, color: "#94A3B8", display: "block", marginBottom: 8 };
 
 // ─── SMALL COMPONENTS ───
 function Pill({ active, color, onClick, children, small }) {
@@ -253,23 +160,6 @@ function LabelInp({ value, onChange, labels, placeholder }) {
 const SL_DAYS = ['Ne', 'Po', 'To', 'Sr', 'Če', 'Pe', 'So'];
 const SL_MONTHS = ['januar', 'februar', 'marec', 'april', 'maj', 'junij', 'julij', 'avgust', 'september', 'oktober', 'november', 'december'];
 
-function detectEventType(title) {
-  const t = (title || '').toLowerCase();
-  if (/sestanek|meeting|standup|konferenc|seja|intervju|sync|review|call/.test(t)) return '💼';
-  if (/zdravnik|doktor|zobozdravnik|bolnica|fizioter|psiholog|pregled/.test(t)) return '🏥';
-  if (/tek|gym|trening|fitnes|plavanje|kolesarjenje|yoga|pilates|šport/.test(t)) return '🏃';
-  if (/letalo|vlak|avtobus|potovanje|dopust|hotel|airport|flight/.test(t)) return '✈️';
-  if (/večerja|kosilo|zajtrk|zabava|rojstni|poroka|party|piknik|kino/.test(t)) return '🎉';
-  if (/dom|čiščenje|servis|popravilo|dostava/.test(t)) return '🏠';
-  return '📅';
-}
-
-function fmtTime(dateStr) {
-  if (!dateStr) return '';
-  const d = new Date(dateStr);
-  return d.toLocaleTimeString('sl-SI', { hour: '2-digit', minute: '2-digit' });
-}
-
 // ─── TODO HOME CARD (used in Home screen preview) ───
 function TodoListHomeCard({ list, householdId, st, isDark, onNavigate }) {
   const { items } = useTodoItems(householdId, list.id);
@@ -328,7 +218,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
   const { items, loading: itemsLoading, addItem: dbAddItem, updateItem: dbUpdateItem, deleteItem: dbDeleteItem } = useItems(householdId);
   const { archived, loading: archLoading, archiveItem: dbArchiveItem, updateArchived: dbUpdateArchived, deleteArchived: dbDeleteArchived, unarchiveItem: dbUnarchiveItem } = useArchived(householdId);
   const { freezers, addFreezer: dbAddFreezer } = useFreezers(householdId);
-  const { categories, loading: catsLoading, addCategory: dbAddCategory } = useCategories(householdId);
+  const { categories } = useCategories(householdId);
   const { items: shopItems, loading: shopLoading, addItem: dbShopAdd, updateItem: dbShopUpdate, deleteItem: dbShopDelete } = useShoppingItems(householdId);
   const { archived: shopArchive, archiveChecked: dbShopArchiveChecked } = useShoppingArchived(householdId);
   const { favourites: shopFavourites, toggleFavourite: dbShopToggleFav } = useShoppingFavourites(householdId);

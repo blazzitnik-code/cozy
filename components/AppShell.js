@@ -271,7 +271,7 @@ export default function AppShell({ user, household, members, signOut }) {
   if (mode === "todo") {
     return (
       <div className="relative">
-        <TodoApp user={user} householdId={householdId} members={members} lang={lang} isDark={isDark} />
+        <TodoApp user={user} householdId={householdId} members={members} lang={lang} />
         <BottomNav mode={mode} onNavigate={navigate} />
         <Toaster />
       </div>

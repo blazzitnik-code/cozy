@@ -6,9 +6,9 @@ import { cx } from '@/lib/utils';
 // ─── APP FRAME ───
 // Full-height app container with the themed gradient background and the
 // two decorative glow blobs. `center` is used by loading/auth screens.
-export function Screen({ children, center = false }) {
+export function Screen({ children, center = false, onClick }) {
   return (
-    <div className={cx("max-w-app mx-auto min-h-screen relative overflow-hidden bg-app text-ink font-sans", center && "flex items-center justify-center")}>
+    <div onClick={onClick} className={cx("max-w-app mx-auto min-h-screen relative overflow-hidden bg-app text-ink font-sans", center && "flex items-center justify-center")}>
       <div className="absolute -top-15 -right-15 w-50 h-50 bg-glow-1 rounded-full pointer-events-none" />
       <div className="absolute bottom-25 -left-20 w-62.5 h-62.5 bg-glow-2 rounded-full pointer-events-none" />
       {children}

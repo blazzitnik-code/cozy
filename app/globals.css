@@ -248,3 +248,7 @@ body {
 input[type="date"]::-webkit-calendar-picker-indicator {
   filter: invert(0.7);
 }
+
+/* Native date-picker chrome follows the active theme */
+input[type="date"] { color-scheme: dark; }
+:root[data-theme="light"] input[type="date"] { color-scheme: light; }

@@ -1,12 +1,8 @@
 'use client';
 import { useTodoItems } from '@/lib/hooks';
-import { getSt, fmtTime, cx } from '@/lib/utils';
+import { getSt, fmtTime, cx, dueTone, DUE_BAR, DUE_BADGE } from '@/lib/utils';
 import { Screen, SectionHeader, IconButton } from './ui';
 import HomeModule from './HomeModule';
-
-// Due-date urgency tones (full literal class strings for the Tailwind scanner)
-const DUE_BAR = { past: "bg-danger", urgent: "bg-amber", normal: "bg-violet" };
-const DUE_BADGE = { past: "bg-danger/13 text-danger", urgent: "bg-amber/13 text-amber", normal: "bg-violet/13 text-violet" };
 
 // Calendar person tones
 const EVENT_STRIP = { me: "bg-me", partner: "bg-partner" };
@@ -22,8 +18,7 @@ function TodoListHomeCard({ list, householdId, onNavigate }) {
   const dueDate = list.due_date ? new Date(list.due_date) : null;
   const daysLeft = dueDate ? Math.ceil((dueDate - new Date()) / 864e5) : null;
   const isPast = daysLeft !== null && daysLeft < 0;
-  const isUrgent = daysLeft !== null && daysLeft >= 0 && daysLeft <= 7;
-  const tone = isPast ? 'past' : isUrgent ? 'urgent' : 'normal';
+  const tone = dueTone(daysLeft);
   return (
     <div onClick={onNavigate} className="flex items-center gap-2.5 py-3 px-3.5 bg-surface border border-line rounded-14 mb-2 cursor-pointer">
       <span className="text-20 shrink-0">{list.emoji}</span>

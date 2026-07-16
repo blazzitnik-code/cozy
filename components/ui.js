@@ -1,34 +1,162 @@
 'use client';
 import { useState, useEffect, useRef } from "react";
 import { subscribeToErrors } from '@/lib/notify';
+import { cx } from '@/lib/utils';
+
+// ─── APP FRAME ───
+// Full-height app container with the themed gradient background and the
+// two decorative glow blobs. `center` is used by loading/auth screens.
+export function Screen({ children, center = false }) {
+  return (
+    <div className={cx("max-w-app mx-auto min-h-screen relative overflow-hidden bg-app text-ink font-sans", center && "flex items-center justify-center")}>
+      <div className="absolute -top-15 -right-15 w-50 h-50 bg-glow-1 rounded-full pointer-events-none" />
+      <div className="absolute bottom-25 -left-20 w-62.5 h-62.5 bg-glow-2 rounded-full pointer-events-none" />
+      {children}
+    </div>
+  );
+}
 
 // ─── SMALL COMPONENTS ───
 export function Pill({ active, color, onClick, children, small }) {
-  return <button onClick={onClick} style={{ padding: small ? "6px 10px" : "8px 14px", borderRadius: 20, border: "1px solid", borderColor: active ? (color ? color + "80" : "rgba(56,189,248,0.5)") : "var(--border-strong)", background: active ? (color ? color + "20" : "rgba(56,189,248,0.15)") : "var(--surface-2)", color: active ? (color || "var(--accent)") : "var(--text-2)", fontSize: small ? 12 : 13, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}>{children}</button>;
+  return (
+    <button
+      onClick={onClick}
+      style={color ? { "--cat": color } : undefined}
+      className={cx(
+        "rounded-20 border font-semibold cursor-pointer whitespace-nowrap shrink-0",
+        small ? "px-2.5 py-1.5 text-12" : "px-3.5 py-2 text-13",
+        active
+          ? (color ? "border-(--cat)/50 bg-(--cat)/13 text-(--cat)" : "border-accent/50 bg-accent/15 text-accent")
+          : "border-line-strong bg-surface-2 text-ink-2"
+      )}
+    >{children}</button>
+  );
 }
 
 export function FC({ label, value }) {
-  return <div style={{ background: "var(--surface)", borderRadius: 14, padding: "14px 16px", border: "1px solid var(--border)" }}><div style={{ fontSize: 11, color: "var(--text-3)", marginBottom: 4, textTransform: "uppercase", letterSpacing: 1, fontWeight: 600 }}>{label}</div><div style={{ fontSize: 15, fontWeight: 700, color: "var(--text-1)" }}>{value}</div></div>;
+  return (
+    <div className="bg-surface rounded-14 px-4 py-3.5 border border-line">
+      <div className="text-11 text-ink-3 mb-1 uppercase tracking-[1px] font-semibold">{label}</div>
+      <div className="text-15 font-bold text-ink">{value}</div>
+    </div>
+  );
 }
 
-export function Btn({ onClick, children, v = "primary", disabled = false, style: s = {} }) {
-  const map = { primary: { bg: "linear-gradient(135deg,#0EA5E9,#6366F1)", c: "#fff", b: "none" }, success: { bg: "linear-gradient(135deg,#22C55E,#059669)", c: "#fff", b: "none" }, danger: { bg: "rgba(239,68,68,0.12)", c: "var(--danger)", b: "1px solid rgba(239,68,68,0.3)" }, ghost: { bg: "transparent", c: "var(--text-3)", b: "1px solid var(--border-strong)" } };
-  const st = map[v] || map.primary;
-  return <button onClick={onClick} disabled={disabled} style={{ width: "100%", padding: "15px", borderRadius: 14, border: st.b, background: st.bg, color: st.c, fontSize: 16, fontWeight: 700, cursor: disabled ? "default" : "pointer", opacity: disabled ? 0.4 : 1, ...s }}>{children}</button>;
+const BTN_VARIANTS = {
+  primary: "bg-grad-primary text-white border-none",
+  success: "bg-grad-success text-white border-none",
+  danger: "bg-danger/12 text-danger border border-danger/30",
+  ghost: "bg-transparent text-ink-3 border border-line-strong",
+};
+
+export function Btn({ onClick, children, v = "primary", disabled = false, className, style }) {
+  return (
+    <button
+      onClick={onClick} disabled={disabled} style={style}
+      className={cx("w-full p-3.75 rounded-14 text-16 font-bold cursor-pointer disabled:opacity-40 disabled:cursor-default", BTN_VARIANTS[v] || BTN_VARIANTS.primary, className)}
+    >{children}</button>
+  );
 }
 
+export function Card({ children, className, onClick, style }) {
+  return <div onClick={onClick} style={style} className={cx("bg-surface border border-line rounded-16", className)}>{children}</div>;
+}
+
+export function Input({ size = "md", className, ...rest }) {
+  const sizes = {
+    md: "px-4 py-3.5 rounded-14 text-16",
+    sm: "px-3.5 py-3 rounded-12 text-15",
+    xs: "px-3 py-2.5 rounded-10 text-14",
+  };
+  return <input className={cx("w-full box-border bg-field border border-field-line text-ink outline-none font-medium", sizes[size], className)} {...rest} />;
+}
+
+export function Label({ children, className }) {
+  return <label className={cx("block text-13 font-bold text-ink-2 mb-2", className)}>{children}</label>;
+}
+
+export function SectionHeader({ children, className }) {
+  return <div className={cx("text-11 font-bold text-ink-3 uppercase tracking-[1px] mb-2.5", className)}>{children}</div>;
+}
+
+export function EmptyState({ icon, children }) {
+  return (
+    <div className="text-center py-12 text-ink-3">
+      <div className="text-48 mb-3">{icon}</div>
+      <div className="text-14">{children}</div>
+    </div>
+  );
+}
+
+export function IconButton({ onClick, children, className }) {
+  return (
+    <button onClick={onClick} className={cx("bg-surface border border-line rounded-10 px-2.5 py-2 text-ink-3 text-14 font-semibold leading-none cursor-pointer", className)}>
+      {children}
+    </button>
+  );
+}
+
+export function Fab({ onClick, children = "+", className }) {
+  return (
+    <button
+      onClick={onClick}
+      className={cx("fixed bottom-[calc(74px+env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 w-[62px] h-[62px] rounded-full border-none bg-grad-primary text-white text-30 font-light cursor-pointer shadow-fab flex items-center justify-center z-50", className)}
+    >{children}</button>
+  );
+}
+
+export function Avatar({ name, size = 32, className }) {
+  return (
+    <div style={{ width: size, height: size }} className={cx("rounded-full bg-grad-primary flex items-center justify-center text-14 font-bold text-white shrink-0", className)}>
+      {(name || "?")[0].toUpperCase()}
+    </div>
+  );
+}
+
+// Row of equal-width toggle buttons (language/theme switchers).
+const SEG_ACTIVE = {
+  sky: "border-accent/50 bg-accent/12 text-accent",
+  indigo: "border-accent-2/50 bg-accent-2/15 text-accent-3",
+};
+
+export function Segmented({ options, value, onChange, tone = "sky", className }) {
+  return (
+    <div className={cx("flex gap-2", className)}>
+      {options.map(o => (
+        <button
+          key={o.value} onClick={() => onChange(o.value)}
+          className={cx("flex-1 p-2.5 rounded-12 border font-bold text-14 cursor-pointer",
+            value === o.value ? (SEG_ACTIVE[tone] || SEG_ACTIVE.sky) : "border-line-strong bg-surface text-ink-2")}
+        >{o.label}</button>
+      ))}
+    </div>
+  );
+}
+
+export function Badge({ children, className, style }) {
+  return <span style={style} className={cx("inline-block text-11 font-bold px-2.5 py-1 rounded-20 border whitespace-nowrap", className)}>{children}</span>;
+}
+
+// ─── MODAL (bottom sheet) ───
 export function Modal({ children, onClose }) {
-  return <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 100 }}><div onClick={e => e.stopPropagation()} style={{ background: "var(--modal-bg)", borderRadius: "24px 24px 0 0", width: "100%", maxWidth: 430, padding: "24px 20px 36px", border: "1px solid var(--border-strong)", borderBottom: "none", maxHeight: "85vh", overflowY: "auto" }}><div style={{ width: 36, height: 4, background: "var(--modal-handle)", borderRadius: 2, margin: "0 auto 20px" }} />{children}</div></div>;
+  return (
+    <div onClick={onClose} className="fixed inset-0 bg-overlay backdrop-blur-sm flex items-end justify-center z-100">
+      <div onClick={e => e.stopPropagation()} className="bg-modal rounded-t-24 w-full max-w-app pt-6 px-5 pb-9 border border-line-strong border-b-0 max-h-[85vh] overflow-y-auto">
+        <div className="w-9 h-1 bg-handle rounded-2 mx-auto mb-5" />
+        {children}
+      </div>
+    </div>
+  );
 }
 
-export function ConfirmModal({ action, onClose, isDark = true }) {
+export function ConfirmModal({ action, onClose }) {
   if (!action) return null;
   return (
-    <Modal isDark={isDark} onClose={onClose}>
-      <p style={{ fontSize: 16, fontWeight: 600, color: "var(--text-1)", textAlign: "center", marginBottom: 24, marginTop: 4 }}>{action.message}</p>
-      <div style={{ display: "flex", gap: 10 }}>
-        <button onClick={async () => { await action.onConfirm(); onClose(); }} style={{ flex: 1, padding: "14px", borderRadius: 14, border: "none", background: "linear-gradient(135deg,#EF4444,#DC2626)", color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>Potrdi</button>
-        <button onClick={onClose} style={{ flex: 1, padding: "14px", borderRadius: 14, border: "1px solid var(--border-strong)", background: "transparent", color: "var(--text-2)", fontSize: 15, fontWeight: 600, cursor: "pointer" }}>Prekliči</button>
+    <Modal onClose={onClose}>
+      <p className="text-16 font-semibold text-ink text-center mb-6 mt-1">{action.message}</p>
+      <div className="flex gap-2.5">
+        <button onClick={async () => { await action.onConfirm(); onClose(); }} className="flex-1 p-3.5 rounded-14 border-none bg-grad-danger text-white text-15 font-bold cursor-pointer">Potrdi</button>
+        <button onClick={onClose} className="flex-1 p-3.5 rounded-14 border border-line-strong bg-transparent text-ink-2 text-15 font-semibold cursor-pointer">Prekliči</button>
       </div>
     </Modal>
   );
@@ -44,11 +172,11 @@ export function Toaster() {
   }), []);
   if (toasts.length === 0) return null;
   return (
-    <div style={{ position: "fixed", top: "calc(12px + env(safe-area-inset-top))", left: "50%", transform: "translateX(-50%)", width: "calc(100% - 32px)", maxWidth: 398, display: "flex", flexDirection: "column", gap: 8, zIndex: 300, pointerEvents: "none" }}>
+    <div className="fixed top-[calc(12px+env(safe-area-inset-top))] left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-[398px] flex flex-col gap-2 z-300 pointer-events-none">
       {toasts.map(t => (
-        <div key={t.id} onClick={() => setToasts(ts => ts.filter(x => x.id !== t.id))} style={{ pointerEvents: "auto", display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", background: "rgba(69,10,10,0.95)", border: "1px solid rgba(239,68,68,0.4)", borderRadius: 14, color: "#FCA5A5", fontSize: 14, fontWeight: 600, boxShadow: "0 8px 24px rgba(0,0,0,0.4)", cursor: "pointer", backdropFilter: "blur(8px)" }}>
-          <span style={{ fontSize: 16 }}>⚠️</span>
-          <span style={{ flex: 1 }}>{t.message}</span>
+        <div key={t.id} onClick={() => setToasts(ts => ts.filter(x => x.id !== t.id))} className="pointer-events-auto flex items-center gap-2.5 py-3 px-3.5 bg-toast border border-toast-line rounded-14 text-toast-ink text-14 font-semibold shadow-pop cursor-pointer backdrop-blur-sm">
+          <span className="text-16">⚠️</span>
+          <span className="flex-1">{t.message}</span>
         </div>
       ))}
     </div>
@@ -58,19 +186,19 @@ export function Toaster() {
 // ─── LOGO / MODE TOGGLE (freezer ↔ shopping) ───
 export function LogoToggle({ mode, onToggle }) {
   return (
-    <button onClick={onToggle} style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+    <button onClick={onToggle} className="bg-transparent border-none cursor-pointer p-0 text-left">
       {mode === "freezer" ? (
-        <span style={{ fontSize: 28, fontWeight: 900, letterSpacing: "-0.5px" }}>
-          <span style={{ background: "linear-gradient(135deg,#E2E8F0,#38BDF8)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>ZMRZK</span>
-          <span style={{ color: "#38BDF8" }}>❄️</span>
+        <span className="text-28 font-black tracking-[-0.5px]">
+          <span className="bg-grad-brand-freeze text-gradient">ZMRZK</span>
+          <span className="text-accent">❄️</span>
         </span>
       ) : (
-        <span style={{ fontSize: 28, fontWeight: 900, letterSpacing: "-0.5px" }}>
-          <span style={{ background: "linear-gradient(135deg,#E2E8F0,#F59E0B)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>TRGOVK</span>
+        <span className="text-28 font-black tracking-[-0.5px]">
+          <span className="bg-grad-brand-shop text-gradient">TRGOVK</span>
           <span>🛒</span>
         </span>
       )}
-      <div style={{ fontSize: 10, color: "var(--text-dim)", marginTop: 2, textAlign: "left" }}>
+      <div className="text-10 text-ink-dim mt-0.5 text-left">
         Tapni za {mode === "freezer" ? "nakupovalni seznam" : "zamrzovalnik"}
       </div>
     </button>
@@ -88,10 +216,13 @@ const NAV_TABS = [
 
 export function BottomNav({ mode, onNavigate }) {
   return (
-    <div style={{ position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 430, background: "var(--nav-bg)", backdropFilter: "blur(16px)", borderTop: "1px solid var(--border)", display: "flex", paddingBottom: "env(safe-area-inset-bottom)", zIndex: 80 }}>
+    <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-app bg-nav backdrop-blur-lg border-t border-line flex pb-[env(safe-area-inset-bottom)] z-80">
       {NAV_TABS.map(tab => (
-        <button key={tab.id} onClick={() => onNavigate(tab.id)} style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "14px 4px", background: "none", border: "none", cursor: "pointer", color: mode === tab.id ? "#C4B5FD" : "var(--text-dim)", transition: "color 0.15s" }}>
-          <span style={{ fontSize: 24, lineHeight: 1, filter: mode === tab.id ? "none" : "grayscale(0.3)" }}>{tab.icon}</span>
+        <button
+          key={tab.id} onClick={() => onNavigate(tab.id)}
+          className={cx("flex-1 flex items-center justify-center py-3.5 px-1 bg-transparent border-none cursor-pointer transition-colors duration-150", mode === tab.id ? "text-nav-active" : "text-ink-dim")}
+        >
+          <span className={cx("text-24 leading-none", mode !== tab.id && "grayscale-30")}>{tab.icon}</span>
         </button>
       ))}
     </div>
@@ -131,15 +262,16 @@ export function SwipeCard({ children, onSwipeLeft, onClick }) {
   };
 
   return (
-    <div style={{ position: "relative", overflow: "hidden", borderRadius: 16 }}>
+    <div className="relative overflow-hidden rounded-16">
       {/* Green background revealed on swipe */}
-      <div style={{ position: "absolute", right: 0, top: 0, bottom: 0, width: 120, background: "linear-gradient(90deg, transparent, #22C55E)", display: "flex", alignItems: "center", justifyContent: "flex-end", paddingRight: 20, borderRadius: "0 16px 16px 0", opacity: offsetX < -30 ? 1 : 0, transition: "opacity 0.15s" }}>
-        <span style={{ color: "#fff", fontWeight: 800, fontSize: 14 }}>✓ Porabljeno</span>
+      <div className={cx("absolute right-0 top-0 bottom-0 w-30 bg-grad-swipe flex items-center justify-end pr-5 rounded-r-16 transition-opacity duration-150", offsetX < -30 ? "opacity-100" : "opacity-0")}>
+        <span className="text-white font-extrabold text-14">✓ Porabljeno</span>
       </div>
       <div
         onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
         onClick={() => { if (!moved.current && onClick) onClick(); }}
-        style={{ transform: `translateX(${offsetX}px)`, transition: swiping ? "none" : "transform 0.25s ease", position: "relative", zIndex: 1 }}
+        className="relative z-1"
+        style={{ transform: `translateX(${offsetX}px)`, transition: swiping ? "none" : "transform 0.25s ease" }}
       >
         {children}
       </div>

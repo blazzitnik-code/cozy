@@ -3,9 +3,19 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { useT } from '@/lib/i18n';
 import { normalizujNiz } from '@/lib/hooks';
 import { CATS, SUGG, FICONS, QO } from '@/lib/constants';
-import { getSt, fmtD, wksUntil, wksShort, stCol, stBg, localDateStr } from '@/lib/utils';
-import { INP } from '@/lib/styles';
-import { Pill, FC, Btn, Modal, ConfirmModal, SwipeCard, LogoToggle } from './ui';
+import { getSt, fmtD, wksUntil, wksShort, localDateStr, cx, STATUS_TEXT, STATUS_CARD, STATUS_BADGE } from '@/lib/utils';
+import { Screen, Pill, FC, Btn, Modal, ConfirmModal, SwipeCard, LogoToggle, Input, Label, IconButton, EmptyState, Fab } from './ui';
+
+// Repeated class recipes local to this module
+const BACK_BTN = "bg-field border border-line-strong rounded-12 py-2.5 px-4 text-ink-2 text-14 cursor-pointer font-semibold";
+const SEARCH_INP = "w-full box-border py-3.5 pr-4 pl-[38px] bg-field border border-line-strong rounded-14 text-ink outline-none font-medium text-14";
+const STEPPER_MINUS = "w-11 h-11 rounded-12 border border-line-strong bg-surface text-ink-2 text-22 cursor-pointer flex items-center justify-center";
+const STEPPER_PLUS = "w-11 h-11 rounded-12 border border-accent-2/30 bg-accent-2/10 text-accent-3 text-22 cursor-pointer flex items-center justify-center";
+// Sky-accent selectable chips (freezer pickers)
+const CHIP_ON = "border-accent/50 bg-accent/12 text-accent";
+const CHIP_OFF = "border-line-strong bg-surface-2 text-ink-2";
+// Indigo-accent selectable chips (quantity picker)
+const CHIP2_ON = "border-accent-2/50 bg-accent-2/15 text-accent-3";
 
 // ─── FREEZER DROPDOWN ───
 function FreezerDD({ freezers, selected, onChange, onAdd }) {
@@ -19,22 +29,23 @@ function FreezerDD({ freezers, selected, onChange, onAdd }) {
   const lbl = allSel ? "Vse" : selected.length === 1 ? (freezers.find(f => f.id === selected[0])?.icon + " " + freezers.find(f => f.id === selected[0])?.name) : selected.length + " izbrani";
   const toggle = id => { if (id === "all") { onChange([]); return; } const next = selected.includes(id) ? selected.filter(s => s !== id) : [...selected, id]; onChange(next.length === freezers.length ? [] : next); };
   const doAdd = async () => { if (!newName.trim()) return; await onAdd({ name: newName.trim(), icon: newIcon }); setNewName(""); setNewIcon("🏠"); setShowAdd(false); setOpen(false); };
-  return <div ref={ref} style={{ position: "relative" }}>
-    <button onClick={() => setOpen(!open)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: 14, border: "1px solid " + (open ? "rgba(56,189,248,0.5)" : "rgba(71,85,105,0.3)"), background: open ? "rgba(56,189,248,0.12)" : "rgba(30,41,59,0.6)", color: "#E2E8F0", fontSize: 13, fontWeight: 700, cursor: "pointer" }}><span>{lbl}</span><span style={{ fontSize: 10, color: "#64748B", transform: open ? "rotate(180deg)" : "none", transition: "0.2s" }}>▼</span></button>
-    {open && <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, minWidth: 220, background: "#1E293B", border: "1px solid rgba(71,85,105,0.4)", borderRadius: 16, padding: 6, zIndex: 60, boxShadow: "0 12px 40px rgba(0,0,0,0.5)" }}>
-      <button onClick={() => { toggle("all"); setOpen(false); }} style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 12, border: "none", background: allSel ? "rgba(56,189,248,0.12)" : "transparent", color: allSel ? "#38BDF8" : "#94A3B8", fontSize: 14, fontWeight: 600, cursor: "pointer", textAlign: "left" }}><span style={{ width: 18, height: 18, borderRadius: 4, border: "2px solid " + (allSel ? "#38BDF8" : "#475569"), background: allSel ? "#38BDF8" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "#fff", flexShrink: 0 }}>{allSel ? "✓" : ""}</span> Vse</button>
-      {freezers.map(f => { const on = allSel || selected.includes(f.id); return <button key={f.id} onClick={() => toggle(f.id)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 12, border: "none", background: (!allSel && on) ? "rgba(56,189,248,0.08)" : "transparent", color: on ? "#E2E8F0" : "#64748B", fontSize: 14, fontWeight: 600, cursor: "pointer", textAlign: "left" }}><span style={{ width: 18, height: 18, borderRadius: 4, border: "2px solid " + ((!allSel && on) ? "#38BDF8" : "#475569"), background: (!allSel && on) ? "#38BDF8" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "#fff", flexShrink: 0 }}>{(!allSel && on) ? "✓" : ""}</span> {f.icon} {f.name}</button>; })}
+  const check = on => cx("w-[18px] h-[18px] rounded-4 border-2 flex items-center justify-center text-11 text-white shrink-0", on ? "border-accent bg-accent" : "border-ink-dim bg-transparent");
+  return <div ref={ref} className="relative">
+    <button onClick={() => setOpen(!open)} className={cx("flex items-center gap-1.5 py-2 px-3.5 rounded-14 border text-ink text-13 font-bold cursor-pointer", open ? "border-accent/50 bg-accent/12" : "border-line-strong bg-surface")}><span>{lbl}</span><span className={cx("text-10 text-ink-3 transition-transform duration-200", open && "rotate-180")}>▼</span></button>
+    {open && <div className="absolute top-[calc(100%+6px)] right-0 min-w-[220px] bg-surface-solid border border-line-strong rounded-16 p-1.5 z-60 shadow-pop">
+      <button onClick={() => { toggle("all"); setOpen(false); }} className={cx("w-full flex items-center gap-2.5 py-2.5 px-3 rounded-12 border-none text-14 font-semibold cursor-pointer text-left", allSel ? "bg-accent/12 text-accent" : "bg-transparent text-ink-2")}><span className={check(allSel)}>{allSel ? "✓" : ""}</span> Vse</button>
+      {freezers.map(f => { const on = allSel || selected.includes(f.id); return <button key={f.id} onClick={() => toggle(f.id)} className={cx("w-full flex items-center gap-2.5 py-2.5 px-3 rounded-12 border-none text-14 font-semibold cursor-pointer text-left", (!allSel && on) ? "bg-accent/8" : "bg-transparent", on ? "text-ink" : "text-ink-3")}><span className={check(!allSel && on)}>{(!allSel && on) ? "✓" : ""}</span> {f.icon} {f.name}</button>; })}
       {/* ADD NEW FREEZER */}
-      <div style={{ borderTop: "1px solid rgba(71,85,105,0.3)", marginTop: 6, paddingTop: 6 }}>
+      <div className="border-t border-line-strong mt-1.5 pt-1.5">
         {!showAdd ? (
-          <button onClick={() => setShowAdd(true)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 12, border: "none", background: "transparent", color: "#38BDF8", fontSize: 13, fontWeight: 600, cursor: "pointer", textAlign: "left" }}>+ Nov zamrzovalnik</button>
+          <button onClick={() => setShowAdd(true)} className="w-full flex items-center gap-2 py-2.5 px-3 rounded-12 border-none bg-transparent text-accent text-13 font-semibold cursor-pointer text-left">+ Nov zamrzovalnik</button>
         ) : (
-          <div style={{ padding: "8px 6px", display: "flex", flexDirection: "column", gap: 8 }}>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>{FICONS.map(ic => <button key={ic} onClick={() => setNewIcon(ic)} style={{ fontSize: 20, background: newIcon === ic ? "rgba(56,189,248,0.2)" : "transparent", border: "1px solid " + (newIcon === ic ? "rgba(56,189,248,0.5)" : "transparent"), borderRadius: 8, padding: 4, cursor: "pointer" }}>{ic}</button>)}</div>
-            <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Ime zamrzovalnika..." autoFocus style={{ width: "100%", boxSizing: "border-box", padding: "8px 10px", background: "rgba(15,23,42,0.8)", border: "1px solid rgba(71,85,105,0.4)", borderRadius: 10, color: "#E2E8F0", fontSize: 13, outline: "none" }} onKeyDown={e => { if (e.key === "Enter") doAdd(); }} />
-            <div style={{ display: "flex", gap: 6 }}>
-              <button onClick={doAdd} disabled={!newName.trim()} style={{ flex: 1, padding: "8px", borderRadius: 10, border: "none", background: newName.trim() ? "linear-gradient(135deg,#0EA5E9,#6366F1)" : "rgba(30,41,59,0.6)", color: "#fff", fontSize: 13, fontWeight: 700, cursor: newName.trim() ? "pointer" : "default", opacity: newName.trim() ? 1 : 0.5 }}>Dodaj</button>
-              <button onClick={() => { setShowAdd(false); setNewName(""); }} style={{ flex: 1, padding: "8px", borderRadius: 10, border: "1px solid rgba(71,85,105,0.3)", background: "transparent", color: "#64748B", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Prekliči</button>
+          <div className="py-2 px-1.5 flex flex-col gap-2">
+            <div className="flex flex-wrap gap-1">{FICONS.map(ic => <button key={ic} onClick={() => setNewIcon(ic)} className={cx("text-20 rounded-8 p-1 border cursor-pointer", newIcon === ic ? "bg-accent/13 border-accent/50" : "bg-transparent border-transparent")}>{ic}</button>)}</div>
+            <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Ime zamrzovalnika..." autoFocus className="w-full box-border py-2 px-2.5 bg-field border border-line-strong rounded-10 text-ink text-13 outline-none" onKeyDown={e => { if (e.key === "Enter") doAdd(); }} />
+            <div className="flex gap-1.5">
+              <button onClick={doAdd} disabled={!newName.trim()} className={cx("flex-1 p-2 rounded-10 border-none text-white text-13 font-bold", newName.trim() ? "bg-grad-primary cursor-pointer" : "bg-surface opacity-50 cursor-default")}>Dodaj</button>
+              <button onClick={() => { setShowAdd(false); setNewName(""); }} className="flex-1 p-2 rounded-10 border border-line-strong bg-transparent text-ink-3 text-13 font-semibold cursor-pointer">Prekliči</button>
             </div>
           </div>
         )}
@@ -46,11 +57,11 @@ function FreezerDD({ freezers, selected, onChange, onAdd }) {
 function LabelInp({ value, onChange, labels, placeholder }) {
   const [focused, setFocused] = useState(false);
   const sug = useMemo(() => { if (!focused || !labels.length) return []; if (!value) return labels.slice(0, 5); return labels.filter(l => l.toLowerCase().includes(value.toLowerCase()) && l !== value).slice(0, 5); }, [value, focused, labels]);
-  return <div style={{ position: "relative" }}><input value={value} onChange={e => onChange(e.target.value)} onFocus={() => setFocused(true)} onBlur={() => setTimeout(() => setFocused(false), 150)} placeholder={placeholder} style={INP} />{sug.length > 0 && <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, background: "#1E293B", border: "1px solid rgba(71,85,105,0.4)", borderRadius: 12, padding: 4, zIndex: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.4)" }}>{sug.map((s, i) => <button key={i} onMouseDown={() => onChange(s)} style={{ width: "100%", padding: "10px 14px", border: "none", borderRadius: 8, background: "transparent", color: "#CBD5E1", fontSize: 14, cursor: "pointer", textAlign: "left", fontWeight: 500 }}>📎 {s}</button>)}</div>}</div>;
+  return <div className="relative"><Input value={value} onChange={e => onChange(e.target.value)} onFocus={() => setFocused(true)} onBlur={() => setTimeout(() => setFocused(false), 150)} placeholder={placeholder} />{sug.length > 0 && <div className="absolute top-[calc(100%+4px)] inset-x-0 bg-surface-solid border border-line-strong rounded-12 p-1 z-10 shadow-pop">{sug.map((s, i) => <button key={i} onMouseDown={() => onChange(s)} className="w-full py-2.5 px-3.5 border-none rounded-8 bg-transparent text-ink text-14 cursor-pointer text-left font-medium">📎 {s}</button>)}</div>}</div>;
 }
 
 export default function FreezerModule({
-  isDark, st, lang,
+  lang,
   items, dbAddItem, dbUpdateItem, dbDeleteItem,
   archived, dbArchiveItem, dbUpdateArchived, dbDeleteArchived, dbUnarchiveItem,
   freezers, dbAddFreezer, categories,
@@ -124,58 +135,55 @@ export default function FreezerModule({
     const usedCount = fa.filter(a => !a.wasted).length;
 
     return (
-      <div style={st.A}><div style={st.F1} /><div style={st.F2} />
+      <Screen>
 
         {/* MODAL — EDIT ARCHIVED ITEM */}
         {editArchived && (
-          <div onClick={() => setEditArchived(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 200 }}>
-            <div onClick={e => e.stopPropagation()} style={{ background: "linear-gradient(180deg,#1E293B,#0F172A)", borderRadius: "24px 24px 0 0", width: "100%", maxWidth: 430, padding: "24px 20px 36px", border: "1px solid rgba(71,85,105,0.3)", borderBottom: "none" }}>
-              <div style={{ width: 36, height: 4, background: "#334155", borderRadius: 2, margin: "0 auto 20px" }} />
-              <h3 style={{ fontSize: 18, fontWeight: 700, margin: "0 0 16px" }}>{t('urediArhiv')}{editArchived.name}</h3>
-              <div style={{ marginBottom: 12 }}>
-                <label style={st.LBL}>{t('ime')}</label>
-                <input value={editArchived.name} onChange={e => setEditArchived(p => ({ ...p, name: e.target.value }))} style={st.INP} />
-              </div>
-              <div style={{ marginBottom: 20 }}>
-                <label style={st.LBL}>{t('količina')}</label>
-                <input value={editArchived.qty} onChange={e => setEditArchived(p => ({ ...p, qty: e.target.value }))} style={st.INP} />
-              </div>
-              <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-                <button onClick={async () => {
-                  await dbUpdateArchived(editArchived.id, { name: editArchived.name, qty: editArchived.qty });
-                  setEditArchived(null);
-                }} style={{ flex: 1, padding: "13px", borderRadius: 14, border: "none", background: "linear-gradient(135deg,#0EA5E9,#6366F1)", color: "#fff", fontSize: 15, fontWeight: 700, cursor: "pointer" }}>{t('shrani')}</button>
-                <button onClick={() => setEditArchived(null)} style={{ flex: 1, padding: "13px", borderRadius: 14, border: "1px solid rgba(71,85,105,0.3)", background: "transparent", color: "#64748B", fontSize: 15, fontWeight: 600, cursor: "pointer" }}>{t('prekliči')}</button>
-              </div>
-              <button onClick={() => setConfirmAction({
-                message: t('izbrišiVprašanje'),
-                onConfirm: async () => {
-                  await dbDeleteArchived(editArchived.id);
-                  setEditArchived(null);
-                },
-              })} style={{ width: "100%", padding: "13px", borderRadius: 14, border: "1px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.1)", color: "#EF4444", fontSize: 15, fontWeight: 600, cursor: "pointer" }}>{t('izbrišiArhiv')}</button>
-              <button onClick={() => setConfirmAction({
-                message: t('vrniVprašanje'),
-                onConfirm: async () => {
-                  await dbUnarchiveItem(editArchived);
-                  setEditArchived(null);
-                },
-              })} style={{ width: "100%", padding: "13px", marginTop: 8, borderRadius: 14, border: "1px solid rgba(34,197,94,0.3)", background: "rgba(34,197,94,0.1)", color: "#22C55E", fontSize: 15, fontWeight: 600, cursor: "pointer" }}>{t('vrniVZamrzovalnik')}</button>
+          <Modal onClose={() => setEditArchived(null)}>
+            <h3 className="text-18 font-bold mb-4">{t('urediArhiv')}{editArchived.name}</h3>
+            <div className="mb-3">
+              <Label>{t('ime')}</Label>
+              <Input value={editArchived.name} onChange={e => setEditArchived(p => ({ ...p, name: e.target.value }))} />
             </div>
-          </div>
+            <div className="mb-5">
+              <Label>{t('količina')}</Label>
+              <Input value={editArchived.qty} onChange={e => setEditArchived(p => ({ ...p, qty: e.target.value }))} />
+            </div>
+            <div className="flex gap-2 mb-2.5">
+              <button onClick={async () => {
+                await dbUpdateArchived(editArchived.id, { name: editArchived.name, qty: editArchived.qty });
+                setEditArchived(null);
+              }} className="flex-1 p-3.25 rounded-14 border-none bg-grad-primary text-white text-15 font-bold cursor-pointer">{t('shrani')}</button>
+              <button onClick={() => setEditArchived(null)} className="flex-1 p-3.25 rounded-14 border border-line-strong bg-transparent text-ink-3 text-15 font-semibold cursor-pointer">{t('prekliči')}</button>
+            </div>
+            <button onClick={() => setConfirmAction({
+              message: t('izbrišiVprašanje'),
+              onConfirm: async () => {
+                await dbDeleteArchived(editArchived.id);
+                setEditArchived(null);
+              },
+            })} className="w-full p-3.25 rounded-14 border border-danger/30 bg-danger/10 text-danger text-15 font-semibold cursor-pointer">{t('izbrišiArhiv')}</button>
+            <button onClick={() => setConfirmAction({
+              message: t('vrniVprašanje'),
+              onConfirm: async () => {
+                await dbUnarchiveItem(editArchived);
+                setEditArchived(null);
+              },
+            })} className="w-full p-3.25 mt-2 rounded-14 border border-success/30 bg-success/10 text-success text-15 font-semibold cursor-pointer">{t('vrniVZamrzovalnik')}</button>
+          </Modal>
         )}
 
-        <div style={{ position: "relative", zIndex: 1, padding: "16px 16px calc(100px + env(safe-area-inset-bottom))" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, paddingTop: 12, marginBottom: 16 }}>
-            <button onClick={() => setShowArchive(false)} style={{ background: "rgba(30,41,59,0.8)", border: "1px solid rgba(71,85,105,0.3)", borderRadius: 12, padding: "10px 16px", color: "#94A3B8", fontSize: 14, cursor: "pointer", fontWeight: 600 }}>{t('nazaj')}</button>
-            <h2 style={{ fontSize: 20, fontWeight: 800, margin: 0 }}>{t('arhiv')}</h2>
+        <div className="relative z-1 pt-4 px-4 pb-[calc(100px+env(safe-area-inset-bottom))]">
+          <div className="flex items-center gap-3 pt-3 mb-4">
+            <button onClick={() => setShowArchive(false)} className={BACK_BTN}>{t('nazaj')}</button>
+            <h2 className="text-20 font-extrabold">{t('arhiv')}</h2>
           </div>
 
           {/* Search */}
-          <div style={{ position: "relative", marginBottom: 12 }}><span style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: "#475569" }}>🔍</span><input value={archSearch} onChange={e => setArchSearch(e.target.value)} placeholder={t('išičVArhivu')} style={{ ...INP, paddingLeft: 38, border: "1px solid rgba(71,85,105,0.3)", fontSize: 14 }} />{archSearch && <button onClick={() => setArchSearch("")} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "#64748B", fontSize: 16, cursor: "pointer" }}>✕</button>}</div>
+          <div className="relative mb-3"><span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-14 text-ink-dim">🔍</span><input value={archSearch} onChange={e => setArchSearch(e.target.value)} placeholder={t('išičVArhivu')} className={SEARCH_INP} />{archSearch && <button onClick={() => setArchSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 bg-transparent border-none text-ink-3 text-16 cursor-pointer">✕</button>}</div>
 
           {/* Category filter pills */}
-          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 12 }}>
+          <div className="flex gap-1.5 flex-wrap mb-3">
             <Pill small active={archCatF.length === 0} onClick={() => setArchCatF([])}>{t('vse')}</Pill>
             {Object.entries(categories).map(([k, v]) => {
               const cnt = archived.filter(a => a.cat === k).length;
@@ -184,41 +192,46 @@ export default function FreezerModule({
           </div>
 
           {/* Stats row with waste tracking */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 6, marginBottom: 14 }}>
-            {[[t('zadetki'), tot, "#38BDF8"], [t('povprMes'), mc ? Math.round(tot / mc) : 0, "#818CF8"], [t('porabljeno2'), usedCount, "#22C55E"], [t('zavrženo'), wastedCount, "#EF4444"]].map(([l, v, c]) => (
-              <div key={l} style={{ background: "rgba(30,41,59,0.6)", borderRadius: 14, padding: "10px 8px", border: "1px solid rgba(71,85,105,0.2)", textAlign: "center" }}>
-                <div style={{ fontSize: 9, color: c === "#EF4444" ? "#EF4444" : c === "#22C55E" ? "#22C55E" : "#64748B", textTransform: "uppercase", letterSpacing: 1, fontWeight: 600 }}>{l}</div>
-                <div style={{ fontSize: 22, fontWeight: 800, color: c, marginTop: 2 }}>{v}</div>
+          <div className="grid grid-cols-4 gap-1.5 mb-3.5">
+            {[
+              [t('zadetki'), tot, "text-accent", "text-ink-3"],
+              [t('povprMes'), mc ? Math.round(tot / mc) : 0, "text-accent-3", "text-ink-3"],
+              [t('porabljeno2'), usedCount, "text-success", "text-success"],
+              [t('zavrženo'), wastedCount, "text-danger", "text-danger"],
+            ].map(([l, v, valCls, lblCls]) => (
+              <div key={l} className="bg-surface rounded-14 py-2.5 px-2 border border-line text-center">
+                <div className={cx("text-9 uppercase tracking-[1px] font-semibold", lblCls)}>{l}</div>
+                <div className={cx("text-22 font-extrabold mt-0.5", valCls)}>{v}</div>
               </div>
             ))}
           </div>
 
           {/* View toggle */}
-          <div style={{ display: "flex", gap: 6, marginBottom: 14 }}>
+          <div className="flex gap-1.5 mb-3.5">
             <Pill small active={archView === "monthly"} onClick={() => setArchView("monthly")}>{t('mesečno')}</Pill>
             <Pill small active={archView === "category"} onClick={() => setArchView("category")}>{t('kategorije')}</Pill>
             <Pill small active={archView === "item"} onClick={() => setArchView("item")}>{t('poIzdelku')}</Pill>
           </div>
 
-          {tot === 0 && <div style={{ textAlign: "center", padding: "48px 0", color: "#475569" }}><div style={{ fontSize: 48, marginBottom: 12 }}>📭</div><p>{t('niZadetkov')}</p></div>}
+          {tot === 0 && <EmptyState icon="📭">{t('niZadetkov')}</EmptyState>}
 
           {/* MONTHLY VIEW */}
           {archView === "monthly" && Object.entries(byMonth).sort((a, b) => b[0].localeCompare(a[0])).map(([k, { label, items: mi }]) => (
-            <div key={k} style={{ marginBottom: 16 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                <h3 style={{ fontSize: 14, fontWeight: 700, color: "#94A3B8", margin: 0, textTransform: "capitalize" }}>{label}</h3>
-                <span style={{ fontSize: 12, color: "#475569", fontWeight: 600 }}>{mi.length}</span>
+            <div key={k} className="mb-4">
+              <div className="flex justify-between mb-1.5">
+                <h3 className="text-14 font-bold text-ink-2 capitalize">{label}</h3>
+                <span className="text-12 text-ink-dim font-semibold">{mi.length}</span>
               </div>
               {mi.map((it, i) => {
                 const cat = categories[it.cat] || CATS.drugo;
                 return (
-                  <div key={it.id + "-" + i} onClick={() => setEditArchived(it)} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", background: it.wasted ? "rgba(239,68,68,0.06)" : "rgba(30,41,59,0.4)", borderRadius: 12, marginBottom: 3, border: "1px solid " + (it.wasted ? "rgba(239,68,68,0.15)" : "rgba(71,85,105,0.12)"), cursor: "pointer" }}>
-                    <span style={{ fontSize: 18 }}>{cat.icon}</span>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: it.wasted ? "#EF4444" : "#CBD5E1" }}>{it.name} {it.wasted && <span style={{ fontSize: 11, opacity: 0.7 }}>· zavrženo</span>}</div>
-                      <div style={{ fontSize: 11, color: "#475569" }}>{it.qty}{it.packets > 1 ? " / " + it.packets + "p" : ""}{it.label ? " · " + it.label : ""}</div>
+                  <div key={it.id + "-" + i} onClick={() => setEditArchived(it)} className={cx("flex items-center gap-2.5 py-2.25 px-3 rounded-12 mb-[3px] border cursor-pointer", it.wasted ? "bg-danger/6 border-danger/15" : "bg-surface-2 border-line")}>
+                    <span className="text-18">{cat.icon}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className={cx("text-13 font-semibold", it.wasted ? "text-danger" : "text-ink")}>{it.name} {it.wasted && <span className="text-11 opacity-70">· zavrženo</span>}</div>
+                      <div className="text-11 text-ink-dim">{it.qty}{it.packets > 1 ? " / " + it.packets + "p" : ""}{it.label ? " · " + it.label : ""}</div>
                     </div>
-                    <div style={{ fontSize: 11, color: "#475569", flexShrink: 0 }}>{fmtD(it.archived_at)}</div>
+                    <div className="text-11 text-ink-dim shrink-0">{fmtD(it.archived_at)}</div>
                   </div>
                 );
               })}
@@ -229,22 +242,22 @@ export default function FreezerModule({
           {archView === "category" && Object.entries(byCat).sort((a, b) => b[1].length - a[1].length).map(([ck, ci]) => {
             const cat = categories[ck] || CATS.drugo;
             return (
-              <div key={ck} style={{ marginBottom: 16 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                  <h3 style={{ fontSize: 14, fontWeight: 700, color: cat.color, margin: 0 }}>{cat.icon} {cat.label}</h3>
-                  <span style={{ fontSize: 12, color: "#475569", fontWeight: 600 }}>{ci.length}</span>
+              <div key={ck} className="mb-4" style={{ "--cat": cat.color }}>
+                <div className="flex justify-between mb-1.5">
+                  <h3 className="text-14 font-bold text-(--cat)">{cat.icon} {cat.label}</h3>
+                  <span className="text-12 text-ink-dim font-semibold">{ci.length}</span>
                 </div>
-                <div style={{ height: 6, borderRadius: 3, background: "rgba(30,41,59,0.6)", marginBottom: 8, overflow: "hidden" }}>
-                  <div style={{ height: "100%", borderRadius: 3, background: cat.color, width: Math.min(100, (ci.length / tot) * 300) + "%", opacity: 0.7 }} />
+                <div className="h-1.5 rounded-[3px] bg-surface mb-2 overflow-hidden">
+                  <div className="h-full rounded-[3px] bg-(--cat) opacity-70" style={{ width: Math.min(100, (ci.length / tot) * 300) + "%" }} />
                 </div>
                 {ci.slice(0, 5).map((it, i) => (
-                  <div key={it.id + "-" + i} onClick={() => setEditArchived(it)} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 12px", background: it.wasted ? "rgba(239,68,68,0.06)" : "rgba(30,41,59,0.3)", borderRadius: 10, marginBottom: 3, cursor: "pointer" }}>
-                    <div style={{ flex: 1, fontSize: 13, color: it.wasted ? "#EF4444" : "#CBD5E1", fontWeight: 500 }}>{it.name}{it.wasted ? " · zavrženo" : ""}</div>
-                    <div style={{ fontSize: 11, color: "#475569" }}>{it.qty}</div>
-                    <div style={{ fontSize: 11, color: "#475569" }}>{fmtD(it.archived_at)}</div>
+                  <div key={it.id + "-" + i} onClick={() => setEditArchived(it)} className={cx("flex items-center gap-2.5 py-[7px] px-3 rounded-10 mb-[3px] cursor-pointer", it.wasted ? "bg-danger/6" : "bg-surface-2/60")}>
+                    <div className={cx("flex-1 text-13 font-medium", it.wasted ? "text-danger" : "text-ink")}>{it.name}{it.wasted ? " · zavrženo" : ""}</div>
+                    <div className="text-11 text-ink-dim">{it.qty}</div>
+                    <div className="text-11 text-ink-dim">{fmtD(it.archived_at)}</div>
                   </div>
                 ))}
-                {ci.length > 5 && <div style={{ fontSize: 12, color: "#475569", padding: "4px 12px" }}>+ še {ci.length - 5}</div>}
+                {ci.length > 5 && <div className="text-12 text-ink-dim py-1 px-3">+ še {ci.length - 5}</div>}
               </div>
             );
           })}
@@ -262,36 +275,36 @@ export default function FreezerModule({
             });
             const mx = Math.max(...Object.values(mb).map(m => m.count));
             return (
-              <div key={name} style={{ marginBottom: 16 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                  <span style={{ fontSize: 20 }}>{cat.icon}</span>
+              <div key={name} className="mb-4" style={{ "--cat": cat.color }}>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-20">{cat.icon}</span>
                   <div>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: "#E2E8F0" }}>{name}</div>
-                    <div style={{ fontSize: 12, color: cat.color, fontWeight: 600 }}>
+                    <div className="text-14 font-bold text-ink">{name}</div>
+                    <div className="text-12 font-semibold text-(--cat)">
                       Skupaj: {ie.length}× | {cat.label}
-                      {wastedInItem > 0 && <span style={{ color: "#EF4444" }}> · {wastedInItem}× zavrženo</span>}
+                      {wastedInItem > 0 && <span className="text-danger"> · {wastedInItem}× zavrženo</span>}
                     </div>
                   </div>
                 </div>
-                <div style={{ display: "flex", gap: 3, alignItems: "flex-end", height: 50, padding: "0 4px", marginBottom: 4 }}>
+                <div className="flex gap-[3px] items-end h-[50px] px-1 mb-1">
                   {Object.entries(mb).sort((a, b) => a[0].localeCompare(b[0])).map(([k, { count }]) => (
-                    <div key={k} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
-                      <div style={{ fontSize: 10, color: "#64748B", fontWeight: 700 }}>{count}</div>
-                      <div style={{ width: "100%", maxWidth: 28, height: Math.max(8, (count / mx) * 36), background: cat.color, borderRadius: 4, opacity: 0.6 }} />
+                    <div key={k} className="flex-1 flex flex-col items-center gap-0.5">
+                      <div className="text-10 text-ink-3 font-bold">{count}</div>
+                      <div className="w-full max-w-7 bg-(--cat) rounded-4 opacity-60" style={{ height: Math.max(8, (count / mx) * 36) }} />
                     </div>
                   ))}
                 </div>
-                <div style={{ display: "flex", gap: 3, padding: "0 4px" }}>
+                <div className="flex gap-[3px] px-1">
                   {Object.entries(mb).sort((a, b) => a[0].localeCompare(b[0])).map(([k, { label }]) => (
-                    <div key={k} style={{ flex: 1, textAlign: "center", fontSize: 9, color: "#475569", fontWeight: 600 }}>{label}</div>
+                    <div key={k} className="flex-1 text-center text-9 text-ink-dim font-semibold">{label}</div>
                   ))}
                 </div>
               </div>
             );
           })}
         </div>
-        <ConfirmModal action={confirmAction} onClose={() => setConfirmAction(null)} isDark={isDark} />
-      </div>
+        <ConfirmModal action={confirmAction} onClose={() => setConfirmAction(null)} />
+      </Screen>
     );
   }
 
@@ -300,52 +313,63 @@ export default function FreezerModule({
   // ═══════════════════════════
   if (screen === "home") {
     return (
-      <div style={st.A}><div style={st.F1} /><div style={st.F2} />
-        <div style={{ position: "relative", zIndex: 1, padding: "16px 16px calc(100px + env(safe-area-inset-bottom))" }}>
+      <Screen>
+        <div className="relative z-1 pt-4 px-4 pb-[calc(100px+env(safe-area-inset-bottom))]">
 
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", paddingTop: 12, marginBottom: 14 }}>
+          <div className="flex justify-between items-start pt-3 mb-3.5">
             <LogoToggle mode="freezer" onToggle={onToggleMode} />
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <div className="flex gap-2 items-center">
               <FreezerDD freezers={freezers} selected={selFrzs} onChange={setSelFrzs} onAdd={dbAddFreezer} />
-              <button onClick={() => { setShowArchive(true); setArchSearch(""); setArchCatF([]); }} style={{ background: "rgba(30,41,59,0.6)", border: "1px solid rgba(71,85,105,0.2)", borderRadius: 10, padding: "8px 10px", color: "#64748B", fontSize: 14, cursor: "pointer", fontWeight: 600, lineHeight: 1 }}>📦</button>
-              <button onClick={onOpenSettings} style={{ background: "rgba(30,41,59,0.6)", border: "1px solid rgba(71,85,105,0.2)", borderRadius: 10, padding: "8px 10px", color: "#64748B", fontSize: 14, cursor: "pointer", fontWeight: 600, lineHeight: 1 }}>⚙️</button>
+              <IconButton onClick={() => { setShowArchive(true); setArchSearch(""); setArchCatF([]); }}>📦</IconButton>
+              <IconButton onClick={onOpenSettings}>⚙️</IconButton>
             </div>
           </div>
 
-          {(expC > 0 || warnC > 0) && <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>{expC > 0 && <button onClick={() => setFilterStatus(filterStatus === "expired" ? null : "expired")} style={{ background: filterStatus === "expired" ? "rgba(239,68,68,0.25)" : "rgba(239,68,68,0.12)", color: "#EF4444", fontSize: 12, fontWeight: 700, padding: "6px 12px", borderRadius: 20, border: "1px solid " + (filterStatus === "expired" ? "rgba(239,68,68,0.6)" : "rgba(239,68,68,0.25)"), cursor: "pointer" }}>🔴 {expC} poteklo</button>}{warnC > 0 && <button onClick={() => setFilterStatus(filterStatus === "warning" ? null : "warning")} style={{ background: filterStatus === "warning" ? "rgba(245,158,11,0.2)" : "rgba(245,158,11,0.1)", color: "#F59E0B", fontSize: 12, fontWeight: 700, padding: "6px 12px", borderRadius: 20, border: "1px solid " + (filterStatus === "warning" ? "rgba(245,158,11,0.5)" : "rgba(245,158,11,0.2)"), cursor: "pointer" }}>🟠 {warnC} kmalu</button>}{filterStatus && <button onClick={() => setFilterStatus(null)} style={{ background: "transparent", border: "1px solid rgba(71,85,105,0.3)", borderRadius: 20, padding: "6px 12px", color: "#64748B", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>✕</button>}</div>}
+          {(expC > 0 || warnC > 0) && <div className="flex gap-1.5 mb-3 flex-wrap">
+            {expC > 0 && <button onClick={() => setFilterStatus(filterStatus === "expired" ? null : "expired")} className={cx("text-danger text-12 font-bold py-1.5 px-3 rounded-20 border cursor-pointer", filterStatus === "expired" ? "bg-danger/25 border-danger/60" : "bg-danger/12 border-danger/25")}>🔴 {expC} poteklo</button>}
+            {warnC > 0 && <button onClick={() => setFilterStatus(filterStatus === "warning" ? null : "warning")} className={cx("text-amber text-12 font-bold py-1.5 px-3 rounded-20 border cursor-pointer", filterStatus === "warning" ? "bg-amber/20 border-amber/50" : "bg-amber/10 border-amber/20")}>🟠 {warnC} kmalu</button>}
+            {filterStatus && <button onClick={() => setFilterStatus(null)} className="bg-transparent border border-line-strong rounded-20 py-1.5 px-3 text-ink-3 text-12 font-semibold cursor-pointer">✕</button>}
+          </div>}
 
-          <div style={{ display: "flex", gap: 8, marginBottom: showCatFilter ? 8 : 12 }}><div style={{ position: "relative", flex: 1 }}><span style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: "#475569" }}>🔍</span><input value={search} onChange={e => setSearch(e.target.value)} placeholder={t('išči')} style={{ ...INP, paddingLeft: 38, paddingRight: search ? 38 : 16, border: "1px solid rgba(71,85,105,0.3)", fontSize: 14 }} />{search && <button onClick={() => setSearch("")} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "#64748B", fontSize: 16, cursor: "pointer", lineHeight: 1 }}>✕</button>}</div><button onClick={() => setShowCatFilter(!showCatFilter)} style={{ width: 46, height: 46, borderRadius: 14, flexShrink: 0, border: "1px solid " + (showCatFilter || filterCat.length > 0 ? "rgba(99,102,241,0.5)" : "rgba(71,85,105,0.3)"), background: showCatFilter || filterCat.length > 0 ? "rgba(99,102,241,0.12)" : "rgba(30,41,59,0.6)", color: showCatFilter || filterCat.length > 0 ? "#818CF8" : "#64748B", fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>☰{filterCat.length > 0 && <span style={{ position: "absolute", top: -2, right: -2, width: 10, height: 10, borderRadius: "50%", background: "#818CF8" }} />}</button></div>
+          <div className={cx("flex gap-2", showCatFilter ? "mb-2" : "mb-3")}>
+            <div className="relative flex-1">
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-14 text-ink-dim">🔍</span>
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t('išči')} className={cx(SEARCH_INP, search && "pr-[38px]")} />
+              {search && <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 bg-transparent border-none text-ink-3 text-16 cursor-pointer leading-none">✕</button>}
+            </div>
+            <button onClick={() => setShowCatFilter(!showCatFilter)} className={cx("w-[46px] h-[46px] rounded-14 shrink-0 border text-18 cursor-pointer flex items-center justify-center relative", (showCatFilter || filterCat.length > 0) ? "border-accent-2/50 bg-accent-2/12 text-accent-3" : "border-line-strong bg-surface text-ink-3")}>☰{filterCat.length > 0 && <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-accent-3" />}</button>
+          </div>
 
-          {showCatFilter && <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 12, padding: "10px 12px", background: "rgba(30,41,59,0.4)", borderRadius: 14, border: "1px solid rgba(71,85,105,0.15)" }}><Pill small active={filterCat.length === 0} onClick={() => setFilterCat([])}>Vse</Pill>{Object.entries(categories).map(([k, v]) => { const cnt = vis.filter(i => i.cat === k).length; return cnt ? <Pill key={k} small active={filterCat.includes(k)} color={v.color} onClick={() => setFilterCat(prev => prev.includes(k) ? prev.filter(c => c !== k) : [...prev, k])}>{v.icon} {v.label} ({cnt})</Pill> : null; })}</div>}
+          {showCatFilter && <div className="flex flex-wrap gap-1.5 mb-3 py-2.5 px-3 bg-surface-2 rounded-14 border border-line"><Pill small active={filterCat.length === 0} onClick={() => setFilterCat([])}>Vse</Pill>{Object.entries(categories).map(([k, v]) => { const cnt = vis.filter(i => i.cat === k).length; return cnt ? <Pill key={k} small active={filterCat.includes(k)} color={v.color} onClick={() => setFilterCat(prev => prev.includes(k) ? prev.filter(c => c !== k) : [...prev, k])}>{v.icon} {v.label} ({cnt})</Pill> : null; })}</div>}
 
           {/* Items with swipe */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <div className="flex flex-col gap-1.5">
             {filtered.map(item => {
               const cat = categories[item.cat] || CATS.drugo;
               const status = getSt(item);
               const frz = freezers.find(f => f.id === item.freezer);
               return (
                 <SwipeCard key={item.id} onSwipeLeft={() => doArchive(item, false)} onClick={() => { setShowDetail(item); setEditMode(false); }}>
-                  <div style={{ background: stBg(status), border: "1px solid " + (status === "expired" ? "rgba(239,68,68,0.2)" : status === "warning" ? "rgba(245,158,11,0.15)" : "rgba(71,85,105,0.15)"), borderRadius: 16, padding: "12px 14px", cursor: "pointer", position: "relative", overflow: "hidden" }}>
-                    <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 4, background: cat.color, borderRadius: "16px 0 0 16px" }} />
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 10, paddingLeft: 8, flex: 1, minWidth: 0 }}>
-                        <span style={{ fontSize: 24, flexShrink: 0 }}>{cat.icon}</span>
-                        <div style={{ minWidth: 0 }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                            <span style={{ fontSize: 14, fontWeight: 700, color: "#E2E8F0", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.packets > 1 && <span style={{ color: "#818CF8" }}>{item.packets}x </span>}{item.name}</span>
-                            {item.sticky && <span style={{ fontSize: 10 }}>📌</span>}
+                  <div style={{ "--cat": cat.color }} className={cx("border rounded-16 py-3 px-3.5 cursor-pointer relative overflow-hidden", STATUS_CARD[status])}>
+                    <div className="absolute left-0 inset-y-0 w-1 bg-(--cat) rounded-l-16" />
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-2.5 pl-2 flex-1 min-w-0">
+                        <span className="text-24 shrink-0">{cat.icon}</span>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-[5px]">
+                            <span className="text-14 font-bold text-ink whitespace-nowrap overflow-hidden text-ellipsis">{item.packets > 1 && <span className="text-accent-3">{item.packets}x </span>}{item.name}</span>
+                            {item.sticky && <span className="text-10">📌</span>}
                           </div>
-                          <div style={{ fontSize: 11, color: "#64748B", display: "flex", gap: 3, flexWrap: "wrap", alignItems: "center" }}>
+                          <div className="text-11 text-ink-3 flex gap-[3px] flex-wrap items-center">
                             <span>{item.qty}{item.packets > 1 ? " · " + item.packets + "p" : ""}</span>
                             {allF && frz && <><span>·</span><span>{frz.icon}</span></>}
-                            {item.label && <><span>·</span><span style={{ color: "#818CF8", fontWeight: 600 }}>{item.label}</span></>}
+                            {item.label && <><span>·</span><span className="text-accent-3 font-semibold">{item.label}</span></>}
                           </div>
                         </div>
                       </div>
-                      <div style={{ textAlign: "right", flexShrink: 0, marginLeft: 8 }}>
-                        <div style={{ fontSize: 12, fontWeight: 800, color: stCol(status), background: stCol(status) + "15", padding: "3px 8px", borderRadius: 8, display: "inline-block", marginBottom: 2 }}>{wksShort(item.expiry)}</div>
-                        <div style={{ fontSize: 10, color: "#475569" }}>{fmtD(item.expiry)}</div>
+                      <div className="text-right shrink-0 ml-2">
+                        <div className={cx("text-12 font-extrabold py-[3px] px-2 rounded-8 inline-block mb-0.5", STATUS_BADGE[status])}>{wksShort(item.expiry)}</div>
+                        <div className="text-10 text-ink-dim">{fmtD(item.expiry)}</div>
                       </div>
                     </div>
                   </div>
@@ -354,10 +378,10 @@ export default function FreezerModule({
             })}
           </div>
 
-          {filtered.length === 0 && <div style={{ textAlign: "center", padding: "48px 0", color: "#475569" }}><div style={{ fontSize: 48, marginBottom: 12 }}>{items.length === 0 ? "❄️" : "🔍"}</div><p>{items.length === 0 ? "Zamrzovalnik je prazen!" : "Ni zadetkov"}</p></div>}
+          {filtered.length === 0 && <EmptyState icon={items.length === 0 ? "❄️" : "🔍"}>{items.length === 0 ? "Zamrzovalnik je prazen!" : "Ni zadetkov"}</EmptyState>}
         </div>
 
-        <button onClick={() => { const df = selFrzs.length === 1 ? selFrzs[0] : "home"; setAddData({ name: "", cat: "", qty: "", packets: 1, label: "", frozen: localDateStr(), expiry: "", freezer: df }); setAddStep(0); setSuggestions([]); setScreen("add"); }} style={{ position: "fixed", bottom: "calc(74px + env(safe-area-inset-bottom))", left: "50%", transform: "translateX(-50%)", width: 62, height: 62, borderRadius: "50%", border: "none", background: "linear-gradient(135deg,#0EA5E9,#6366F1)", color: "#fff", fontSize: 30, fontWeight: 300, cursor: "pointer", boxShadow: "0 8px 32px rgba(14,165,233,0.4),0 0 0 4px rgba(14,165,233,0.1)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }}>+</button>
+        <Fab onClick={() => { const df = selFrzs.length === 1 ? selFrzs[0] : "home"; setAddData({ name: "", cat: "", qty: "", packets: 1, label: "", frozen: localDateStr(), expiry: "", freezer: df }); setAddStep(0); setSuggestions([]); setScreen("add"); }} />
 
         {/* DETAIL MODAL - REDESIGNED */}
         {showDetail && (() => {
@@ -368,79 +392,79 @@ export default function FreezerModule({
 
           if (editMode && editData) {
             return (
-              <Modal isDark={isDark} onClose={() => setEditMode(false)}>
-                <h3 style={{ fontSize: 18, fontWeight: 800, margin: "0 0 20px", textAlign: "center" }}>✏️ Uredi izdelek</h3>
-                <label style={st.LBL}>Ime</label>
-                <input value={editData.name} onChange={e => setEditData(d => ({ ...d, name: e.target.value }))} style={{ ...INP, marginBottom: 14 }} />
-                <label style={st.LBL}>Kategorija</label>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 14 }}>{Object.entries(categories).map(([k, v]) => <button key={k} onClick={() => setEditData(d => ({ ...d, cat: k }))} style={{ padding: "7px 11px", borderRadius: 12, fontSize: 12, fontWeight: 600, cursor: "pointer", border: "1px solid " + (editData.cat === k ? v.color + "80" : "rgba(71,85,105,0.3)"), background: editData.cat === k ? v.color + "20" : "rgba(30,41,59,0.5)", color: editData.cat === k ? v.color : "#94A3B8" }}>{v.icon} {v.label}</button>)}</div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
-                  <div><label style={st.LBL}>Količina</label><input value={editData.qty} onChange={e => setEditData(d => ({ ...d, qty: e.target.value }))} style={INP} /></div>
-                  <div><label style={st.LBL}>Paketi</label><div style={{ display: "flex", alignItems: "center", gap: 8 }}><button onClick={() => setEditData(d => ({ ...d, packets: Math.max(1, d.packets - 1) }))} style={{ width: 40, height: 46, borderRadius: 10, border: "1px solid rgba(71,85,105,0.3)", background: "rgba(30,41,59,0.6)", color: "#94A3B8", fontSize: 20, cursor: "pointer" }}>−</button><span style={{ fontSize: 20, fontWeight: 800, minWidth: 24, textAlign: "center" }}>{editData.packets}</span><button onClick={() => setEditData(d => ({ ...d, packets: d.packets + 1 }))} style={{ width: 40, height: 46, borderRadius: 10, border: "1px solid rgba(99,102,241,0.3)", background: "rgba(99,102,241,0.1)", color: "#818CF8", fontSize: 20, cursor: "pointer" }}>+</button></div></div>
+              <Modal onClose={() => setEditMode(false)}>
+                <h3 className="text-18 font-extrabold mb-5 text-center">✏️ Uredi izdelek</h3>
+                <Label>Ime</Label>
+                <Input value={editData.name} onChange={e => setEditData(d => ({ ...d, name: e.target.value }))} className="mb-3.5" />
+                <Label>Kategorija</Label>
+                <div className="flex flex-wrap gap-1.5 mb-3.5">{Object.entries(categories).map(([k, v]) => <button key={k} onClick={() => setEditData(d => ({ ...d, cat: k }))} style={{ "--cat": v.color }} className={cx("py-[7px] px-[11px] rounded-12 text-12 font-semibold cursor-pointer border", editData.cat === k ? "border-(--cat)/50 bg-(--cat)/13 text-(--cat)" : "border-line-strong bg-surface-2 text-ink-2")}>{v.icon} {v.label}</button>)}</div>
+                <div className="grid grid-cols-2 gap-2.5 mb-3.5">
+                  <div><Label>Količina</Label><Input value={editData.qty} onChange={e => setEditData(d => ({ ...d, qty: e.target.value }))} /></div>
+                  <div><Label>Paketi</Label><div className="flex items-center gap-2"><button onClick={() => setEditData(d => ({ ...d, packets: Math.max(1, d.packets - 1) }))} className="w-10 h-[46px] rounded-10 border border-line-strong bg-surface text-ink-2 text-20 cursor-pointer">−</button><span className="text-20 font-extrabold min-w-6 text-center">{editData.packets}</span><button onClick={() => setEditData(d => ({ ...d, packets: d.packets + 1 }))} className="w-10 h-[46px] rounded-10 border border-accent-2/30 bg-accent-2/10 text-accent-3 text-20 cursor-pointer">+</button></div></div>
                 </div>
-                <label style={st.LBL}>Labela</label>
+                <Label>Labela</Label>
                 <LabelInp value={editData.label} onChange={v => setEditData(d => ({ ...d, label: v }))} labels={existingLabels} placeholder="opcijsko" />
-                <div style={{ height: 14 }} />
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
-                  <div><label style={st.LBL}>Zamrznjeno</label><input type="date" value={editData.frozen} onChange={e => setEditData(d => ({ ...d, frozen: e.target.value }))} style={{ ...INP, colorScheme: "dark" }} /></div>
-                  <div><label style={st.LBL}>Rok uporabe</label><input type="date" value={editData.expiry} onChange={e => setEditData(d => ({ ...d, expiry: e.target.value }))} style={{ ...INP, colorScheme: "dark" }} /></div>
+                <div className="h-3.5" />
+                <div className="grid grid-cols-2 gap-2.5 mb-3.5">
+                  <div><Label>Zamrznjeno</Label><Input type="date" value={editData.frozen} onChange={e => setEditData(d => ({ ...d, frozen: e.target.value }))} /></div>
+                  <div><Label>Rok uporabe</Label><Input type="date" value={editData.expiry} onChange={e => setEditData(d => ({ ...d, expiry: e.target.value }))} /></div>
                 </div>
-                <label style={st.LBL}>Zamrzovalnik</label>
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 20 }}>{freezers.map(f => <button key={f.id} onClick={() => setEditData(d => ({ ...d, freezer: f.id }))} style={{ padding: "9px 14px", borderRadius: 12, border: "1px solid " + (editData.freezer === f.id ? "rgba(56,189,248,0.5)" : "rgba(71,85,105,0.3)"), background: editData.freezer === f.id ? "rgba(56,189,248,0.12)" : "rgba(30,41,59,0.5)", color: editData.freezer === f.id ? "#38BDF8" : "#94A3B8", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>{f.icon} {f.name}</button>)}</div>
+                <Label>Zamrzovalnik</Label>
+                <div className="flex gap-1.5 flex-wrap mb-5">{freezers.map(f => <button key={f.id} onClick={() => setEditData(d => ({ ...d, freezer: f.id }))} className={cx("py-2.25 px-3.5 rounded-12 border text-13 font-bold cursor-pointer", editData.freezer === f.id ? CHIP_ON : CHIP_OFF)}>{f.icon} {f.name}</button>)}</div>
                 <Btn v="success" onClick={async () => { await dbUpdateItem(editData.id, { name: editData.name, cat: editData.cat, qty: editData.qty, packets: editData.packets, label: editData.label, frozen: editData.frozen, expiry: editData.expiry, freezer: editData.freezer }); setShowDetail(editData); setEditMode(false); }}>💾 Shrani</Btn>
-                <Btn v="ghost" onClick={() => setEditMode(false)} style={{ marginTop: 8 }}>Prekliči</Btn>
+                <Btn v="ghost" onClick={() => setEditMode(false)} className="mt-2">Prekliči</Btn>
               </Modal>
             );
           }
 
           return (
-            <Modal isDark={isDark} onClose={() => setShowDetail(null)}>
+            <Modal onClose={() => setShowDetail(null)}>
               {/* Redesigned detail layout */}
-              <div style={{ textAlign: "center", marginBottom: 12 }}>
-                <span style={{ fontSize: 56 }}>{cat.icon}</span>
-                <h2 style={{ fontSize: 22, fontWeight: 800, margin: "8px 0 4px" }}>{item.name}</h2>
+              <div className="text-center mb-3">
+                <span className="text-56">{cat.icon}</span>
+                <h2 className="text-22 font-extrabold mt-2 mb-1">{item.name}</h2>
                 {/* Status with full text */}
-                <div style={{ fontSize: 15, fontWeight: 700, color: stCol(status), marginBottom: 4 }}>{wksUntil(item.expiry)}</div>
+                <div className={cx("text-15 font-bold mb-1", STATUS_TEXT[status])}>{wksUntil(item.expiry)}</div>
               </div>
 
               {/* Key info: frozen date + expiry first */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+              <div className="grid grid-cols-2 gap-2.5 mb-2.5">
                 <FC label="Zamrznjeno" value={fmtD(item.frozen)} />
                 <FC label="Rok uporabe" value={fmtD(item.expiry)} />
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+              <div className="grid grid-cols-2 gap-2.5 mb-2.5">
                 <FC label="Količina" value={item.qty + (item.packets > 1 ? " / " + item.packets + " pak." : "")} />
                 <FC label="Zamrzovalnik" value={frz ? frz.icon + " " + frz.name : "—"} />
               </div>
               {/* Category + label row */}
-              <div style={{ display: "grid", gridTemplateColumns: item.label ? "1fr 1fr" : "1fr", gap: 10, marginBottom: 16 }}>
+              <div className={cx("grid gap-2.5 mb-4", item.label ? "grid-cols-2" : "grid-cols-1")}>
                 <FC label="Kategorija" value={cat.label} />
                 {item.label && <FC label="Labela" value={item.label} />}
               </div>
 
               {/* Quick packet decrement */}
               {item.packets > 1 && (
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.15)", borderRadius: 14, marginBottom: 14 }}>
-                  <div><div style={{ fontSize: 13, fontWeight: 700, color: "#818CF8" }}>Odštej paket</div><div style={{ fontSize: 12, color: "#64748B" }}>Trenutno: {item.packets}</div></div>
-                  <button onClick={async () => { const newP = item.packets - 1; await dbUpdateItem(item.id, { packets: newP }); setShowDetail({ ...item, packets: newP }); }} style={{ width: 44, height: 44, borderRadius: 12, border: "1px solid rgba(99,102,241,0.4)", background: "rgba(99,102,241,0.15)", color: "#818CF8", fontSize: 20, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>−1</button>
+                <div className="flex items-center justify-between py-3 px-4 bg-accent-2/6 border border-accent-2/15 rounded-14 mb-3.5">
+                  <div><div className="text-13 font-bold text-accent-3">Odštej paket</div><div className="text-12 text-ink-3">Trenutno: {item.packets}</div></div>
+                  <button onClick={async () => { const newP = item.packets - 1; await dbUpdateItem(item.id, { packets: newP }); setShowDetail({ ...item, packets: newP }); }} className="w-11 h-11 rounded-12 border border-accent-2/40 bg-accent-2/15 text-accent-3 text-20 font-bold cursor-pointer flex items-center justify-center">−1</button>
                 </div>
               )}
 
               {/* Action buttons - redesigned */}
-              <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-                <button onClick={() => doArchive(item, false)} style={{ flex: 3, padding: "15px", borderRadius: 14, border: "none", background: "linear-gradient(135deg,#22C55E,#059669)", color: "#fff", fontSize: 16, fontWeight: 700, cursor: "pointer" }}>✓ Uporabljeno</button>
-                <button onClick={() => doArchive(item, true)} style={{ flex: 1, padding: "15px", borderRadius: 14, border: "1px solid rgba(239,68,68,0.3)", background: "rgba(239,68,68,0.1)", color: "#EF4444", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>🗑</button>
+              <div className="flex gap-2 mb-2">
+                <button onClick={() => doArchive(item, false)} className="flex-3 p-3.75 rounded-14 border-none bg-grad-success text-white text-16 font-bold cursor-pointer">✓ Uporabljeno</button>
+                <button onClick={() => doArchive(item, true)} className="flex-1 p-3.75 rounded-14 border border-danger/30 bg-danger/10 text-danger text-14 font-bold cursor-pointer">🗑</button>
               </div>
-              <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-                <button onClick={() => { setEditData({ ...item }); setEditMode(true); }} style={{ flex: 1, padding: "12px", borderRadius: 14, border: "1px solid rgba(56,189,248,0.3)", background: "rgba(56,189,248,0.08)", color: "#38BDF8", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>✏️ Uredi</button>
-                <button onClick={async () => { await dbUpdateItem(item.id, { sticky: !item.sticky }); setShowDetail({ ...item, sticky: !item.sticky }); }} style={{ flex: 1, padding: "12px", borderRadius: 14, border: "1px solid rgba(71,85,105,0.3)", background: item.sticky ? "rgba(245,158,11,0.1)" : "rgba(30,41,59,0.6)", color: item.sticky ? "#F59E0B" : "#94A3B8", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>{item.sticky ? "📌 Odpni" : "📌 Pripni"}</button>
-                <button onClick={async () => { await dbDeleteItem(item.id); setShowDetail(null); }} style={{ flex: 1, padding: "12px", borderRadius: 14, border: "1px solid rgba(239,68,68,0.15)", background: "transparent", color: "#64748B", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>Zbriši</button>
+              <div className="flex gap-2 mb-2">
+                <button onClick={() => { setEditData({ ...item }); setEditMode(true); }} className="flex-1 p-3 rounded-14 border border-accent/30 bg-accent/8 text-accent text-14 font-semibold cursor-pointer">✏️ Uredi</button>
+                <button onClick={async () => { await dbUpdateItem(item.id, { sticky: !item.sticky }); setShowDetail({ ...item, sticky: !item.sticky }); }} className={cx("flex-1 p-3 rounded-14 border border-line-strong text-14 font-semibold cursor-pointer", item.sticky ? "bg-amber/10 text-amber" : "bg-surface text-ink-2")}>{item.sticky ? "📌 Odpni" : "📌 Pripni"}</button>
+                <button onClick={async () => { await dbDeleteItem(item.id); setShowDetail(null); }} className="flex-1 p-3 rounded-14 border border-danger/15 bg-transparent text-ink-3 text-14 font-semibold cursor-pointer">Zbriši</button>
               </div>
             </Modal>
           );
         })()}
-        <ConfirmModal action={confirmAction} onClose={() => setConfirmAction(null)} isDark={isDark} />
-      </div>
+        <ConfirmModal action={confirmAction} onClose={() => setConfirmAction(null)} />
+      </Screen>
     );
   }
 
@@ -450,53 +474,53 @@ export default function FreezerModule({
   const stepLabels = addStep < 2 ? [t('korak1'), t('korak2')] : [t('korak1'), t('korak2'), t('korak3')];
 
   return (
-    <div style={st.A}><div style={st.F1} /><div style={st.F2} />
-      <div style={{ position: "relative", zIndex: 1, padding: "16px 16px calc(100px + env(safe-area-inset-bottom))", minHeight: "100vh" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
-          <button onClick={() => { if (addStep === 0) setScreen("home"); else setAddStep(addStep - 1); }} style={{ background: "rgba(30,41,59,0.8)", border: "1px solid rgba(71,85,105,0.3)", borderRadius: 12, padding: "10px 16px", color: "#94A3B8", fontSize: 14, cursor: "pointer", fontWeight: 600 }}>{t('nazaj')}</button>
-          <h2 style={{ fontSize: 18, fontWeight: 800, margin: 0 }}>{t('dodajVZamrzovalnik')}</h2>
-          <button onClick={() => setScreen("home")} style={{ background: "rgba(30,41,59,0.8)", border: "1px solid rgba(71,85,105,0.3)", borderRadius: 12, width: 40, height: 40, color: "#94A3B8", fontSize: 18, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+    <Screen>
+      <div className="relative z-1 pt-4 px-4 pb-[calc(100px+env(safe-area-inset-bottom))] min-h-screen">
+        <div className="flex items-center justify-between mb-6">
+          <button onClick={() => { if (addStep === 0) setScreen("home"); else setAddStep(addStep - 1); }} className={BACK_BTN}>{t('nazaj')}</button>
+          <h2 className="text-18 font-extrabold">{t('dodajVZamrzovalnik')}</h2>
+          <button onClick={() => setScreen("home")} className="bg-field border border-line-strong rounded-12 w-10 h-10 text-ink-2 text-18 cursor-pointer flex items-center justify-center">✕</button>
         </div>
 
         {/* Progress - only show active steps */}
-        <div style={{ display: "flex", gap: 6, marginBottom: 28 }}>
-          {stepLabels.map((l, i) => <div key={i} style={{ flex: 1, textAlign: "center" }}><div style={{ height: 4, borderRadius: 2, marginBottom: 6, background: i <= addStep ? "linear-gradient(90deg,#0EA5E9,#6366F1)" : "rgba(51,65,85,0.5)" }} /><span style={{ fontSize: 11, color: i <= addStep ? "#38BDF8" : "#475569", fontWeight: 600 }}>{l}</span></div>)}
+        <div className="flex gap-1.5 mb-7">
+          {stepLabels.map((l, i) => <div key={i} className="flex-1 text-center"><div className={cx("h-1 rounded-2 mb-1.5", i <= addStep ? "bg-grad-primary" : "bg-handle/50")} /><span className={cx("text-11 font-semibold", i <= addStep ? "text-accent" : "text-ink-dim")}>{l}</span></div>)}
         </div>
 
         {/* STEP 0: Name + Category */}
         {addStep === 0 && (
           <div>
-            <label style={st.LBL}>{t('kajZamrzuješ')}</label>
-            <input ref={inputRef} value={addData.name} onChange={e => { setAddData(d => ({ ...d, name: e.target.value })); setSuggestions(e.target.value.length >= 2 ? SUGG.filter(s => s.n.toLowerCase().includes(e.target.value.toLowerCase())).slice(0, 5) : []); }} placeholder={t('primerekIskanja')} style={{ ...INP, fontSize: 17 }} />
-            {suggestions.length > 0 && <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 4 }}>{suggestions.map((s, i) => { const cat = categories[s.c] || CATS[s.c]; return <button key={i} onClick={() => { const exp = new Date(addData.frozen); exp.setMonth(exp.getMonth() + (cat?.months || 6)); setAddData(d => ({ ...d, name: s.n, cat: s.c, expiry: localDateStr(exp) })); setSuggestions([]); setAddStep(1); }} style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 14px", background: "rgba(30,41,59,0.8)", border: "1px solid rgba(71,85,105,0.3)", borderRadius: 14, color: "#E2E8F0", fontSize: 15, cursor: "pointer", textAlign: "left" }}><span style={{ fontSize: 22 }}>{cat?.icon}</span><div><div style={{ fontWeight: 600 }}>{s.n}</div><div style={{ fontSize: 12, color: cat?.color, fontWeight: 600 }}>{cat?.label} · rok {cat?.months} mes.</div></div></button>; })}</div>}
-            {addData.name.length >= 2 && suggestions.length === 0 && <div style={{ marginTop: 16 }}><p style={{ fontSize: 13, color: "#64748B", marginBottom: 10 }}>{t('izberiKategorijo')}</p><div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>{Object.entries(categories).map(([k, v]) => <button key={k} onClick={() => { const exp = new Date(addData.frozen); exp.setMonth(exp.getMonth() + (v.months || 6)); setAddData(d => ({ ...d, cat: k, expiry: localDateStr(exp) })); setAddStep(1); }} style={{ padding: "14px 6px", background: "rgba(30,41,59,0.6)", border: "1px solid rgba(71,85,105,0.2)", borderRadius: 14, color: "#E2E8F0", cursor: "pointer", textAlign: "center" }}><div style={{ fontSize: 24, marginBottom: 4 }}>{v.icon}</div><div style={{ fontSize: 11, fontWeight: 600, color: v.color }}>{v.label}</div></button>)}</div></div>}
+            <Label>{t('kajZamrzuješ')}</Label>
+            <input ref={inputRef} value={addData.name} onChange={e => { setAddData(d => ({ ...d, name: e.target.value })); setSuggestions(e.target.value.length >= 2 ? SUGG.filter(s => s.n.toLowerCase().includes(e.target.value.toLowerCase())).slice(0, 5) : []); }} placeholder={t('primerekIskanja')} className="w-full box-border px-4 py-3.5 bg-field border border-field-line rounded-14 text-ink outline-none font-medium text-17" />
+            {suggestions.length > 0 && <div className="mt-2 flex flex-col gap-1">{suggestions.map((s, i) => { const cat = categories[s.c] || CATS[s.c]; return <button key={i} onClick={() => { const exp = new Date(addData.frozen); exp.setMonth(exp.getMonth() + (cat?.months || 6)); setAddData(d => ({ ...d, name: s.n, cat: s.c, expiry: localDateStr(exp) })); setSuggestions([]); setAddStep(1); }} style={{ "--cat": cat?.color }} className="flex items-center gap-3 py-3.25 px-3.5 bg-field border border-line-strong rounded-14 text-ink text-15 cursor-pointer text-left"><span className="text-22">{cat?.icon}</span><div><div className="font-semibold">{s.n}</div><div className="text-12 font-semibold text-(--cat)">{cat?.label} · rok {cat?.months} mes.</div></div></button>; })}</div>}
+            {addData.name.length >= 2 && suggestions.length === 0 && <div className="mt-4"><p className="text-13 text-ink-3 mb-2.5">{t('izberiKategorijo')}</p><div className="grid grid-cols-3 gap-2">{Object.entries(categories).map(([k, v]) => <button key={k} onClick={() => { const exp = new Date(addData.frozen); exp.setMonth(exp.getMonth() + (v.months || 6)); setAddData(d => ({ ...d, cat: k, expiry: localDateStr(exp) })); setAddStep(1); }} style={{ "--cat": v.color }} className="py-3.5 px-1.5 bg-surface border border-line rounded-14 text-ink cursor-pointer text-center"><div className="text-24 mb-1">{v.icon}</div><div className="text-11 font-semibold text-(--cat)">{v.label}</div></button>)}</div></div>}
           </div>
         )}
 
         {/* STEP 1: Quantity + Quick summary + ADD or MORE OPTIONS */}
         {addStep === 1 && (
           <div>
-            <div style={{ textAlign: "center", marginBottom: 20 }}>
-              <span style={{ fontSize: 44 }}>{(categories[addData.cat] || CATS[addData.cat])?.icon}</span>
-              <h3 style={{ fontSize: 20, fontWeight: 700, margin: "8px 0 0" }}>{addData.name}</h3>
-              <span style={{ fontSize: 13, color: (categories[addData.cat] || CATS[addData.cat])?.color, fontWeight: 600 }}>{(categories[addData.cat] || CATS[addData.cat])?.label}</span>
+            <div className="text-center mb-5" style={{ "--cat": (categories[addData.cat] || CATS[addData.cat])?.color }}>
+              <span className="text-44">{(categories[addData.cat] || CATS[addData.cat])?.icon}</span>
+              <h3 className="text-20 font-bold mt-2">{addData.name}</h3>
+              <span className="text-13 font-semibold text-(--cat)">{(categories[addData.cat] || CATS[addData.cat])?.label}</span>
             </div>
 
-            <label style={st.LBL}>{t('količina')}</label>
-            <input ref={inputRef} value={addData.qty} onChange={e => setAddData(d => ({ ...d, qty: e.target.value }))} placeholder="npr. 500g, 2 kosa, 1L" style={{ ...INP, marginBottom: 8 }} />
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 20 }}>
-              {QO.map(q => <button key={q} onClick={() => setAddData(d => ({ ...d, qty: q }))} style={{ padding: "8px 12px", borderRadius: 12, border: "1px solid " + (addData.qty === q ? "rgba(99,102,241,0.5)" : "rgba(71,85,105,0.3)"), background: addData.qty === q ? "rgba(99,102,241,0.15)" : "rgba(30,41,59,0.5)", color: addData.qty === q ? "#818CF8" : "#94A3B8", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>{q}</button>)}
+            <Label>{t('količina')}</Label>
+            <Input ref={inputRef} value={addData.qty} onChange={e => setAddData(d => ({ ...d, qty: e.target.value }))} placeholder="npr. 500g, 2 kosa, 1L" className="mb-2" />
+            <div className="flex gap-1.5 flex-wrap mb-5">
+              {QO.map(q => <button key={q} onClick={() => setAddData(d => ({ ...d, qty: q }))} className={cx("py-2 px-3 rounded-12 border text-13 font-semibold cursor-pointer", addData.qty === q ? CHIP2_ON : CHIP_OFF)}>{q}</button>)}
             </div>
 
             {/* Auto-summary */}
-            <div style={{ padding: "14px 16px", background: "rgba(30,41,59,0.4)", borderRadius: 14, border: "1px solid rgba(71,85,105,0.15)", marginBottom: 20 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "#94A3B8", marginBottom: 6 }}>
+            <div className="py-3.5 px-4 bg-surface-2 rounded-14 border border-line mb-5">
+              <div className="flex justify-between text-13 text-ink-2 mb-1.5">
                 <span>{t('rokUporabe')}:</span>
-                <span style={{ color: "#22C55E", fontWeight: 700 }}>{addData.expiry ? fmtD(addData.expiry) : fmtD(recalc(addData.frozen, addData.cat))}</span>
+                <span className="text-success font-bold">{addData.expiry ? fmtD(addData.expiry) : fmtD(recalc(addData.frozen, addData.cat))}</span>
               </div>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "#94A3B8" }}>
+              <div className="flex justify-between text-13 text-ink-2">
                 <span>{t('zamrzovalnik')}:</span>
-                <span style={{ color: "#E2E8F0", fontWeight: 600 }}>{freezers.find(f => f.id === addData.freezer)?.icon} {freezers.find(f => f.id === addData.freezer)?.name}</span>
+                <span className="text-ink font-semibold">{freezers.find(f => f.id === addData.freezer)?.icon} {freezers.find(f => f.id === addData.freezer)?.name}</span>
               </div>
             </div>
 
@@ -505,39 +529,39 @@ export default function FreezerModule({
               await dbAddItem({ name: addData.name, cat: addData.cat, qty: addData.qty, packets: 1, label: "", frozen: addData.frozen, expiry: exp, freezer: addData.freezer, sticky: false });
               setScreen("home");
             }}>{t('dodajVZamrzovalnik')}</Btn>
-            <Btn v="ghost" disabled={!addData.qty} onClick={() => setAddStep(2)} style={{ marginTop: 8 }}>{t('večOpcij')}</Btn>
+            <Btn v="ghost" disabled={!addData.qty} onClick={() => setAddStep(2)} className="mt-2">{t('večOpcij')}</Btn>
           </div>
         )}
 
         {/* STEP 2: More options - packets, label, edit dates, freezer */}
         {addStep === 2 && (
           <div>
-            <div style={{ textAlign: "center", marginBottom: 20 }}>
-              <span style={{ fontSize: 44 }}>{(categories[addData.cat] || CATS[addData.cat])?.icon}</span>
-              <h3 style={{ fontSize: 20, fontWeight: 700, margin: "8px 0 0" }}>{addData.name}</h3>
-              <span style={{ fontSize: 13, color: "#64748B" }}>{addData.qty} · {(categories[addData.cat] || CATS[addData.cat])?.label}</span>
+            <div className="text-center mb-5">
+              <span className="text-44">{(categories[addData.cat] || CATS[addData.cat])?.icon}</span>
+              <h3 className="text-20 font-bold mt-2">{addData.name}</h3>
+              <span className="text-13 text-ink-3">{addData.qty} · {(categories[addData.cat] || CATS[addData.cat])?.label}</span>
             </div>
 
-            <label style={st.LBL}>{t('paketi')}</label>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 18 }}>
-              <button onClick={() => setAddData(d => ({ ...d, packets: Math.max(1, d.packets - 1) }))} style={{ width: 44, height: 44, borderRadius: 12, border: "1px solid rgba(71,85,105,0.3)", background: "rgba(30,41,59,0.6)", color: "#94A3B8", fontSize: 22, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
-              <span style={{ fontSize: 24, fontWeight: 800, minWidth: 32, textAlign: "center" }}>{addData.packets}</span>
-              <button onClick={() => setAddData(d => ({ ...d, packets: d.packets + 1 }))} style={{ width: 44, height: 44, borderRadius: 12, border: "1px solid rgba(99,102,241,0.3)", background: "rgba(99,102,241,0.1)", color: "#818CF8", fontSize: 22, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
-              <span style={{ fontSize: 13, color: "#64748B" }}>{t('paketov')}</span>
+            <Label>{t('paketi')}</Label>
+            <div className="flex items-center gap-3 mb-4.5">
+              <button onClick={() => setAddData(d => ({ ...d, packets: Math.max(1, d.packets - 1) }))} className={STEPPER_MINUS}>−</button>
+              <span className="text-24 font-extrabold min-w-8 text-center">{addData.packets}</span>
+              <button onClick={() => setAddData(d => ({ ...d, packets: d.packets + 1 }))} className={STEPPER_PLUS}>+</button>
+              <span className="text-13 text-ink-3">{t('paketov')}</span>
             </div>
 
-            <label style={st.LBL}>{t('labela')} <span style={{ fontWeight: 400, color: "#475569" }}>({t('opcijsko')})</span></label>
+            <Label>{t('labela')} <span className="font-normal text-ink-dim">({t('opcijsko')})</span></Label>
             <LabelInp value={addData.label} onChange={v => setAddData(d => ({ ...d, label: v }))} labels={existingLabels} placeholder={t('primerekLabele')} />
-            <div style={{ height: 16 }} />
+            <div className="h-4" />
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
-              <div><label style={st.LBL}>{t('zamrznjeno')}</label><input type="date" value={addData.frozen} onChange={e => { const f = e.target.value; setAddData(d => ({ ...d, frozen: f, expiry: recalc(f, d.cat) })); }} style={{ ...INP, colorScheme: "dark" }} /></div>
-              <div><label style={st.LBL}>{t('rokUporabe')}</label><input type="date" value={addData.expiry || recalc(addData.frozen, addData.cat)} onChange={e => setAddData(d => ({ ...d, expiry: e.target.value }))} style={{ ...INP, colorScheme: "dark" }} /></div>
+            <div className="grid grid-cols-2 gap-2.5 mb-3.5">
+              <div><Label>{t('zamrznjeno')}</Label><Input type="date" value={addData.frozen} onChange={e => { const f = e.target.value; setAddData(d => ({ ...d, frozen: f, expiry: recalc(f, d.cat) })); }} /></div>
+              <div><Label>{t('rokUporabe')}</Label><Input type="date" value={addData.expiry || recalc(addData.frozen, addData.cat)} onChange={e => setAddData(d => ({ ...d, expiry: e.target.value }))} /></div>
             </div>
 
-            <label style={st.LBL}>{t('zamrzovalnik')}</label>
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 24 }}>
-              {freezers.map(f => <button key={f.id} onClick={() => setAddData(d => ({ ...d, freezer: f.id }))} style={{ padding: "10px 16px", borderRadius: 14, border: "1px solid " + (addData.freezer === f.id ? "rgba(56,189,248,0.5)" : "rgba(71,85,105,0.3)"), background: addData.freezer === f.id ? "rgba(56,189,248,0.12)" : "rgba(30,41,59,0.5)", color: addData.freezer === f.id ? "#38BDF8" : "#94A3B8", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>{f.icon} {f.name}</button>)}
+            <Label>{t('zamrzovalnik')}</Label>
+            <div className="flex gap-2 flex-wrap mb-6">
+              {freezers.map(f => <button key={f.id} onClick={() => setAddData(d => ({ ...d, freezer: f.id }))} className={cx("py-2.5 px-4 rounded-14 border text-14 font-bold cursor-pointer", addData.freezer === f.id ? CHIP_ON : CHIP_OFF)}>{f.icon} {f.name}</button>)}
             </div>
 
             <Btn v="success" onClick={async () => {
@@ -548,6 +572,6 @@ export default function FreezerModule({
           </div>
         )}
       </div>
-    </div>
+    </Screen>
   );
 }

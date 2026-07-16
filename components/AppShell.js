@@ -297,7 +297,7 @@ export default function AppShell({ user, household, members, signOut }) {
   return (
     <>
       <FreezerModule
-        isDark={isDark} st={st} lang={lang}
+        lang={lang}
         items={items} dbAddItem={dbAddItem} dbUpdateItem={dbUpdateItem} dbDeleteItem={dbDeleteItem}
         archived={archived} dbArchiveItem={dbArchiveItem} dbUpdateArchived={dbUpdateArchived} dbDeleteArchived={dbDeleteArchived} dbUnarchiveItem={dbUnarchiveItem}
         freezers={freezers} dbAddFreezer={dbAddFreezer} categories={categories}

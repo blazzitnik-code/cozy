@@ -1,0 +1,15 @@
+{
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[javascriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "tailwindCSS.classFunctions": ["cx"],
+  "tailwindCSS.experimental.classRegex": [
+    ["cx\\(([^)]*)\\)", "['\"`]([^'\"`]*)['\"`]"],
+    ["const [A-Z][A-Z0-9_]+ = ['\"`]([^'\"`]*)['\"`]"],
+    ["[A-Z][A-Z0-9_]*\\s*=\\s*\\{([^}]*)\\}", "['\"`]([^'\"`]*)['\"`]"]
+  ]
+}

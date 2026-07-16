@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
 import { useTranslations } from 'next-intl';
 import { subscribeToErrors } from '@/lib/notify';
 import { cx } from '@/lib/utils';
@@ -254,7 +255,10 @@ export function IconButton({ onClick, children, className, ...rest }) {
 export function Fab({ onClick, children = '+', className, ...rest }) {
   const t = useTranslations('A11y');
   return (
-    <button
+    <motion.button
+      initial={{ scale: 0.9, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      transition={SPRING_FAST}
       onClick={onClick}
       aria-label={t('add')}
       className={cx(
@@ -265,7 +269,7 @@ export function Fab({ onClick, children = '+', className, ...rest }) {
       {...rest}
     >
       {children}
-    </button>
+    </motion.button>
   );
 }
 
@@ -318,17 +322,28 @@ export function Badge({ children, className, style }) {
 }
 
 // ─── MODAL (bottom sheet) ───
+// Entrance-only by design: call sites conditional-render ({state && <Modal>})
+// and close via their own state setters, so an exit animation can't run.
 export function Modal({ children, onClose }) {
   return (
-    <div onClick={onClose} className="fixed inset-0 z-100 flex items-end justify-center bg-black/70 backdrop-blur-sm">
-      <div
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.15 }}
+      onClick={onClose}
+      className="fixed inset-0 z-100 flex items-end justify-center bg-black/70 backdrop-blur-sm"
+    >
+      <motion.div
+        initial={{ y: 24, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={SPRING_FAST}
         onClick={(e) => e.stopPropagation()}
         className="max-h-[85vh] w-full max-w-[430px] overflow-y-auto rounded-t-3xl border border-b-0 border-indigo-500/20 bg-linear-to-b from-white to-indigo-50 px-5 pt-6 pb-9 dark:border-slate-600/30 dark:from-slate-800 dark:to-slate-900"
       >
         <div className="mx-auto mb-5 h-1 w-9 rounded-xs bg-slate-300 dark:bg-slate-700" />
         {children}
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
 
@@ -412,19 +427,27 @@ export function Toaster() {
       }),
     [],
   );
-  if (toasts.length === 0) return null;
+  // Container stays mounted while empty (pointer-events-none, harmless) so
+  // AnimatePresence can play toast exits.
   return (
     <div className="pointer-events-none fixed top-[calc(12px+env(safe-area-inset-top))] left-1/2 z-300 flex w-[calc(100%-32px)] max-w-[398px] -translate-x-1/2 flex-col gap-2">
-      {toasts.map((toast) => (
-        <div
-          key={toast.id}
-          onClick={() => setToasts((ts) => ts.filter((x) => x.id !== toast.id))}
-          className="pointer-events-auto flex cursor-pointer items-center gap-2.5 rounded-xl border border-red-500/40 bg-red-950/95 px-3.5 py-3 text-sm font-semibold text-red-300 shadow-lg shadow-black/40 backdrop-blur-sm"
-        >
-          <span className="text-base">⚠️</span>
-          <span className="flex-1">{t.has(toast.message) ? t(toast.message) : toast.message}</span>
-        </div>
-      ))}
+      <AnimatePresence initial={false}>
+        {toasts.map((toast) => (
+          <motion.div
+            key={toast.id}
+            layout
+            initial={{ opacity: 0, y: -12, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -8, scale: 0.97 }}
+            transition={SPRING_FAST}
+            onClick={() => setToasts((ts) => ts.filter((x) => x.id !== toast.id))}
+            className="pointer-events-auto flex cursor-pointer items-center gap-2.5 rounded-xl border border-red-500/40 bg-red-950/95 px-3.5 py-3 text-sm font-semibold text-red-300 shadow-lg shadow-black/40 backdrop-blur-sm"
+          >
+            <span className="text-base">⚠️</span>
+            <span className="flex-1">{t.has(toast.message) ? t(toast.message) : toast.message}</span>
+          </motion.div>
+        ))}
+      </AnimatePresence>
     </div>
   );
 }

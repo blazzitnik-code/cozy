@@ -256,7 +256,7 @@ export default function AppShell({ user, household, members, signOut }) {
     return (
       <>
         <CalendarModule
-          user={user} isDark={isDark} st={st}
+          user={user}
           calDate={calDate} setCalDate={setCalDate}
           calConnections={calConnections} calConnection={calConnection} calConnected={calConnected}
           connectCalendar={connectCalendar} calLoading={calLoading}

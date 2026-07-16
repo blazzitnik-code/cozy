@@ -4,6 +4,7 @@ import { useItems, useArchived, useFreezers, useCategories, useShoppingItems, us
 import { useT } from '@/lib/i18n';
 import { supabase } from '@/lib/supabase';
 import { getStyles, A } from '@/lib/styles';
+import { localDateStr } from '@/lib/utils';
 import { Modal, ConfirmModal, BottomNav, Toaster } from './ui';
 import { notifyError } from '@/lib/notify';
 import TodoApp from './TodoApp';
@@ -55,8 +56,8 @@ export default function AppShell({ user, household, members, signOut }) {
   const [calDate, setCalDate] = useState(new Date());
   const [calLoading, setCalLoading] = useState(false);
   const { connections: calConnections, myConnection: calConnection, isConnected: calConnected, saveConnection: saveCalConnection, removeConnection: removeCalConnection, saveEvents: saveCalEvents } = useCalendarConnections(householdId, user.id);
-  const calDateStr = calDate.toISOString().split('T')[0];
-  const todayStr = useMemo(() => new Date().toISOString().split('T')[0], []);
+  const calDateStr = localDateStr(calDate);
+  const todayStr = useMemo(() => localDateStr(), []);
   const { events: allCalEvents, refetch: refetchCalEvents } = useCalendarEvents(householdId, calDateStr);
   const { events: todayCalEvents, updateEvent: updateCalEvent } = useCalendarEvents(householdId, todayStr);
   const [myFetchedEvents, setMyFetchedEvents] = useState([]);
@@ -74,7 +75,7 @@ export default function AppShell({ user, household, members, signOut }) {
     if (!token) return;
     setCalLoading(true);
     try {
-      const dateStr = date instanceof Date ? date.toISOString().split('T')[0] : date;
+      const dateStr = date instanceof Date ? localDateStr(date) : date;
       const start = new Date(date); start.setHours(0, 0, 0, 0);
       const end = new Date(date); end.setHours(23, 59, 59, 999);
       const res = await fetch(

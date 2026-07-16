@@ -7,7 +7,7 @@
 ## Stack and commands
 
 - Next.js 16 app router (JS, no TypeScript, Turbopack), React 19, Supabase JS v2.
-- **Tailwind 4 utility classes everywhere** — the vocabulary is defined in `app/globals.css` (`@theme inline` + `@utility`). Inline `style` props are allowed ONLY for the documented dynamic cases (see Theming). No CSS modules, no styled-components.
+- **Stock Tailwind 4 utility classes everywhere** — no custom tokens, no `@utility`, no CSS modules/styled-components. `app/globals.css` contains ONLY the import, the `dark` custom variant and the Outfit font. Inline `style` props are allowed ONLY for the documented dynamic cases (see Theming).
 - `npm run dev` — app on http://localhost:3000
 - `npx supabase start|stop|status` — local stack in Docker, ports **55321+** (API 55321, DB 55322, Studio 55323; intentionally non-default to avoid clashing with other projects)
 - `npx supabase db reset` — re-runs `supabase/migrations/` + `supabase/seed.sql` (wipes local data)
@@ -64,11 +64,13 @@ Architecture: data hooks live in AppShell and flow into modules via props — mo
 
 ## Theming
 
-- Design tokens are CSS custom properties in `app/globals.css`: `:root` = dark (default), `:root[data-theme="light"]` = light. The saved theme is applied pre-paint by an inline script in `app/layout.js`; `switchTheme` in AppShell toggles `<html data-theme>` + localStorage (`zmrzko_theme`).
-- The `@theme inline` block in `globals.css` exposes tokens as Tailwind utilities: `bg-surface`, `bg-surface-2`, `bg-surface-solid`, `text-ink`/`ink-2`/`ink-3`/`ink-dim`, `border-line`/`line-strong`, `bg-field`/`border-field-line`, accent families (`accent`, `accent-2/3`, `amber`, `danger`, `success`, `me`, `partner`) with `/N` opacity modifiers, px-named `text-13`/`rounded-14` scales, `max-w-app`, `shadow-pop`/`shadow-fab`. Gradients are `@utility` classes (`bg-app`, `bg-modal`, `bg-grad-*`, `text-gradient`). Utilities follow the theme automatically — **`dark:`/`light:` variants are forbidden**; theming happens in tokens only.
-- Default Tailwind palettes are wiped (`--color-*: initial`) — a `bg-slate-800` etc. renders unstyled on purpose.
-- **Rule: new colors go through tokens only — no new hardcoded hex/rgba.** Audit: `grep -rnE '#[0-9A-Fa-f]{3,8}\b|rgba?\(' app components lib --include='*.js' | grep -vE 'lib/constants\.js|fill="#|themeColor'` must stay empty (exclusions: CATS data colors, the Google logo SVG, the PWA themeColor meta).
-- Inline `style` props are allowed ONLY for truly runtime-dynamic values: CSS-var bridges for data-driven colors (`style={{'--cat': cat.color}}` + `bg-(--cat)/13`), computed widths/heights (progress bars, chart bars), and drag transforms (SwipeCard). Everything else is a class.
+- **Stock Tailwind v4 utilities only** — no custom `@theme` tokens, no `@utility` classes. `app/globals.css` is just: the tailwind import, the `dark` custom variant, and `--font-sans` (Outfit).
+- Dark mode: `@custom-variant dark` bound to `<html data-theme="dark">`. `layout.js` ships `data-theme="dark"` (app default) + `suppressHydrationWarning`; its pre-paint script applies the saved localStorage `zmrzko_theme`; `switchTheme` in AppShell toggles the attribute. Base page classes (bg/text/scheme) live on `<html>` in layout.js.
+- Convention: **unprefixed classes = light theme, `dark:` = dark theme.** Accents are theme-invariant and take no `dark:`: `sky-400` (accent), `indigo-500`/`indigo-400`, `amber-500`, `red-500` (danger), `green-500` (success), `purple-500` (todo/due), `indigo-500` (me) / `pink-500` (partner) calendar lanes, `violet-300` (nav active).
+- Palette recipe: page `bg-indigo-50 dark:bg-slate-950`; cards `bg-white/80 border-indigo-500/15 dark:bg-slate-800/60 dark:border-slate-600/20`; inputs `bg-white/90 border-indigo-500/25 dark:bg-slate-800/80 dark:border-indigo-500/30`; text `slate-800/500/400/300` ↔ `dark:slate-200/400/500/600` (primary → dim). Gradients via `bg-linear-135 from-… to-…` / `bg-radial`; gradient text via `bg-clip-text text-transparent`.
+- **Rule: no hardcoded hex/rgba.** Audit: `grep -rnE '#[0-9A-Fa-f]{3,8}\b|rgba?\(' app components lib --include='*.js' | grep -vE 'lib/constants\.js|fill="#|themeColor'` must stay empty (exclusions: CATS data colors, the Google logo SVG, the PWA themeColor meta).
+- Arbitrary values only where stock has no equivalent: app frame `max-w-[430px]`, `text-[9px]`/`text-[10px]` micro-captions, `env(safe-area-inset-*)`/`calc()` offsets, `tracking-[…]`, scrollbar hiding (`[scrollbar-width:none] [&::-webkit-scrollbar]:hidden`).
+- Inline `style` props are allowed ONLY for truly runtime-dynamic values: CSS-var bridges for data-driven colors (`style={{'--cat': cat.color}}` + `bg-(--cat)/13`), computed widths/heights (progress bars, chart bars), drag transforms (SwipeCard), Avatar size. Everything else is a class.
 - Conditional classes use `cx()` from `lib/utils.js` with **full literal class strings** — never concatenate class-name fragments (Tailwind's scanner can't see them).
 - Errors: failed DB writes surface via `notifyError()` (`lib/notify.js`) → `<Toaster />`; never swallow write errors silently.
 
@@ -76,7 +78,7 @@ Architecture: data hooks live in AppShell and flow into modules via props — mo
 
 - One module = one file in `components/`; DB logic lives exclusively in `lib/hooks.js`.
 - **Code comments (JS/SQL/config/env) in English**; UI strings in Slovenian. Exception: `raise exception` messages in RPC functions are Slovenian because the app shows them to the user (`setError(e.message)`).
-- Tailwind utility classes (see Theming); slate/indigo palette (#0B1120 background, #E2E8F0 text, accents #38BDF8/#6366F1/#F59E0B) defined exclusively in `globals.css` tokens.
+- Stock Tailwind utility classes (see Theming); slate/indigo palette with sky/amber accents, light + dark via the `dark:` variant.
 - UI strings in Slovenian directly in JSX (i18n via `useT` is half-implemented — don't extend it without agreeing first).
 - Dates: `sl-SI` locale, formatted via `toLocaleDateString`.
 
@@ -93,4 +95,4 @@ Architecture: data hooks live in AppShell and flow into modules via props — mo
 4. ~~Split `ZmrzkoApp.js` into modules (AppShell + HomeScreen/Freezer/Shopping/Calendar + ui.js)~~ ✅
 5. ~~Toast error handling + timezone fix + CSS design-token theming foundation~~ ✅
 6. i18n refactor with **next-intl** ("without i18n routing" mode — client app, locale from settings, SL + EN) replacing the ad-hoc `useT`
-7. Theme design migration: ~~unify all styling onto Tailwind utilities + tokens~~ ✅ → Nik provides the visual design → restyle by editing the token values (+ component classes in `ui.js`) — modules should barely change
+7. Theme design migration: ~~unify all styling onto stock Tailwind utilities (light + dark via `dark:`)~~ ✅ → Nik provides the visual design → restyle by editing classes, mostly in `components/ui.js` and the shared class-map constants

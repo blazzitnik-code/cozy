@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useHomeSettings } from '@/lib/hooks';
 
 const LPP_BASE = 'https://data.lpp.si/api';
-const BIKE_API_KEY = 'f2039f5621c56592746c92bd0e4bf49b392647a0';
+const BIKE_API_KEY = process.env.NEXT_PUBLIC_BICIKELJ_API_KEY;
 const BIKE_CONTRACT = 'ljubljana';
 
 async function fetchLppStations() {

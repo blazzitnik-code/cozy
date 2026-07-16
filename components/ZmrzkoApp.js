@@ -1,11 +1,10 @@
 'use client';
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
-import { useItems, useArchived, useFreezers, useCategories, useShoppingItems, useShoppingArchived, useShoppingFavourites, useShoppingStores, useCalendarConnections, useCalendarEvents, normalizujNiz } from '@/lib/hooks';
+import { useItems, useArchived, useFreezers, useCategories, useShoppingItems, useShoppingArchived, useShoppingFavourites, useShoppingStores, useCalendarConnections, useCalendarEvents, useTodoLists, useTodoItems, normalizujNiz } from '@/lib/hooks';
 import { useT } from '@/lib/i18n';
 import { supabase } from '@/lib/supabase';
 import TodoApp from './TodoApp';
 import HomeModule from './HomeModule';
-import { useTodoLists, useTodoItems } from '@/lib/hooks';
 
 // ─── CATEGORIES ───
 const CATS = {
@@ -78,7 +77,7 @@ const CCOLS = ["#EF4444", "#F97316", "#F59E0B", "#22C55E", "#0EA5E9", "#6366F1",
 const QO = ["100g", "250g", "500g", "1kg", "1 kos", "2 kosa", "500ml", "1L"];
 
 // ─── STYLES ───
-// Dinamični stili glede na temo - definirani v komponenti kjer je `isDark` dostopen
+// Theme-dependent styles — resolved via getStyles(isDark) inside components where the theme is known
 const getStyles = (isDark) => ({
   A: { maxWidth: 430, margin: "0 auto", minHeight: "100vh", position: "relative", overflow: "hidden", background: isDark ? "linear-gradient(180deg,#0B1120 0%,#111827 40%,#0F172A 100%)" : "linear-gradient(180deg,#F0F4FF 0%,#E8EEFF 40%,#EEF2FF 100%)", color: isDark ? "#E2E8F0" : "#1E293B", fontFamily: "'Outfit','DM Sans',-apple-system,sans-serif" },
   F1: { position: "absolute", top: -60, right: -60, width: 200, height: 200, background: isDark ? "radial-gradient(circle,rgba(56,189,248,0.08) 0%,transparent 70%)" : "radial-gradient(circle,rgba(56,189,248,0.15) 0%,transparent 70%)", borderRadius: "50%", pointerEvents: "none" },
@@ -96,7 +95,7 @@ const getStyles = (isDark) => ({
   modalHandle: isDark ? "#334155" : "#CBD5E1",
 });
 
-// Statični stili (brez teme)
+// Static styles (theme-agnostic)
 const A = { maxWidth: 430, margin: "0 auto", minHeight: "100vh", position: "relative", overflow: "hidden", background: "linear-gradient(180deg,#0B1120 0%,#111827 40%,#0F172A 100%)", color: "#E2E8F0", fontFamily: "'Outfit','DM Sans',-apple-system,sans-serif" };
 const F1 = { position: "absolute", top: -60, right: -60, width: 200, height: 200, background: "radial-gradient(circle,rgba(56,189,248,0.08) 0%,transparent 70%)", borderRadius: "50%", pointerEvents: "none" };
 const F2 = { position: "absolute", bottom: 100, left: -80, width: 250, height: 250, background: "radial-gradient(circle,rgba(99,102,241,0.06) 0%,transparent 70%)", borderRadius: "50%", pointerEvents: "none" };
@@ -225,7 +224,7 @@ function FreezerDD({ freezers, selected, onChange, onAdd }) {
     {open && <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, minWidth: 220, background: "#1E293B", border: "1px solid rgba(71,85,105,0.4)", borderRadius: 16, padding: 6, zIndex: 60, boxShadow: "0 12px 40px rgba(0,0,0,0.5)" }}>
       <button onClick={() => { toggle("all"); setOpen(false); }} style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 12, border: "none", background: allSel ? "rgba(56,189,248,0.12)" : "transparent", color: allSel ? "#38BDF8" : "#94A3B8", fontSize: 14, fontWeight: 600, cursor: "pointer", textAlign: "left" }}><span style={{ width: 18, height: 18, borderRadius: 4, border: "2px solid " + (allSel ? "#38BDF8" : "#475569"), background: allSel ? "#38BDF8" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "#fff", flexShrink: 0 }}>{allSel ? "✓" : ""}</span> Vse</button>
       {freezers.map(f => { const on = allSel || selected.includes(f.id); return <button key={f.id} onClick={() => toggle(f.id)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 12, border: "none", background: (!allSel && on) ? "rgba(56,189,248,0.08)" : "transparent", color: on ? "#E2E8F0" : "#64748B", fontSize: 14, fontWeight: 600, cursor: "pointer", textAlign: "left" }}><span style={{ width: 18, height: 18, borderRadius: 4, border: "2px solid " + ((!allSel && on) ? "#38BDF8" : "#475569"), background: (!allSel && on) ? "#38BDF8" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "#fff", flexShrink: 0 }}>{(!allSel && on) ? "✓" : ""}</span> {f.icon} {f.name}</button>; })}
-      {/* DODAJ NOV ZAMRZOVALNIK */}
+      {/* ADD NEW FREEZER */}
       <div style={{ borderTop: "1px solid rgba(71,85,105,0.3)", marginTop: 6, paddingTop: 6 }}>
         {!showAdd ? (
           <button onClick={() => setShowAdd(true)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 12, border: "none", background: "transparent", color: "#38BDF8", fontSize: 13, fontWeight: 600, cursor: "pointer", textAlign: "left" }}>+ Nov zamrzovalnik</button>
@@ -308,7 +307,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
   // ─── MODE: home | freezer | shopping | calendar | more ───
   const [mode, setMode] = useState("home");
 
-  // ─── JEZIK ───
+  // ─── LANGUAGE ───
   const [lang, setLang] = useState(() => {
     if (typeof window !== 'undefined') return localStorage.getItem('zmrzko_lang') || 'sl';
     return 'sl';
@@ -316,7 +315,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
   const t = useT(lang);
   const switchLang = (l) => { setLang(l); localStorage.setItem('zmrzko_lang', l); };
 
-  // ─── TEMA ───
+  // ─── THEME ───
   const [theme, setTheme] = useState(() => {
     if (typeof window !== 'undefined') return localStorage.getItem('zmrzko_theme') || 'dark';
     return 'dark';
@@ -507,7 +506,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
   // ─── SHOPPING LOGIC ───
   const shopVisible = activeStore === "all" ? shopItems : shopItems.filter(i => i.store === activeStore);
 
-  // ─── PAMETNA KATEGORIZACIJA ───
+  // ─── SMART CATEGORIZATION ───
   const detectCategory = (name) => {
     const n = name.toLowerCase();
     if (/zamrz|led|sladoled|ice/.test(n)) return { key: "zamrznjeno", label: "🧊 Zamrznjeno", order: 1 };
@@ -526,12 +525,12 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
   const sortedShop = useMemo(() => {
     const unchecked = shopVisible.filter(i => !i.checked);
     const checked = shopVisible.filter(i => i.checked);
-    // Uredi po sort_order če obstaja, sicer po created_at
+    // Sort by sort_order when present, otherwise by created_at
     const sortFn = (a, b) => (a.sort_order ?? 999) - (b.sort_order ?? 999);
     return [...unchecked.sort(sortFn), ...checked];
   }, [shopVisible]);
 
-  // Grupiraj po kategorijah za single-store view
+  // Group by category for the single-store view
   const shopByCategory = useMemo(() => {
     const unchecked = sortedShop.filter(i => !i.checked);
     const checked = sortedShop.filter(i => i.checked);
@@ -648,7 +647,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
           <p style={{ color: "#64748B", fontSize: 13, margin: 0 }}>Prijavljen kot {user.user_metadata?.full_name || user.email}</p>
         </div>
 
-        {/* JEZIK SWITCHER */}
+        {/* LANGUAGE SWITCHER */}
         <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
           {['sl', 'en'].map(l => (
             <button key={l} onClick={() => switchLang(l)} style={{ flex: 1, padding: "10px", borderRadius: 12, border: "1px solid " + (lang === l ? "rgba(56,189,248,0.5)" : isDark ? "rgba(71,85,105,0.3)" : "rgba(99,102,241,0.2)"), background: lang === l ? "rgba(56,189,248,0.12)" : isDark ? "rgba(30,41,59,0.6)" : "rgba(255,255,255,0.8)", color: lang === l ? "#38BDF8" : isDark ? "#94A3B8" : "#64748B", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
@@ -657,7 +656,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
           ))}
         </div>
 
-        {/* TEMA SWITCHER */}
+        {/* THEME SWITCHER */}
         <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
           {[['dark', '🌙 Temna'], ['light', '☀️ Svetla']].map(([th, label]) => (
             <button key={th} onClick={() => switchTheme(th)} style={{ flex: 1, padding: "10px", borderRadius: 12, border: "1px solid " + (theme === th ? "rgba(99,102,241,0.5)" : isDark ? "rgba(71,85,105,0.3)" : "rgba(99,102,241,0.2)"), background: theme === th ? "rgba(99,102,241,0.15)" : isDark ? "rgba(30,41,59,0.6)" : "rgba(255,255,255,0.8)", color: theme === th ? "#818CF8" : isDark ? "#94A3B8" : "#64748B", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
@@ -1183,7 +1182,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
             )}
           </div>
 
-          {/* Count + Kupljeno */}
+          {/* Count + "Bought" button */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
             <span style={{ fontSize: 13, color: "#64748B" }}>{uncheckedCount} za kupiti{checkedCount > 0 ? ` · ${checkedCount} ✓` : ""}</span>
             {checkedCount > 0 && (
@@ -1191,7 +1190,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
             )}
           </div>
 
-          {/* Items - vedno grupirano po kategorijah */}
+          {/* Items — always grouped by category */}
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             {shopByCategory.groups.map(group => (
               <div key={group.label}>
@@ -1401,7 +1400,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
     return (
       <div style={st.A}><div style={st.F1} /><div style={st.F2} />
 
-        {/* MODAL - EDIT ARHIVIRANEGA ITEMA */}
+        {/* MODAL — EDIT ARCHIVED ITEM */}
         {editArchived && (
           <div onClick={() => setEditArchived(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 200 }}>
             <div onClick={e => e.stopPropagation()} style={{ background: "linear-gradient(180deg,#1E293B,#0F172A)", borderRadius: "24px 24px 0 0", width: "100%", maxWidth: 430, padding: "24px 20px 36px", border: "1px solid rgba(71,85,105,0.3)", borderBottom: "none" }}>
@@ -1751,7 +1750,7 @@ export default function ZmrzkoApp({ user, household, members, signOut }) {
           </div>
         )}
 
-        {/* STEP 1: Quantity + Quick summary + DODAJ or VEČ OPCIJ */}
+        {/* STEP 1: Quantity + Quick summary + ADD or MORE OPTIONS */}
         {addStep === 1 && (
           <div>
             <div style={{ textAlign: "center", marginBottom: 20 }}>

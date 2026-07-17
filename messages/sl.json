@@ -84,7 +84,14 @@
     "connected": "✓ Povezan",
     "disconnect": "Odklopi",
     "disconnectConfirm": "Odklopi Google Koledar?",
-    "connectCalendar": "📅 Poveži Google Koledar"
+    "connectCalendar": "📅 Poveži Google Koledar",
+    "notifications": "🔔 Obvestila",
+    "notificationsEnable": "🔔 Vklopi obvestila na tej napravi",
+    "notificationsEnabled": "✓ Obvestila vklopljena",
+    "notificationsDisable": "Izklopi",
+    "notificationsDenied": "Obvestila so blokirana v nastavitvah brskalnika.",
+    "notificationsIosHint": "Za obvestila najprej dodaj aplikacijo na začetni zaslon: Deli → Dodaj na začetni zaslon (iOS 16.4+).",
+    "notificationsUnsupported": "Ta brskalnik ne podpira potisnih obvestil."
   },
   "Categories": {
     "perutnina": "Perutnina",
@@ -295,6 +302,8 @@
     "calendarConnectFailed": "Povezava koledarja ni uspela",
     "eventsSaveFailed": "Shranjevanje dogodkov ni uspelo",
     "settingsSaveFailed": "Shranjevanje nastavitev ni uspelo",
+    "pushSubscribeFailed": "Vklop obvestil ni uspel",
+    "pushUnsubscribeFailed": "Izklop obvestil ni uspel",
     "rpc": {
       "invalidCode": "Neveljavna koda",
       "memberMissing": "Član ne obstaja",

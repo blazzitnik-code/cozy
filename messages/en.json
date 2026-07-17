@@ -84,7 +84,14 @@
     "connected": "✓ Connected",
     "disconnect": "Disconnect",
     "disconnectConfirm": "Disconnect Google Calendar?",
-    "connectCalendar": "📅 Connect Google Calendar"
+    "connectCalendar": "📅 Connect Google Calendar",
+    "notifications": "🔔 Notifications",
+    "notificationsEnable": "🔔 Enable notifications on this device",
+    "notificationsEnabled": "✓ Notifications enabled",
+    "notificationsDisable": "Turn off",
+    "notificationsDenied": "Notifications are blocked in your browser settings.",
+    "notificationsIosHint": "To get notifications, first add the app to your home screen: Share → Add to Home Screen (iOS 16.4+).",
+    "notificationsUnsupported": "This browser does not support push notifications."
   },
   "Categories": {
     "perutnina": "Poultry",
@@ -295,6 +302,8 @@
     "calendarConnectFailed": "Calendar connection failed",
     "eventsSaveFailed": "Saving events failed",
     "settingsSaveFailed": "Saving settings failed",
+    "pushSubscribeFailed": "Enabling notifications failed",
+    "pushUnsubscribeFailed": "Disabling notifications failed",
     "rpc": {
       "invalidCode": "Invalid code",
       "memberMissing": "Member does not exist",

@@ -12,13 +12,14 @@ import {
   useCalendarConnections,
   useCalendarEvents,
   useTodoLists,
+  usePushSubscription,
 } from '@/lib/hooks';
 import { useTranslations } from 'next-intl';
 import { useLocaleSwitch } from './IntlProvider';
 import { rpcErrorKey } from '@/lib/intl';
 import { supabase } from '@/lib/supabase';
-import { localDateStr } from '@/lib/utils';
-import { Modal, ConfirmModal, BottomNav, Toaster, Loader, Segmented, Avatar } from './ui';
+import { cx, localDateStr } from '@/lib/utils';
+import { Modal, ConfirmModal, BottomNav, Toaster, Loader, Segmented, Avatar, PRESS, PRESS_SM } from './ui';
 import { notifyError } from '@/lib/notify';
 import TodoApp from './TodoApp';
 import HomeScreen from './HomeScreen';
@@ -32,11 +33,35 @@ import CalendarModule from './CalendarModule';
 // orchestration and the settings modal; modules get data via props.
 // Language lives in IntlProvider (next-intl); modules read it via hooks.
 // ═══════════════════════════
+const VALID_TABS = ['home', 'freezer', 'shopping', 'calendar', 'todo'];
+
 export default function AppShell({ user, household, members, signOut }) {
   const householdId = household?.id;
 
   // ─── MODE: home | freezer | shopping | calendar | todo ───
-  const [mode, setMode] = useState('home');
+  // Initialized from the URL hash so notification deep-links (/#shopping)
+  // land on the right tab even on a cold start.
+  const [mode, setMode] = useState(() => {
+    if (typeof window !== 'undefined' && VALID_TABS.includes(window.location.hash.slice(1))) {
+      return window.location.hash.slice(1);
+    }
+    return 'home';
+  });
+
+  // Notification clicks in a running app arrive as hash changes
+  // (sw.js → ServiceWorkerRegistrar → location.hash).
+  useEffect(() => {
+    const onHash = () => {
+      const tab = window.location.hash.slice(1);
+      if (VALID_TABS.includes(tab)) {
+        setMode(tab);
+        history.replaceState(null, '', window.location.pathname);
+      }
+    };
+    onHash(); // consume (and clear) a cold-start hash
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
 
   // ─── THEME ───
   const [theme, setTheme] = useState(() => {
@@ -82,6 +107,12 @@ export default function AppShell({ user, household, members, signOut }) {
   } = useShoppingStores(householdId);
   const { lists: todoLists } = useTodoLists(householdId);
 
+  // ─── WEB PUSH ───
+  // locale is needed here (not just in SettingsModal) because the
+  // subscription row stores it for server-side notification language.
+  const { locale: pushLocale } = useLocaleSwitch();
+  const push = usePushSubscription(householdId, user.id, pushLocale);
+
   // ─── CALENDAR STATE ───
   const [calDate, setCalDate] = useState(new Date());
   const [calLoading, setCalLoading] = useState(false);
@@ -106,6 +137,21 @@ export default function AppShell({ user, household, members, signOut }) {
   // ─── NAVIGATION ───
   const navigate = useCallback((tab) => setMode(tab), []);
   const openSettings = useCallback(() => setShowSettings(true), []);
+
+  // Best-effort hygiene before signing out on a shared browser: drop this
+  // device's push subscription and the cached Supabase REST responses.
+  const handleSignOut = async () => {
+    try {
+      if (push.subscribed) await push.disable();
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.filter((k) => k.startsWith('cozy-data')).map((k) => caches.delete(k)));
+      }
+    } catch (e) {
+      console.error('sign-out cleanup failed', e);
+    }
+    signOut();
+  };
 
   // ─── CALENDAR LOGIC ───
   const fetchCalEvents = useCallback(
@@ -324,8 +370,45 @@ export default function AppShell({ user, household, members, signOut }) {
           )}
         </div>
 
+        {/* Notifications */}
+        <div className="mb-5">
+          <div className="mb-2.5 text-sm font-bold text-slate-500 dark:text-slate-400">{t('notifications')}</div>
+          {push.needsInstall ? (
+            <p className="text-xs text-slate-400 dark:text-slate-500">{t('notificationsIosHint')}</p>
+          ) : !push.supported ? (
+            <p className="text-xs text-slate-400 dark:text-slate-500">{t('notificationsUnsupported')}</p>
+          ) : push.permission === 'denied' ? (
+            <p className="text-xs text-slate-400 dark:text-slate-500">{t('notificationsDenied')}</p>
+          ) : push.subscribed ? (
+            <div className="flex items-center gap-2.5 rounded-xl border border-green-500/20 bg-green-500/6 px-3.5 py-3">
+              <div className="flex-1 text-sm font-bold text-green-500">{t('notificationsEnabled')}</div>
+              <button
+                onClick={push.disable}
+                disabled={push.busy}
+                className={cx(
+                  PRESS_SM,
+                  'cursor-pointer rounded-lg border border-red-500/20 bg-red-500/8 px-2.5 py-1.5 text-xs font-semibold text-red-500',
+                )}
+              >
+                {t('notificationsDisable')}
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={push.enable}
+              disabled={push.busy}
+              className={cx(
+                PRESS,
+                'w-full cursor-pointer rounded-xl border border-indigo-500/30 bg-indigo-500/8 p-3.5 text-sm font-bold text-indigo-400 disabled:opacity-50',
+              )}
+            >
+              {t('notificationsEnable')}
+            </button>
+          )}
+        </div>
+
         <button
-          onClick={signOut}
+          onClick={handleSignOut}
           className="w-full cursor-pointer rounded-xl border border-red-500/20 bg-red-500/5 p-3.5 text-base font-bold text-red-500"
         >
           {tc('signOut')}

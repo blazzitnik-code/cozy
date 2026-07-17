@@ -23,9 +23,10 @@
 
 ## Env
 
-- `.env.local` (Next.js): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_GOOGLE_CLIENT_ID`, `NEXT_PUBLIC_BICIKELJ_API_KEY`
+- `.env.local` (Next.js): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_GOOGLE_CLIENT_ID`, `NEXT_PUBLIC_BICIKELJ_API_KEY`, `NEXT_PUBLIC_VAPID_PUBLIC_KEY`
 - `.env` (Supabase CLI, config.toml substitution): `SUPABASE_AUTH_GOOGLE_CLIENT_ID`, `SUPABASE_AUTH_GOOGLE_SECRET`
-- Both are gitignored; the template is `.env.example`. Never hardcode keys in code.
+- `supabase/functions/.env` (edge functions, local only): `VAPID_KEYS_JSON`, `PUSH_FN_SECRET`, `VAPID_SUBJECT` — in prod set via `npx supabase secrets set`.
+- All are gitignored; the template is `.env.example`. Never hardcode keys in code.
 
 ## Structure
 
@@ -42,6 +43,10 @@ components/ShoppingModule.js — shopping: store tabs, categorized list, history
 components/CalendarModule.js — two-lane partner calendar + event detail modal
 components/TodoApp.js        — todo module
 components/HomeModule.js     — traffic, shortcuts, LPP, BicikeLJ
+components/ServiceWorkerRegistrar.js — registers public/sw.js (prod builds only;
+                               unregisters in dev), relays notification deep-links
+public/sw.js                 — hand-written service worker: offline runtime caching
+                               + push/notificationclick handlers (see PWA section)
 components/ui.js             — shared UI: Screen, PageBody, Loader, Card, Input, Label,
                                SectionHeader, EmptyState, IconButton, Fab, Avatar,
                                Segmented, Badge, Pill, FC, Btn, BackBtn, Modal,
@@ -50,7 +55,7 @@ components/ui.js             — shared UI: Screen, PageBody, Loader, Card, Inpu
                                (CHIP_OFF/CHIP_*_ON, POPOVER, PRESS/PRESS_SM)
                                + Motion vocabulary (SPRING_FAST/SPRING_POP/
                                POP/POPOVER_POP/LIST_ROW)
-lib/hooks.js                 — ALL Supabase access (17 hooks); generic useHouseholdTable
+lib/hooks.js                 — ALL Supabase access (18 hooks); generic useHouseholdTable
 lib/constants.js             — CATS; per-locale SUGG/SHOP_SUGG/QO ({ sl, en }); FICONS
 lib/utils.js                 — cx (clsx + tailwind-merge), expiry status + STATUS_*
                                class maps, expiryInfo(), localDateStr()
@@ -60,6 +65,9 @@ messages/sl.json, en.json    — ALL UI strings (next-intl, namespaced per modul
 supabase/migrations/         — schema (reconstructed from hooks.js; cloud was never pulled)
 supabase/seed.sql            — 10 global categories; REQUIRED, otherwise the app hangs
                                on "Nalagam..." (hasCats check)
+supabase/functions/send-push — edge function: ALL push sending (@negrel/webpush),
+                               per-subscriber locale via i18n.ts, 410 cleanup
+supabase/snippets/           — manual per-environment SQL (Vault secrets for push)
 ```
 
 Architecture: data hooks live in AppShell and flow into modules via props — modules own only their UI state. Reason: switching tabs unmounts modules; module-owned hooks would refetch and flicker on every switch, and unmount naturally resets per-module UI state.
@@ -77,6 +85,7 @@ Architecture: data hooks live in AppShell and flow into modules via props — mo
 - Category labels: translate by stable id via `useCatLabel()` (`Categories.*`); user-created categories fall back to their DB label. Suggestion lists (SUGG/SHOP_SUGG/QO) are per-locale in `lib/constants.js`; picked values become DB data, so shared lists can contain mixed-language names — the shopping `detectCategory` regexes match both languages.
 - Toast errors: `lib/hooks.js` passes `Errors.*` **keys** to `notifyError()`; `<Toaster />` translates known keys at render time and shows unknown strings verbatim.
 - Out of scope (stays Slovenian): static metadata in layout.js, `public/manifest.json`, data stored in the DB.
+- Exception: push notification strings live in `supabase/functions/send-push/i18n.ts` (sl+en dict), NOT in `messages/*.json` — they are rendered server-side by Deno where next-intl doesn't exist. The subscriber's language comes from the `locale` column on their `push_subscriptions` row.
 
 ## Database (essentials)
 
@@ -85,6 +94,7 @@ Architecture: data hooks live in AppShell and flow into modules via props — mo
 - `freezers` and `shopping_stores` have a **text id** and composite PK `(household_id, id)` — the code expects the ids `home` and `mercator`.
 - `categories.household_id = null` means a global default category.
 - Realtime: hooks listen to `postgres_changes` — a new table must be added to the `supabase_realtime` publication and have RLS/grants.
+- Push: `push_subscriptions` (one row per browser endpoint, user-scoped RLS, `locale` column) + `notify_push()` triggers on `shopping_items`/`todo_items` that POST to the `send-push` edge function via pg_net, and a pg_cron `cozy-daily-digest` job (07:00 UTC). The triggers read `push_fn_url`/`push_fn_secret` from Vault and **no-op when unset** — a fresh environment works without push until `supabase/snippets/setup-push-vault.sql` is run. Debug delivery via `net._http_response`.
 
 ## Theming
 
@@ -109,6 +119,14 @@ Architecture: data hooks live in AppShell and flow into modules via props — mo
 - **Lists**: `<AnimatePresence initial={false} mode="popLayout">` around the map (`initial={false}` because modules remount on every tab switch), `relative` on the list container (popLayout positions exiting rows absolutely), stable DB-uuid keys only — never animate index-keyed lists (HomeModule edit rows, Calendar EventBlock). `layout` goes on rows, never on scroll containers.
 - **Modal** is a portaled bottom sheet (`createPortal` to `<body>` — escapes `PageBody`'s `z-1` stacking context so BottomNav never paints over it): slides up from below (`SPRING_SHEET`), dismisses by backdrop tap or dragging the handle down (>100 px or fast flick), both WITH the exit animation via an internal `open` state + AnimatePresence whose `onExitComplete` calls `onClose()`. Closes via caller state (ModalActions Save/Cancel) stay instant by design — do not wrap modal call sites in AnimatePresence.
 - Motion's animating inline `transform` creates a CSS containing block — never wrap `Screen`/`PageBody`/anything containing `fixed` UI in a motion element (an element animating itself, like Fab/Toaster, is fine).
+
+## PWA (offline + push)
+
+- **Offline**: `public/sw.js` is hand-written (Turbopack → no Serwist plugin), runtime caching only: navigations + Supabase `/rest/v1/` GETs network-first with cache fallback (last-known data renders offline), `/_next/static/` + Google Fonts cache-first/SWR. Bump the `VERSION` const to invalidate caches. Registered by `ServiceWorkerRegistrar` in **production builds only** (`npm run build && npm start` to test; dev unregisters). `/auth/v1/` and `/functions/v1/` are never cached; sign-out clears `cozy-data*` caches.
+- **Push flow**: DB trigger/cron → pg_net → `send-push` edge function → web push → `sw.js` `push` handler (always calls `showNotification` — iOS revokes silent-push subscriptions) → `notificationclick` deep-links via URL hash (`/#shopping`), consumed in AppShell.
+- **Client**: `usePushSubscription` in `lib/hooks.js` (subscribe/unsubscribe + row reconcile on every app open); Settings modal has the enable/disable UI. iOS needs the app installed to the home screen (16.4+) — the hook reports `needsInstall`.
+- **Types**: `shopping_added` (to other members), `todo_assigned` (to assignee, not self), `daily_digest` (freezer expiry ≤3 days + todo lists due today).
+- One VAPID key pair everywhere (`generate-keys.ts` prints both halves); local testing needs Vault secrets + `supabase/functions/.env` (see snippets + `.env.example`).
 
 ## Conventions
 

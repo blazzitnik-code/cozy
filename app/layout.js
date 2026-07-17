@@ -1,6 +1,7 @@
 import './globals.css';
 import Script from 'next/script';
 import IntlProvider from '@/components/IntlProvider';
+import ServiceWorkerRegistrar from '@/components/ServiceWorkerRegistrar';
 
 export const metadata = {
   title: 'Cožy',
@@ -51,6 +52,7 @@ export default function RootLayout({ children }) {
         <link rel="apple-touch-icon" href="/icon-192.png" />
       </head>
       <body className="pt-[env(safe-area-inset-top)]">
+        <ServiceWorkerRegistrar />
         <IntlProvider>{children}</IntlProvider>
       </body>
       <Script src="https://accounts.google.com/gsi/client" strategy="afterInteractive" />

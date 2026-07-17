@@ -71,10 +71,14 @@ export function Loader() {
 
 // ─── INTERACTION STATES ───
 // Press feedback + keyboard focus ring, baked into every shared primitive.
+// The transition list is scoped (no transform/translate/opacity): a bare
+// `transition` would re-ease Motion's per-frame inline styles on motion
+// elements that carry PRESS (e.g. Fab) and make their animations lag.
+// active:scale-* uses the standalone `scale` property, so it stays animated.
 export const PRESS =
-  'transition active:scale-[0.97] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400';
+  'transition-[scale,color,background-color,border-color,outline-color,box-shadow] active:scale-[0.97] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400';
 export const PRESS_SM =
-  'transition active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400';
+  'transition-[scale,color,background-color,border-color,outline-color,box-shadow] active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400';
 
 // ─── MOTION ───
 // Shared micro-animation vocabulary (~200ms springs). Spread onto motion.*

@@ -44,7 +44,9 @@ function ShopItemRow({
 }) {
   const dragControls = useDragControls();
   const rowClass = cx(
-    'relative flex touch-pan-y items-center gap-2.5 rounded-xl border px-3.5 py-3 transition-all duration-200',
+    // transition-colors ONLY — a transition covering transform/opacity would
+    // re-ease Motion's per-frame drag/layout writes and make dragging lag.
+    'relative flex touch-pan-y items-center gap-2.5 rounded-xl border px-3.5 py-3 transition-colors duration-200',
     item.checked
       ? 'border-indigo-500/6 bg-white/30 opacity-50 dark:border-slate-600/8 dark:bg-slate-800/20'
       : 'border-indigo-500/15 bg-white/70 dark:border-slate-600/20 dark:bg-slate-800/50',
@@ -68,7 +70,7 @@ function ShopItemRow({
           onToggle(item.id);
         }}
         className={cx(
-          'flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-lg border-2 text-sm text-white transition-all duration-150',
+          'flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-lg border-2 text-sm text-white transition-colors duration-150',
           item.checked
             ? 'border-green-500 bg-green-500'
             : 'border-indigo-500/20 bg-transparent dark:border-slate-600/30',
@@ -147,8 +149,12 @@ function ShopGroup({ items, shopStores, onPersist, rowProps }) {
     if (dragging.current) return;
     const propSeq = items.map((i) => i.id).join(',');
     const localSeq = orderRef.current.map((i) => i.id).join(',');
-    if (propSeq === localSeq) pending.current = false;
-    else if (pending.current && propSeq.split(',').sort().join() === localSeq.split(',').sort().join()) return;
+    if (propSeq === localSeq) {
+      pending.current = false;
+      // Same sequence AND same object refs — parent re-render with identical
+      // data (new array identity only); skip the redundant setState cascade.
+      if (items.length === orderRef.current.length && items.every((it, i) => it === orderRef.current[i])) return;
+    } else if (pending.current && propSeq.split(',').sort().join() === localSeq.split(',').sort().join()) return;
     adopt(items);
   }, [items]);
   return (

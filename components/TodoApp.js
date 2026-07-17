@@ -592,7 +592,7 @@ function TodoItemRow({
       <button
         onClick={onToggle}
         className={cx(
-          'flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-md border-2 text-sm text-white transition-all duration-150',
+          'flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-md border-2 text-sm text-white transition-colors duration-150',
           item.checked
             ? 'border-green-500 bg-green-500'
             : 'border-indigo-500/20 bg-transparent dark:border-slate-600/30',

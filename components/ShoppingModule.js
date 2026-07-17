@@ -1,6 +1,6 @@
 'use client';
-import { useState, useRef, useMemo } from 'react';
-import { AnimatePresence, motion } from 'motion/react';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { AnimatePresence, motion, Reorder, useDragControls } from 'motion/react';
 import { useTranslations, useFormatter, useLocale } from 'next-intl';
 import { SHOP_SUGG } from '@/lib/constants';
 import { cx } from '@/lib/utils';
@@ -29,39 +29,38 @@ const STORE_ICONS = ['🟢', '🟣', '🔵', '🟠', '🔴', '🟡', '⚫', '�
 // Module scope on purpose: defined inside ShoppingModule its identity would
 // change every render, remounting all rows (and killing their transitions).
 // `ref` reaches the DOM node — required by AnimatePresence mode="popLayout".
+// Reorderable rows render as Reorder.Item (inside a group's Reorder.Group,
+// dragged by the ⠿ handle only); bought-section rows stay plain motion.div.
 function ShopItemRow({
   item,
-  allItems,
   store,
   activeStore,
-  onDragStart,
-  onDragOver,
-  onDrop,
-  onTouchStart,
-  onTouchEnd,
+  reorderable = false,
+  onRowDragStart,
+  onRowDragEnd,
   onToggle,
   onOpenDetail,
   ref,
 }) {
-  return (
-    <motion.div
-      ref={ref}
-      {...LIST_ROW}
-      draggable={!item.checked}
-      onDragStart={(e) => onDragStart(e, item)}
-      onDragOver={(e) => onDragOver(e, item)}
-      onDrop={onDrop}
-      onTouchStart={(e) => onTouchStart(e, item)}
-      onTouchEnd={(e) => onTouchEnd(e, allItems)}
-      className={cx(
-        'flex touch-pan-y items-center gap-2.5 rounded-xl border px-3.5 py-3 transition-all duration-200',
-        item.checked
-          ? 'border-indigo-500/6 bg-white/30 opacity-50 dark:border-slate-600/8 dark:bg-slate-800/20'
-          : 'border-indigo-500/15 bg-white/70 dark:border-slate-600/20 dark:bg-slate-800/50',
-      )}
-    >
-      {!item.checked && (
-        <span className="shrink-0 cursor-grab text-sm text-slate-300 select-none dark:text-slate-600">⠿</span>
+  const dragControls = useDragControls();
+  const rowClass = cx(
+    'relative flex touch-pan-y items-center gap-2.5 rounded-xl border px-3.5 py-3 transition-all duration-200',
+    item.checked
+      ? 'border-indigo-500/6 bg-white/30 opacity-50 dark:border-slate-600/8 dark:bg-slate-800/20'
+      : 'border-indigo-500/15 bg-white/70 dark:border-slate-600/20 dark:bg-slate-800/50',
+  );
+  const inner = (
+    <>
+      {reorderable && (
+        <span
+          onPointerDown={(e) => {
+            e.preventDefault();
+            dragControls.start(e);
+          }}
+          className="-m-2 shrink-0 cursor-grab touch-none p-2 text-sm text-slate-300 select-none active:cursor-grabbing dark:text-slate-600"
+        >
+          ⠿
+        </span>
       )}
       <button
         onClick={(e) => {
@@ -98,7 +97,80 @@ function ShopItemRow({
         )}
       </div>
       {activeStore === 'all' && store && <span className="shrink-0 text-xs">{store.icon}</span>}
-    </motion.div>
+    </>
+  );
+  if (!reorderable)
+    return (
+      <motion.div ref={ref} {...LIST_ROW} className={rowClass}>
+        {inner}
+      </motion.div>
+    );
+  return (
+    // No `layout` prop here — Reorder.Item is already a layout component.
+    <Reorder.Item
+      as="div"
+      ref={ref}
+      value={item}
+      dragListener={false}
+      dragControls={dragControls}
+      whileDrag={{ scale: 1.02 }}
+      onDragStart={onRowDragStart}
+      onDragEnd={onRowDragEnd}
+      initial={LIST_ROW.initial}
+      animate={LIST_ROW.animate}
+      exit={LIST_ROW.exit}
+      transition={LIST_ROW.transition}
+      className={rowClass}
+    >
+      {inner}
+    </Reorder.Item>
+  );
+}
+
+// One Reorder.Group per category group. Items can never move between groups
+// (the group is derived from the item name via detectCategory), so per-group
+// reordering is the complete model. Order lives in local state during the
+// drag; sort_order is persisted once on drag end via onPersist.
+function ShopGroup({ items, shopStores, onPersist, rowProps }) {
+  const [order, setOrder] = useState(items);
+  const orderRef = useRef(items);
+  const dragging = useRef(false);
+  // True between "our drag ended" and "the persisted order came back via
+  // realtime" — while set, stale props (pre-persist order, same id set) must
+  // not snap the rows back.
+  const pending = useRef(false);
+  const adopt = (next) => {
+    orderRef.current = next;
+    setOrder(next);
+  };
+  useEffect(() => {
+    if (dragging.current) return;
+    const propSeq = items.map((i) => i.id).join(',');
+    const localSeq = orderRef.current.map((i) => i.id).join(',');
+    if (propSeq === localSeq) pending.current = false;
+    else if (pending.current && propSeq.split(',').sort().join() === localSeq.split(',').sort().join()) return;
+    adopt(items);
+  }, [items]);
+  return (
+    <Reorder.Group as="div" axis="y" values={order} onReorder={adopt} className="relative flex flex-col gap-1">
+      <AnimatePresence initial={false} mode="popLayout">
+        {order.map((item) => (
+          <ShopItemRow
+            key={item.id}
+            item={item}
+            reorderable
+            store={shopStores.find((s) => s.id === item.store)}
+            onRowDragStart={() => (dragging.current = true)}
+            onRowDragEnd={() => {
+              dragging.current = false;
+              pending.current = true;
+              onPersist(orderRef.current);
+            }}
+            {...rowProps}
+          />
+        ))}
+      </AnimatePresence>
+    </Reorder.Group>
   );
 }
 
@@ -139,9 +211,6 @@ export default function ShoppingModule({
   const shopInputRef = useRef(null);
   const [editingId, setEditingId] = useState(null);
   const [editingName, setEditingName] = useState('');
-  const dragItem = useRef(null);
-  const dragOver = useRef(null);
-  const touchDrag = useRef({ item: null, startY: 0 });
   const [confirmAction, setConfirmAction] = useState(null); // { message, onConfirm }
 
   // All known shopping names for autocomplete
@@ -332,64 +401,23 @@ export default function ShoppingModule({
     );
   }
 
-  const handleDragStart = (e, item) => {
-    dragItem.current = item;
-    e.dataTransfer.effectAllowed = 'move';
-  };
-  const handleDragOver = (e, item) => {
-    e.preventDefault();
-    dragOver.current = item;
-  };
-  const handleDrop = async () => {
-    if (!dragItem.current || !dragOver.current) return;
-    if (dragItem.current.id === dragOver.current.id) return;
-    const fromId = dragItem.current.id;
-    const toId = dragOver.current.id;
-    const fromOrder = dragItem.current.sort_order ?? 0;
-    const toOrder = dragOver.current.sort_order ?? 0;
-    dragItem.current = null;
-    dragOver.current = null;
-    await Promise.all([dbShopUpdate(fromId, { sort_order: toOrder }), dbShopUpdate(toId, { sort_order: fromOrder })]);
-  };
-
-  const handleTouchStart = (e, item) => {
-    touchDrag.current.item = item;
-    touchDrag.current.startY = e.touches[0].clientY;
-  };
-  const handleTouchEnd = async (e, allItems) => {
-    const endY = e.changedTouches[0].clientY;
-    const diffY = endY - touchDrag.current.startY;
-    if (Math.abs(diffY) < 20) {
-      touchDrag.current.item = null;
-      return;
-    }
-    const from = touchDrag.current.item;
-    if (!from) return;
-    const sorted = [...allItems].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
-    const idx = sorted.findIndex((i) => i.id === from.id);
-    const newIdx = diffY < 0 ? Math.max(0, idx - 1) : Math.min(sorted.length - 1, idx + 1);
-    if (newIdx === idx) {
-      touchDrag.current.item = null;
-      return;
-    }
-    const neighbor = sorted[newIdx];
-    const fromOrder = from.sort_order ?? idx;
-    const toOrder = neighbor.sort_order ?? newIdx;
-    touchDrag.current.item = null;
-    await Promise.all([
-      dbShopUpdate(from.id, { sort_order: toOrder }),
-      dbShopUpdate(neighbor.id, { sort_order: fromOrder }),
-    ]);
-  };
+  // Persist a group's new order after a drag: reassign the group's own
+  // sort_order values (sorted asc) to the new sequence — global cross-group
+  // ordering and other groups stay untouched.
+  async function persistGroupOrder(ordered) {
+    const slots = ordered.map((i) => i.sort_order ?? 0).sort((a, b) => a - b);
+    await Promise.all(
+      ordered
+        .map((item, idx) =>
+          (item.sort_order ?? 0) !== slots[idx] ? dbShopUpdate(item.id, { sort_order: slots[idx] }) : null,
+        )
+        .filter(Boolean),
+    );
+  }
 
   // Shared props for the module-scope ShopItemRow.
   const rowProps = {
     activeStore,
-    onDragStart: handleDragStart,
-    onDragOver: handleDragOver,
-    onDrop: handleDrop,
-    onTouchStart: handleTouchStart,
-    onTouchEnd: handleTouchEnd,
     onToggle: shopToggle,
     onOpenDetail: setShopDetail,
   };
@@ -516,19 +544,12 @@ export default function ShoppingModule({
               <div className="mb-1.5 pl-0.5 text-xs font-bold tracking-[1px] text-slate-300 uppercase dark:text-slate-600">
                 {t('sections.' + group.key)}
               </div>
-              <div className="relative flex flex-col gap-1">
-                <AnimatePresence initial={false} mode="popLayout">
-                  {group.items.map((item) => (
-                    <ShopItemRow
-                      key={item.id}
-                      item={item}
-                      allItems={group.items}
-                      store={shopStores.find((s) => s.id === item.store)}
-                      {...rowProps}
-                    />
-                  ))}
-                </AnimatePresence>
-              </div>
+              <ShopGroup
+                items={group.items}
+                shopStores={shopStores}
+                onPersist={persistGroupOrder}
+                rowProps={rowProps}
+              />
             </div>
           ))}
           {shopByCategory.checked.length > 0 && (
@@ -542,7 +563,6 @@ export default function ShoppingModule({
                     <ShopItemRow
                       key={item.id}
                       item={item}
-                      allItems={shopByCategory.checked}
                       store={shopStores.find((s) => s.id === item.store)}
                       {...rowProps}
                     />

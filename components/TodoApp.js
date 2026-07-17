@@ -1,192 +1,315 @@
 'use client';
 import { useState, useRef } from 'react';
+import { AnimatePresence, motion } from 'motion/react';
+import { useTranslations, useFormatter } from 'next-intl';
+import { Archive, Pencil, Plus, X } from 'lucide-react';
 import { useTodoLists, useTodoArchivedLists, useTodoItems } from '@/lib/hooks';
+import { cx, dueTone, DUE_TEXT, DUE_BAR, DUE_BADGE } from '@/lib/utils';
+import {
+  Screen,
+  PageBody,
+  Card,
+  Fab,
+  Modal,
+  Input,
+  Label,
+  SectionHeader,
+  BackBtn,
+  ModalActions,
+  IconButton,
+  EmptyState,
+  POPOVER,
+  POPOVER_POP,
+  POP,
+  LIST_ROW,
+} from './ui';
 
 const LIST_EMOJIS = ['📋', '🏖️', '🏠', '🛒', '🎉', '🪴', '🛠️', '✈️', '📚', '🥗', '🌾', '🎸', '🐶', '🌱', '💼'];
 
-function getStyles(isDark) {
-  return {
-    bg: isDark ? 'linear-gradient(180deg,#0B1120 0%,#111827 40%,#0F172A 100%)' : 'linear-gradient(180deg,#F0F4FF 0%,#E8EEFF 40%,#EEF2FF 100%)',
-    cardBg: isDark ? 'rgba(15,23,42,0.8)' : 'rgba(255,255,255,0.9)',
-    cardBorder: isDark ? '1px solid rgba(71,85,105,0.2)' : '1px solid rgba(99,102,241,0.15)',
-    textPrimary: isDark ? '#E2E8F0' : '#1E293B',
-    textSecondary: isDark ? '#64748B' : '#94A3B8',
-    textMuted: isDark ? '#334155' : '#CBD5E1',
-    INP: { width: '100%', boxSizing: 'border-box', padding: '12px 14px', background: isDark ? 'rgba(30,41,59,0.8)' : 'rgba(255,255,255,0.9)', border: isDark ? '1px solid rgba(99,102,241,0.3)' : '1px solid rgba(99,102,241,0.25)', borderRadius: 12, color: isDark ? '#E2E8F0' : '#1E293B', fontSize: 15, outline: 'none', fontWeight: 500 },
-  };
-}
-
-// ─── MODAL wrapper ───
-function Modal({ children, onClose, isDark }) {
-  return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 100 }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: isDark ? 'linear-gradient(180deg,#1E293B,#0F172A)' : '#FFFFFF', borderRadius: '24px 24px 0 0', width: '100%', maxWidth: 430, padding: '24px 20px 36px', borderTop: isDark ? '1px solid rgba(71,85,105,0.3)' : '1px solid rgba(99,102,241,0.15)', maxHeight: '85vh', overflowY: 'auto' }}>
-        <div style={{ width: 36, height: 4, background: isDark ? '#334155' : '#CBD5E1', borderRadius: 2, margin: '0 auto 20px' }} />
-        {children}
-      </div>
-    </div>
-  );
-}
-
 // ─── MAIN TODO APP ───
-export default function TodoApp({ user, householdId, members, lang, isDark }) {
-  const st = getStyles(isDark);
-  const { lists, addList, archiveList, deleteList } = useTodoLists(householdId);
-  const { lists: archivedLists, } = useTodoArchivedLists(householdId);
+export default function TodoApp({ user, householdId, members }) {
+  const t = useTranslations('Todo');
+  const ta = useTranslations('A11y');
+  const format = useFormatter();
+  const { lists, addList, updateList, archiveList, deleteList } = useTodoLists(householdId);
+  const { lists: archivedLists, unarchiveList } = useTodoArchivedLists(householdId);
 
-  const [screen, setScreen] = useState('home'); // 'home' | 'list' | 'archive'
+  const [screen, setScreen] = useState('home'); // 'home' | 'list' | 'archive' | 'archivedList'
   const [activeList, setActiveList] = useState(null);
+  const [activeArchivedList, setActiveArchivedList] = useState(null);
   const [showNewList, setShowNewList] = useState(false);
   const [newListTitle, setNewListTitle] = useState('');
   const [newListEmoji, setNewListEmoji] = useState('📋');
   const [newListDue, setNewListDue] = useState('');
 
-  const A = { maxWidth: 430, margin: '0 auto', minHeight: '100vh', background: st.bg, color: st.textPrimary, fontFamily: "'Outfit','DM Sans',-apple-system,sans-serif" };
-
   const handleAddList = async () => {
     if (!newListTitle.trim()) return;
-    await addList({ title: newListTitle.trim(), emoji: newListEmoji, due_date: newListDue || null, created_by: user.id });
-    setNewListTitle(''); setNewListEmoji('📋'); setNewListDue(''); setShowNewList(false);
+    await addList({
+      title: newListTitle.trim(),
+      emoji: newListEmoji,
+      due_date: newListDue || null,
+      created_by: user.id,
+    });
+    setNewListTitle('');
+    setNewListEmoji('📋');
+    setNewListDue('');
+    setShowNewList(false);
   };
 
+  // ─── ARCHIVED LIST VIEW (read-only) ───
+  if (screen === 'archivedList' && activeArchivedList)
+    return (
+      <TodoListScreen
+        list={activeArchivedList}
+        householdId={householdId}
+        members={members}
+        user={user}
+        onBack={() => setScreen('archive')}
+        onArchive={null}
+        onUpdateList={null}
+        onUnarchive={async () => {
+          await unarchiveList(activeArchivedList.id);
+          setScreen('home');
+        }}
+        readOnly
+      />
+    );
+
   // ─── LIST DETAIL ───
-  if (screen === 'list' && activeList) return (
-    <TodoListScreen
-      list={activeList} householdId={householdId} members={members} user={user}
-      isDark={isDark} st={st} A={A}
-      onBack={() => setScreen('home')}
-      onArchive={async () => { await archiveList(activeList.id); setScreen('home'); }}
-    />
-  );
+  if (screen === 'list' && activeList)
+    return (
+      <TodoListScreen
+        list={activeList}
+        householdId={householdId}
+        members={members}
+        user={user}
+        onBack={() => setScreen('home')}
+        onArchive={async () => {
+          await archiveList(activeList.id);
+          setScreen('home');
+        }}
+        onUpdateList={async (id, updates) => {
+          await updateList(id, updates);
+          setActiveList((l) => ({ ...l, ...updates }));
+        }}
+      />
+    );
 
   // ─── ARCHIVE ───
-  if (screen === 'archive') return (
-    <div style={A}>
-      <div style={{ padding: '20px 16px calc(100px + env(safe-area-inset-bottom))' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 24 }}>
-          <button onClick={() => setScreen('home')} style={{ background: st.cardBg, border: st.cardBorder, borderRadius: 12, padding: '10px 16px', color: st.textSecondary, fontSize: 14, cursor: 'pointer', fontWeight: 600 }}>← Nazaj</button>
-          <h2 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: st.textPrimary }}>📦 Arhiv list</h2>
-        </div>
-        {archivedLists.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '60px 20px', color: st.textSecondary }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>😭</div>
-            <p>Ni arhiviranih list</p>
+  if (screen === 'archive')
+    return (
+      <Screen>
+        <PageBody>
+          <div className="mb-6 flex items-center gap-2.5">
+            <BackBtn onClick={() => setScreen('home')} />
+            <h2 className="font-serif text-2xl font-semibold tracking-tight text-stone-900 dark:text-stone-100">
+              {t('archiveTitle')}
+            </h2>
           </div>
-        ) : archivedLists.map(list => (
-          <div key={list.id} style={{ background: st.cardBg, border: st.cardBorder, borderRadius: 16, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-            <span style={{ fontSize: 24 }}>{list.emoji}</span>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 15, fontWeight: 600, color: st.textPrimary }}>{list.title}</div>
-              <div style={{ fontSize: 12, color: st.textSecondary }}>Arhivirano: {new Date(list.archived_at).toLocaleDateString('sl-SI')}</div>
-            </div>
-            <button onClick={() => deleteList(list.id)} style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.2)', color: '#EF4444', cursor: 'pointer', fontSize: 14 }}>🗑</button>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+          {archivedLists.length === 0 ? (
+            <EmptyState icon="😭">{t('noArchived')}</EmptyState>
+          ) : (
+            archivedLists.map((list) => (
+              <Card
+                key={list.id}
+                onClick={() => {
+                  setActiveArchivedList(list);
+                  setScreen('archivedList');
+                }}
+                className="mb-2 cursor-pointer px-4 py-3.5"
+              >
+                <div className="mb-2.5 flex items-center gap-2.5">
+                  <span className="text-2xl">{list.emoji}</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-base font-semibold text-stone-900 dark:text-stone-100">{list.title}</div>
+                    <div className="text-xs text-stone-400 dark:text-stone-500">
+                      {t('archivedAt', { date: format.dateTime(new Date(list.archived_at), 'numericDate') })}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      unarchiveList(list.id);
+                    }}
+                    className="h-9 flex-1 cursor-pointer rounded-full border-none bg-stone-900 text-sm font-bold text-white dark:bg-stone-100 dark:text-stone-900"
+                  >
+                    {t('restore')}
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteList(list.id);
+                    }}
+                    className="h-9 flex-1 cursor-pointer rounded-full border border-red-500/25 bg-red-500/10 text-sm font-bold text-red-600 dark:text-red-400"
+                  >
+                    {t('delete')}
+                  </button>
+                </div>
+              </Card>
+            ))
+          )}
+        </PageBody>
+      </Screen>
+    );
 
   // ─── HOME ───
   return (
-    <div style={A}>
-      <div style={{ padding: '20px 16px calc(100px + env(safe-area-inset-bottom))' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
-          <h1 style={{ fontSize: 26, fontWeight: 800, margin: 0 }}>{lang === 'en' ? '✅ To-do' : '✅ Opravila'}</h1>
-          <button onClick={() => setScreen('archive')} style={{ background: st.cardBg, border: st.cardBorder, borderRadius: 10, padding: '8px 12px', color: st.textSecondary, fontSize: 14, cursor: 'pointer', fontWeight: 600 }}>📦</button>
+    <Screen>
+      <PageBody>
+        <div className="mb-6 flex items-center justify-between">
+          <h1 className="font-serif text-3xl font-semibold tracking-tight">{t('title')}</h1>
+          <IconButton onClick={() => setScreen('archive')} aria-label={ta('archive')}>
+            <Archive className="size-4.5" />
+          </IconButton>
         </div>
 
         {lists.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '60px 20px', color: st.textSecondary }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>📋</div>
-            <p style={{ fontSize: 16, fontWeight: 600, marginBottom: 8, color: st.textPrimary }}>Ni aktivnih list</p>
-            <p style={{ fontSize: 14 }}>Ustvari prvo listo z gumbom +</p>
-          </div>
+          <EmptyState icon="📋">
+            <p className="mb-2 text-base font-semibold text-stone-900 dark:text-stone-100">{t('noLists')}</p>
+            <p>{t('createFirst')}</p>
+          </EmptyState>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {lists.map(list => (
-              <TodoListCard key={list.id} list={list} householdId={householdId} isDark={isDark} st={st}
-                onClick={() => { setActiveList(list); setScreen('list'); }} />
-            ))}
+          <div className="relative flex flex-col gap-2.5">
+            <AnimatePresence initial={false} mode="popLayout">
+              {lists.map((list) => (
+                <motion.div {...LIST_ROW} key={list.id}>
+                  <TodoListCard
+                    list={list}
+                    householdId={householdId}
+                    onClick={() => {
+                      setActiveList(list);
+                      setScreen('list');
+                    }}
+                  />
+                </motion.div>
+              ))}
+            </AnimatePresence>
           </div>
         )}
-      </div>
+      </PageBody>
 
-      {/* FAB */}
-      <button onClick={() => setShowNewList(true)} style={{ position: 'fixed', bottom: 'calc(88px + env(safe-area-inset-bottom))', right: 20, width: 56, height: 56, borderRadius: 28, background: 'linear-gradient(135deg,#A855F7,#6366F1)', border: 'none', color: '#fff', fontSize: 24, cursor: 'pointer', boxShadow: '0 4px 12px rgba(168,85,247,0.35)', zIndex: 50 }}>+</button>
+      {/* FAB (shared primitive, repositioned via twMerge overrides) */}
+      <Fab
+        onClick={() => setShowNewList(true)}
+        className="right-5 bottom-[calc(88px+env(safe-area-inset-bottom))] left-auto h-14 w-14 translate-x-0"
+      />
 
       {/* New list modal */}
       {showNewList && (
-        <Modal isDark={isDark} onClose={() => setShowNewList(false)}>
-          <h3 style={{ fontSize: 18, fontWeight: 700, margin: '0 0 16px', color: st.textPrimary }}>Nova lista</h3>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 16 }}>
-            {LIST_EMOJIS.map(e => (
-              <button key={e} onClick={() => setNewListEmoji(e)} style={{ fontSize: 22, padding: 7, borderRadius: 10, border: '1px solid ' + (newListEmoji === e ? 'rgba(168,85,247,0.5)' : 'rgba(71,85,105,0.2)'), background: newListEmoji === e ? 'rgba(168,85,247,0.15)' : 'transparent', cursor: 'pointer' }}>{e}</button>
+        <Modal onClose={() => setShowNewList(false)}>
+          <h3 className="mb-4 font-serif text-xl font-semibold tracking-tight text-stone-900 dark:text-stone-100">
+            {t('newList')}
+          </h3>
+          <div className="mb-4 flex flex-wrap gap-1.5">
+            {LIST_EMOJIS.map((e) => (
+              <button
+                key={e}
+                onClick={() => setNewListEmoji(e)}
+                className={cx(
+                  'cursor-pointer rounded-lg border p-1.75 text-2xl',
+                  newListEmoji === e
+                    ? 'border-stone-900 bg-stone-100 dark:border-stone-100 dark:bg-stone-800'
+                    : 'border-stone-200 bg-transparent dark:border-white/10',
+                )}
+              >
+                {e}
+              </button>
             ))}
           </div>
-          <label style={{ fontSize: 12, fontWeight: 700, color: st.textSecondary, display: 'block', marginBottom: 6 }}>Naslov liste</label>
-          <input autoFocus value={newListTitle} onChange={e => setNewListTitle(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleAddList(); }} placeholder="npr. Gremo na morje, Za doma..." style={{ ...st.INP, marginBottom: 12 }} />
-          <label style={{ fontSize: 12, fontWeight: 700, color: st.textSecondary, display: 'block', marginBottom: 6 }}>Rok (opcijsko)</label>
-          <input type="date" value={newListDue} onChange={e => setNewListDue(e.target.value)} style={{ ...st.INP, marginBottom: 20, colorScheme: isDark ? 'dark' : 'light' }} />
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={handleAddList} disabled={!newListTitle.trim()} style={{ flex: 1, padding: 14, borderRadius: 14, border: 'none', background: newListTitle.trim() ? 'linear-gradient(135deg,#A855F7,#6366F1)' : 'rgba(30,41,59,0.4)', color: '#fff', fontSize: 15, fontWeight: 700, cursor: newListTitle.trim() ? 'pointer' : 'default', opacity: newListTitle.trim() ? 1 : 0.5 }}>Ustvari listo</button>
-            <button onClick={() => setShowNewList(false)} style={{ flex: 1, padding: 14, borderRadius: 14, border: st.cardBorder, background: 'transparent', color: st.textSecondary, fontSize: 15, fontWeight: 600, cursor: 'pointer' }}>Prekliči</button>
-          </div>
+          <Label className="mb-1.5 text-xs">{t('listTitle')}</Label>
+          <Input
+            size="sm"
+            autoFocus
+            value={newListTitle}
+            onChange={(e) => setNewListTitle(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleAddList();
+            }}
+            placeholder={t('listTitlePlaceholder')}
+            className="mb-3"
+          />
+          <Label className="mb-1.5 text-xs">{t('due')}</Label>
+          <Input
+            size="sm"
+            type="date"
+            value={newListDue}
+            onChange={(e) => setNewListDue(e.target.value)}
+            className="mb-5"
+          />
+          <ModalActions
+            saveLabel={t('createList')}
+            disabled={!newListTitle.trim()}
+            onSave={handleAddList}
+            onCancel={() => setShowNewList(false)}
+          />
         </Modal>
       )}
-    </div>
+    </Screen>
   );
 }
 
 // ─── LIST CARD (home screen) ───
-function TodoListCard({ list, householdId, isDark, st, onClick }) {
+function TodoListCard({ list, householdId, onClick }) {
+  const t = useTranslations('Todo');
+  const format = useFormatter();
   const { items } = useTodoItems(householdId, list.id);
-  const done = items.filter(i => i.checked).length;
+  const done = items.filter((i) => i.checked).length;
   const total = items.length;
   const pct = total > 0 ? (done / total) * 100 : 0;
   const dueDate = list.due_date ? new Date(list.due_date) : null;
   const daysLeft = dueDate ? Math.ceil((dueDate - new Date()) / 864e5) : null;
   const isPast = daysLeft !== null && daysLeft < 0;
-  const isUrgent = daysLeft !== null && daysLeft >= 0 && daysLeft <= 7;
-  const accentColor = isPast ? '#EF4444' : isUrgent ? '#F59E0B' : '#A855F7';
+  const tone = dueTone(daysLeft);
 
   return (
-    <div onClick={onClick} style={{ background: st.cardBg, border: st.cardBorder, borderRadius: 16, padding: '14px 16px', cursor: 'pointer' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: total > 0 ? 10 : 0 }}>
-        <span style={{ fontSize: 24 }}>{list.emoji}</span>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: st.textPrimary }}>{list.title}</div>
-          {total > 0 && <div style={{ fontSize: 12, color: st.textSecondary, marginTop: 2 }}>{done}/{total} opravljenih</div>}
+    <Card onClick={onClick} className="cursor-pointer px-4 py-3.5">
+      <div className={cx('flex items-center gap-2.5', total > 0 && 'mb-2.5')}>
+        <span className="text-2xl">{list.emoji}</span>
+        <div className="flex-1">
+          <div className="text-base font-bold text-stone-900 dark:text-stone-100">{list.title}</div>
+          {total > 0 && (
+            <div className="mt-0.5 text-xs text-stone-400 dark:text-stone-500">{t('progress', { done, total })}</div>
+          )}
         </div>
         {dueDate && (
-          <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 8, background: accentColor + '20', color: accentColor, flexShrink: 0 }}>
-            {isPast ? '🔴 zamujeno' : dueDate.toLocaleDateString('sl-SI', { day: 'numeric', month: 'short' })}
+          <span className={cx('shrink-0 rounded-lg px-2 py-0.75 text-xs font-bold', DUE_BADGE[tone])}>
+            {isPast ? t('overdueBadge') : format.dateTime(dueDate, 'dayShort')}
           </span>
         )}
       </div>
       {total > 0 && (
-        <div style={{ height: 3, background: isDark ? 'rgba(71,85,105,0.3)' : 'rgba(99,102,241,0.1)', borderRadius: 2 }}>
-          <div style={{ height: '100%', borderRadius: 2, width: pct + '%', background: accentColor, transition: 'width 0.3s' }} />
+        <div className="h-0.75 rounded-xs bg-stone-200 dark:bg-stone-800">
+          <div
+            className={cx('h-full rounded-xs transition-[width] duration-300', DUE_BAR[tone])}
+            style={{ width: pct + '%' }}
+          />
         </div>
       )}
-    </div>
+    </Card>
   );
 }
 
 // ─── LIST DETAIL SCREEN ───
-function TodoListScreen({ list, householdId, members, user, isDark, st, A, onBack, onArchive }) {
+function TodoListScreen({ list, householdId, members, user, onBack, onArchive, onUpdateList, onUnarchive, readOnly }) {
+  const t = useTranslations('Todo');
+  const ta = useTranslations('A11y');
+  const format = useFormatter();
   const { items, addItem, toggleItem, deleteItem, updateItem } = useTodoItems(householdId, list.id);
   const [newItem, setNewItem] = useState('');
   const [assignPicker, setAssignPicker] = useState(null); // item id
+  const [itemDetail, setItemDetail] = useState(null); // item being edited
+  const [listEdit, setListEdit] = useState(null); // { title, emoji, due_date }
   const inputRef = useRef(null);
 
-  const done = items.filter(i => i.checked).length;
+  const done = items.filter((i) => i.checked).length;
   const total = items.length;
   const pct = total > 0 ? (done / total) * 100 : 0;
   const dueDate = list.due_date ? new Date(list.due_date) : null;
   const daysLeft = dueDate ? Math.ceil((dueDate - new Date()) / 864e5) : null;
   const isPast = daysLeft !== null && daysLeft < 0;
-  const isUrgent = daysLeft !== null && daysLeft >= 0 && daysLeft <= 7;
-  const accentColor = isPast ? '#EF4444' : isUrgent ? '#F59E0B' : '#A855F7';
+  const tone = dueTone(daysLeft);
 
   const handleAdd = async () => {
     if (!newItem.trim()) return;
@@ -195,110 +318,357 @@ function TodoListScreen({ list, householdId, members, user, isDark, st, A, onBac
     inputRef.current?.focus();
   };
 
-  const openItems = items.filter(i => !i.checked).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
-  const doneItems = items.filter(i => i.checked).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
-  const getMember = (userId) => members.find(m => m.user_id === userId);
+  const openItems = items.filter((i) => !i.checked).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+  const doneItems = items.filter((i) => i.checked).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+  const getMember = (userId) => members.find((m) => m.user_id === userId);
 
   return (
-    <div style={A} onClick={() => assignPicker && setAssignPicker(null)}>
-      <div style={{ padding: '20px 16px calc(100px + env(safe-area-inset-bottom))' }}>
+    <Screen onClick={() => assignPicker && setAssignPicker(null)}>
+      <PageBody>
         {/* Header */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-          <button onClick={onBack} style={{ background: st.cardBg, border: st.cardBorder, borderRadius: 12, padding: '10px 16px', color: st.textSecondary, fontSize: 14, cursor: 'pointer', fontWeight: 600 }}>← Nazaj</button>
-          <button onClick={onArchive} style={{ background: st.cardBg, border: st.cardBorder, borderRadius: 12, padding: '10px 14px', color: st.textSecondary, fontSize: 13, cursor: 'pointer', fontWeight: 600 }}>📦 Zaključi</button>
+        <div className="mb-4 flex items-center justify-between">
+          <BackBtn onClick={onBack} />
+          {!readOnly && (
+            <BackBtn onClick={onArchive} className="px-3.5">
+              {t('finish')}
+            </BackBtn>
+          )}
+          {readOnly && (
+            <button
+              onClick={onUnarchive}
+              className="cursor-pointer rounded-full border-none bg-stone-900 px-3.5 py-2.5 text-sm font-bold text-white dark:bg-stone-100 dark:text-stone-900"
+            >
+              {t('restoreList')}
+            </button>
+          )}
         </div>
 
         {/* List info */}
-        <div style={{ textAlign: 'center', marginBottom: 20 }}>
-          <div style={{ fontSize: 44, marginBottom: 6 }}>{list.emoji}</div>
-          <h2 style={{ fontSize: 22, fontWeight: 800, margin: '0 0 4px', color: st.textPrimary }}>{list.title}</h2>
+        <div className="mb-5 text-center">
+          <div
+            onClick={() => setListEdit({ title: list.title, emoji: list.emoji, due_date: list.due_date || '' })}
+            className="mb-1.5 cursor-pointer text-5xl"
+          >
+            {list.emoji}
+          </div>
+          <div className="mb-1 flex items-center justify-center gap-2">
+            <h2 className="font-serif text-3xl font-semibold tracking-tight text-stone-900 dark:text-stone-100">
+              {list.title}
+            </h2>
+            {!readOnly && (
+              <button
+                aria-label={ta('edit')}
+                onClick={() => setListEdit({ title: list.title, emoji: list.emoji, due_date: list.due_date || '' })}
+                className="cursor-pointer border-none bg-transparent p-1 text-stone-400 dark:text-stone-500"
+              >
+                <Pencil className="size-4" />
+              </button>
+            )}
+          </div>
           {dueDate && (
-            <div style={{ fontSize: 13, fontWeight: 600, color: accentColor }}>
-              rok: {dueDate.toLocaleDateString('sl-SI', { day: 'numeric', month: 'long' })}
-              {daysLeft !== null && daysLeft >= 0 && ` · še ${daysLeft} dni`}
-              {isPast && ' · zamujeno'}
+            <div className={cx('text-sm font-semibold', DUE_TEXT[tone])}>
+              {t('dueLabel', { date: format.dateTime(dueDate, 'dayMonthLong') })}
+              {daysLeft !== null && daysLeft >= 0 && ` · ${t('daysLeft', { days: daysLeft })}`}
+              {isPast && ` · ${t('overdueWord')}`}
             </div>
           )}
-          {total > 0 && <div style={{ fontSize: 12, color: st.textSecondary, marginTop: 4 }}>{done}/{total} opravljenih</div>}
+          {total > 0 && (
+            <div className="mt-1 text-xs text-stone-400 dark:text-stone-500">{t('progress', { done, total })}</div>
+          )}
         </div>
 
         {/* Progress */}
         {total > 0 && (
-          <div style={{ height: 4, background: isDark ? 'rgba(71,85,105,0.3)' : 'rgba(99,102,241,0.1)', borderRadius: 2, marginBottom: 20 }}>
-            <div style={{ height: '100%', borderRadius: 2, width: pct + '%', background: accentColor, transition: 'width 0.3s' }} />
+          <div className="mb-5 h-1 rounded-xs bg-stone-200 dark:bg-stone-800">
+            <div
+              className={cx('h-full rounded-xs transition-[width] duration-300', DUE_BAR[tone])}
+              style={{ width: pct + '%' }}
+            />
           </div>
         )}
 
         {/* Add item */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
-          <input ref={inputRef} value={newItem} onChange={e => setNewItem(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleAdd(); }} placeholder="Dodaj opravilo..." style={{ ...st.INP, flex: 1 }} />
-          <button onClick={handleAdd} disabled={!newItem.trim()} style={{ width: 48, height: 48, borderRadius: 12, border: 'none', background: newItem.trim() ? 'linear-gradient(135deg,#A855F7,#6366F1)' : 'rgba(30,41,59,0.4)', color: '#fff', fontSize: 22, cursor: newItem.trim() ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>+</button>
-        </div>
+        {!readOnly && (
+          <div className="mb-5 flex gap-2">
+            <Input
+              size="sm"
+              ref={inputRef}
+              value={newItem}
+              onChange={(e) => setNewItem(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleAdd();
+              }}
+              placeholder={t('addItemPlaceholder')}
+              className="flex-1"
+            />
+            <button
+              onClick={handleAdd}
+              disabled={!newItem.trim()}
+              aria-label={ta('add')}
+              className={cx(
+                'flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-none',
+                newItem.trim()
+                  ? 'cursor-pointer bg-stone-900 text-white dark:bg-stone-100 dark:text-stone-900'
+                  : 'cursor-default bg-stone-200 text-stone-400 dark:bg-stone-800 dark:text-stone-600',
+              )}
+            >
+              <Plus className="size-5.5" />
+            </button>
+          </div>
+        )}
 
         {/* Open items */}
         {openItems.length > 0 && (
           <>
-            <div style={{ fontSize: 11, fontWeight: 700, color: st.textSecondary, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Odprto ({openItems.length})</div>
-            <div style={{ background: st.cardBg, border: st.cardBorder, borderRadius: 16, padding: '4px 12px', marginBottom: 16 }}>
-              {openItems.map((item, idx) => (
-                <TodoItemRow key={item.id} item={item} isLast={idx === openItems.length - 1} member={getMember(item.assigned_to)} members={members} isDark={isDark} st={st} showPicker={assignPicker === item.id}
-                  onToggle={() => toggleItem(item.id)} onDelete={() => deleteItem(item.id)}
-                  onPickerOpen={e => { e.stopPropagation(); setAssignPicker(item.id); }}
-                  onAssign={userId => { updateItem(item.id, { assigned_to: userId }); setAssignPicker(null); }} />
-              ))}
-            </div>
+            <SectionHeader>{t('open', { count: openItems.length })}</SectionHeader>
+            <Card className="relative mb-4 px-3 py-1">
+              <AnimatePresence initial={false} mode="popLayout">
+                {openItems.map((item, idx) => (
+                  <TodoItemRow
+                    key={item.id}
+                    item={item}
+                    isLast={idx === openItems.length - 1}
+                    member={getMember(item.assigned_to)}
+                    members={members}
+                    showPicker={assignPicker === item.id}
+                    onToggle={() => toggleItem(item.id)}
+                    onDelete={() => deleteItem(item.id)}
+                    onTap={() => setItemDetail({ ...item })}
+                    onPickerOpen={(e) => {
+                      e.stopPropagation();
+                      setAssignPicker(item.id);
+                    }}
+                    onAssign={(userId) => {
+                      updateItem(item.id, { assigned_to: userId });
+                      setAssignPicker(null);
+                    }}
+                  />
+                ))}
+              </AnimatePresence>
+            </Card>
           </>
         )}
 
         {/* Done items */}
         {doneItems.length > 0 && (
           <>
-            <div style={{ fontSize: 11, fontWeight: 700, color: st.textSecondary, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Opravljeno ({doneItems.length})</div>
-            <div style={{ background: st.cardBg, border: st.cardBorder, borderRadius: 16, padding: '4px 12px', marginBottom: 20, opacity: 0.65 }}>
-              {doneItems.map((item, idx) => (
-                <TodoItemRow key={item.id} item={item} isLast={idx === doneItems.length - 1} member={getMember(item.assigned_to)} members={members} isDark={isDark} st={st} showPicker={assignPicker === item.id}
-                  onToggle={() => toggleItem(item.id)} onDelete={() => deleteItem(item.id)}
-                  onPickerOpen={e => { e.stopPropagation(); setAssignPicker(item.id); }}
-                  onAssign={userId => { updateItem(item.id, { assigned_to: userId }); setAssignPicker(null); }} />
-              ))}
-            </div>
+            <SectionHeader>{t('doneSection', { count: doneItems.length })}</SectionHeader>
+            <Card className="relative mb-5 px-3 py-1 opacity-65">
+              <AnimatePresence initial={false} mode="popLayout">
+                {doneItems.map((item, idx) => (
+                  <TodoItemRow
+                    key={item.id}
+                    item={item}
+                    isLast={idx === doneItems.length - 1}
+                    member={getMember(item.assigned_to)}
+                    members={members}
+                    showPicker={assignPicker === item.id}
+                    onToggle={() => toggleItem(item.id)}
+                    onDelete={() => deleteItem(item.id)}
+                    onTap={() => setItemDetail({ ...item })}
+                    onPickerOpen={(e) => {
+                      e.stopPropagation();
+                      setAssignPicker(item.id);
+                    }}
+                    onAssign={(userId) => {
+                      updateItem(item.id, { assigned_to: userId });
+                      setAssignPicker(null);
+                    }}
+                  />
+                ))}
+              </AnimatePresence>
+            </Card>
           </>
         )}
-      </div>
-    </div>
+      </PageBody>
+
+      {/* List edit modal */}
+      {listEdit && (
+        <Modal onClose={() => setListEdit(null)}>
+          <h3 className="mb-4 font-serif text-xl font-semibold tracking-tight text-stone-900 dark:text-stone-100">
+            {t('editList')}
+          </h3>
+          <div className="mb-4 flex flex-wrap gap-1.5">
+            {LIST_EMOJIS.map((e) => (
+              <button
+                key={e}
+                onClick={() => setListEdit((d) => ({ ...d, emoji: e }))}
+                className={cx(
+                  'cursor-pointer rounded-lg border p-1.75 text-2xl',
+                  listEdit.emoji === e
+                    ? 'border-stone-900 bg-stone-100 dark:border-stone-100 dark:bg-stone-800'
+                    : 'border-stone-200 bg-transparent dark:border-white/10',
+                )}
+              >
+                {e}
+              </button>
+            ))}
+          </div>
+          <Label className="mb-1.5 text-xs">{t('listTitle')}</Label>
+          <Input
+            size="sm"
+            autoFocus
+            value={listEdit.title}
+            onChange={(e) => setListEdit((d) => ({ ...d, title: e.target.value }))}
+            className="mb-3"
+          />
+          <Label className="mb-1.5 text-xs">{t('due')}</Label>
+          <Input
+            size="sm"
+            type="date"
+            value={listEdit.due_date || ''}
+            onChange={(e) => setListEdit((d) => ({ ...d, due_date: e.target.value }))}
+            className="mb-5"
+          />
+          <ModalActions
+            onSave={async () => {
+              if (!listEdit.title.trim()) return;
+              await onUpdateList(list.id, {
+                title: listEdit.title.trim(),
+                emoji: listEdit.emoji,
+                due_date: listEdit.due_date || null,
+              });
+              setListEdit(null);
+            }}
+            onCancel={() => setListEdit(null)}
+          />
+        </Modal>
+      )}
+
+      {/* Item detail modal */}
+      {itemDetail && (
+        <Modal onClose={() => setItemDetail(null)}>
+          <h3 className="mb-4 font-serif text-xl font-semibold tracking-tight text-stone-900 dark:text-stone-100">
+            {t('editItem')}
+          </h3>
+          <Label className="mb-1.5 text-xs">{t('itemTitle')}</Label>
+          <Input
+            size="sm"
+            autoFocus
+            value={itemDetail.title}
+            onChange={(e) => setItemDetail((d) => ({ ...d, title: e.target.value }))}
+            className="mb-3.5"
+          />
+          <Label className="mb-1.5 text-xs">{t('notes')}</Label>
+          <textarea
+            value={itemDetail.notes || ''}
+            onChange={(e) => setItemDetail((d) => ({ ...d, notes: e.target.value }))}
+            placeholder={t('notesPlaceholder')}
+            rows={4}
+            className="mb-5 box-border w-full resize-none rounded-xl border border-stone-300 bg-white px-3.5 py-3 text-base leading-normal font-medium text-stone-900 transition-colors outline-none focus:border-orange-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-100"
+          />
+          <ModalActions
+            onSave={async () => {
+              if (!itemDetail.title.trim()) return;
+              await updateItem(itemDetail.id, { title: itemDetail.title.trim(), notes: itemDetail.notes || null });
+              setItemDetail(null);
+            }}
+            onCancel={() => setItemDetail(null)}
+          />
+        </Modal>
+      )}
+    </Screen>
   );
 }
 
 // ─── ITEM ROW ───
-function TodoItemRow({ item, isLast, member, members, isDark, st, showPicker, onToggle, onDelete, onPickerOpen, onAssign }) {
+// `ref` reaches the DOM node — required by AnimatePresence mode="popLayout".
+function TodoItemRow({
+  item,
+  isLast,
+  member,
+  members,
+  showPicker,
+  onToggle,
+  onDelete,
+  onTap,
+  onPickerOpen,
+  onAssign,
+  ref,
+}) {
+  const t = useTranslations('Todo');
+  const tc = useTranslations('Common');
+  const ta = useTranslations('A11y');
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '11px 0', borderBottom: isLast ? 'none' : '1px solid ' + (isDark ? 'rgba(71,85,105,0.15)' : 'rgba(99,102,241,0.08)') }}>
-      <button onClick={onToggle} style={{ width: 24, height: 24, borderRadius: 7, border: '1.5px solid ' + (item.checked ? '#22C55E' : isDark ? 'rgba(71,85,105,0.5)' : 'rgba(99,102,241,0.3)'), background: item.checked ? '#22C55E' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, color: '#fff', fontSize: 13, transition: 'all 0.15s' }}>
-        {item.checked && '✓'}
+    <motion.div
+      ref={ref}
+      {...LIST_ROW}
+      className={cx(
+        'flex items-center gap-2.5 py-2.75',
+        !isLast && 'border-b border-dotted border-stone-300 dark:border-stone-700',
+      )}
+    >
+      <button
+        onClick={onToggle}
+        className={cx(
+          'flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-md border-2 text-sm text-white transition-colors duration-150',
+          item.checked ? 'border-green-600 bg-green-600' : 'border-stone-300 bg-transparent dark:border-stone-700',
+        )}
+      >
+        {item.checked && <motion.span {...POP}>✓</motion.span>}
       </button>
 
-      <span style={{ flex: 1, fontSize: 15, fontWeight: 500, color: item.checked ? st.textSecondary : st.textPrimary, textDecoration: item.checked ? 'line-through' : 'none' }}>
-        {item.title}
-      </span>
-
-      {/* Assign picker */}
-      <div style={{ position: 'relative', flexShrink: 0 }}>
-        <button onClick={onPickerOpen} style={{ width: 28, height: 28, borderRadius: '50%', background: member ? 'linear-gradient(135deg,#6366F1,#0EA5E9)' : isDark ? 'rgba(71,85,105,0.3)' : 'rgba(99,102,241,0.1)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: member ? '#fff' : st.textSecondary, cursor: 'pointer' }}>
-          {member ? (member.display_name || '?')[0].toUpperCase() : '+'}
-        </button>
-        {showPicker && (
-          <div onClick={e => e.stopPropagation()} style={{ position: 'absolute', right: 0, top: 34, background: isDark ? '#1E293B' : '#fff', border: st.cardBorder, borderRadius: 12, padding: 6, zIndex: 20, minWidth: 150, boxShadow: '0 8px 24px rgba(0,0,0,0.3)' }}>
-            <div onClick={() => onAssign(null)} style={{ padding: '8px 10px', borderRadius: 8, cursor: 'pointer', fontSize: 13, color: st.textSecondary }}>Nihče</div>
-            {members.map(m => (
-              <div key={m.user_id || m.id} onClick={() => onAssign(m.user_id)} style={{ padding: '8px 10px', borderRadius: 8, cursor: 'pointer', fontSize: 13, color: st.textPrimary, fontWeight: 500 }}>
-                {m.display_name || 'Uporabnik'}
-              </div>
-            ))}
+      <div onClick={onTap} className="min-w-0 flex-1 cursor-pointer">
+        <div
+          className={cx(
+            'text-base font-medium',
+            item.checked ? 'text-stone-400 line-through dark:text-stone-500' : 'text-stone-900 dark:text-stone-100',
+          )}
+        >
+          {item.title}
+        </div>
+        {item.notes && (
+          <div className="mt-0.5 overflow-hidden text-xs text-ellipsis whitespace-nowrap text-stone-400 dark:text-stone-500">
+            📝 {item.notes}
           </div>
         )}
       </div>
 
-      <button onClick={onDelete} style={{ width: 24, height: 24, borderRadius: 6, background: 'transparent', border: 'none', color: st.textMuted, cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>✕</button>
-    </div>
+      {/* Assign picker */}
+      <div className="relative shrink-0">
+        <button
+          onClick={onPickerOpen}
+          className={cx(
+            'flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border-none text-xs font-bold',
+            member
+              ? 'bg-stone-800 text-stone-100 dark:bg-stone-200 dark:text-stone-900'
+              : 'bg-stone-200 text-stone-500 dark:bg-stone-800 dark:text-stone-400',
+          )}
+        >
+          {member ? (member.display_name || '?')[0].toUpperCase() : '+'}
+        </button>
+        {showPicker && (
+          <motion.div
+            {...POPOVER_POP}
+            onClick={(e) => e.stopPropagation()}
+            className={cx(POPOVER, 'absolute top-8.5 right-0 z-20 min-w-37.5 origin-top-right p-1.5')}
+          >
+            <div
+              onClick={() => onAssign(null)}
+              className="cursor-pointer rounded-lg px-2.5 py-2 text-sm text-stone-400 dark:text-stone-500"
+            >
+              {t('nobody')}
+            </div>
+            {members.map((m) => (
+              <div
+                key={m.user_id || m.id}
+                onClick={() => onAssign(m.user_id)}
+                className="cursor-pointer rounded-lg px-2.5 py-2 text-sm font-medium text-stone-900 dark:text-stone-100"
+              >
+                {m.display_name || tc('user')}
+              </div>
+            ))}
+          </motion.div>
+        )}
+      </div>
+
+      <button
+        aria-label={ta('delete')}
+        onClick={onDelete}
+        className="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-md border-none bg-transparent text-stone-400 dark:text-stone-600"
+      >
+        <X className="size-4" />
+      </button>
+    </motion.div>
   );
 }

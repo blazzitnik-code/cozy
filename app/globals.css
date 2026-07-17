@@ -1,38 +1,13 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
 
-* {
-  box-sizing: border-box;
-  -webkit-tap-highlight-color: transparent;
+/* dark: variant follows <html data-theme="dark"> (SSR default in layout.js;
+   saved value applied pre-paint by the inline script there; toggled by
+   switchTheme in AppShell). Convention: unprefixed = light, dark: = dark. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/* Fonts come from next/font (layout.js) which defines the --font-inter /
+   --font-fraunces variables on <html> — hence @theme inline. */
+@theme inline {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-fraunces), ui-serif, Georgia, serif;
 }
-
-html, body {
-  margin: 0;
-  padding: 0;
-  background: #0B1120;
-  color: #E2E8F0;
-  font-family: 'Outfit', 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  overscroll-behavior: none;
-  overflow-x: hidden;
-  height: 100%;
-}
-
-#__next {
-  height: 100%;
-  min-height: -webkit-fill-available;
-}
-
-/* PWA safe areas — top only; bottom handled per-component via env(safe-area-inset-bottom) */
-body {
-  padding-top: env(safe-area-inset-top);
-}
-
-input[type="date"]::-webkit-calendar-picker-indicator {
-  filter: invert(0.7);
-}
-
-/* Hide scrollbar but keep scroll */
-.hide-scrollbar::-webkit-scrollbar { display: none; }
-.hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }

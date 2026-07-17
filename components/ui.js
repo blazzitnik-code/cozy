@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
-import { AnimatePresence, motion } from 'motion/react';
+import { AnimatePresence, animate, motion, useMotionValue, useReducedMotion, useTransform } from 'motion/react';
 import { useTranslations } from 'next-intl';
 import { subscribeToErrors } from '@/lib/notify';
 import { cx } from '@/lib/utils';
@@ -511,67 +511,60 @@ export function BottomNav({ mode, onNavigate }) {
 }
 
 // ─── SWIPEABLE CARD ───
+// Motion drag: 1:1 finger tracking leftwards only (elastic 0 to the right),
+// automatic spring snap-back below the archive threshold. Vertical scroll
+// keeps working — drag="x" sets touch-action: pan-y.
 export function SwipeCard({ children, onSwipeLeft, onClick }) {
   const t = useTranslations('Freezer');
-  const [offsetX, setOffsetX] = useState(0);
-  const [swiping, setSwiping] = useState(false);
-  const startX = useRef(0);
-  const startY = useRef(0);
-  const moved = useRef(false);
+  const x = useMotionValue(0);
+  // Green "used" layer fades in as the card is pulled left.
+  const revealOpacity = useTransform(x, [-60, -25], [1, 0]);
+  const dragging = useRef(false);
+  // Imperative animate() below doesn't read MotionConfig — gate it here.
+  const reducedMotion = useReducedMotion();
 
-  const onTouchStart = (e) => {
-    startX.current = e.touches[0].clientX;
-    startY.current = e.touches[0].clientY;
-    moved.current = false;
-    setSwiping(true);
-  };
-  const onTouchMove = (e) => {
-    if (!swiping) return;
-    const dx = e.touches[0].clientX - startX.current;
-    const dy = Math.abs(e.touches[0].clientY - startY.current);
-    if (dy > 30 && !moved.current) {
-      setSwiping(false);
-      return;
-    }
-    if (dx < -10) moved.current = true;
-    setOffsetX(Math.min(0, dx));
-  };
-  const onTouchEnd = () => {
-    setSwiping(false);
-    if (offsetX < -80 && onSwipeLeft) {
-      setOffsetX(-200);
-      setTimeout(() => {
-        onSwipeLeft();
-        setOffsetX(0);
-      }, 200);
-    } else {
-      setOffsetX(0);
-    }
+  const handleDragEnd = async (_, info) => {
+    // The synthetic click fires after pointerup — clear the guard a frame later.
+    requestAnimationFrame(() => (dragging.current = false));
+    const archive = onSwipeLeft && (info.offset.x < -80 || (info.offset.x < -40 && info.velocity.x < -600));
+    if (!archive) return; // the drag system springs back to constraints on its own
+    // Continue the fling off-screen, inheriting the gesture velocity.
+    animate(
+      x,
+      -430,
+      reducedMotion ? { duration: 0 } : { type: 'spring', stiffness: 400, damping: 40, velocity: info.velocity.x },
+    );
+    await onSwipeLeft();
+    // Realtime removal unmounts the row shortly after. If the write failed
+    // (error toast), the card is still mounted — spring it back. If the row
+    // is already gone, animating the orphaned MotionValue is a no-op.
+    setTimeout(() => animate(x, 0, SPRING_FAST), 1200);
   };
 
   return (
     <div className="relative overflow-hidden rounded-2xl">
       {/* Green background revealed on swipe */}
-      <div
-        className={cx(
-          'absolute top-0 right-0 bottom-0 flex w-30 items-center justify-end rounded-r-2xl bg-linear-to-r from-transparent to-green-500 pr-5 transition-opacity duration-150',
-          offsetX < -30 ? 'opacity-100' : 'opacity-0',
-        )}
+      <motion.div
+        style={{ opacity: revealOpacity }}
+        className="absolute top-0 right-0 bottom-0 flex w-30 items-center justify-end rounded-r-2xl bg-linear-to-r from-transparent to-green-500 pr-5"
       >
         <span className="text-sm font-extrabold text-white">{t('usedSwipe')}</span>
-      </div>
-      <div
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onTouchEnd={onTouchEnd}
+      </motion.div>
+      <motion.div
+        drag="x"
+        dragConstraints={{ left: 0, right: 0 }}
+        dragElastic={{ left: 1, right: 0 }}
+        dragTransition={{ bounceStiffness: 550, bounceDamping: 38 }}
+        style={{ x }}
+        onDragStart={() => (dragging.current = true)}
+        onDragEnd={handleDragEnd}
         onClick={() => {
-          if (!moved.current && onClick) onClick();
+          if (!dragging.current && onClick) onClick();
         }}
         className="relative z-1"
-        style={{ transform: `translateX(${offsetX}px)`, transition: swiping ? 'none' : 'transform 0.25s ease' }}
       >
         {children}
-      </div>
+      </motion.div>
     </div>
   );
 }

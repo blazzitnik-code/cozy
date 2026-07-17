@@ -1,6 +1,15 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
-import { AnimatePresence, animate, motion, useMotionValue, useReducedMotion, useTransform } from 'motion/react';
+import { createPortal } from 'react-dom';
+import {
+  AnimatePresence,
+  animate,
+  motion,
+  useDragControls,
+  useMotionValue,
+  useReducedMotion,
+  useTransform,
+} from 'motion/react';
 import { useTranslations } from 'next-intl';
 import { subscribeToErrors } from '@/lib/notify';
 import { cx } from '@/lib/utils';
@@ -73,6 +82,7 @@ export const PRESS_SM =
 // gating lives in IntlProvider (MotionConfig reducedMotion="user").
 export const SPRING_FAST = { type: 'spring', stiffness: 550, damping: 38 };
 export const SPRING_POP = { type: 'spring', stiffness: 800, damping: 30 }; // tiny glyphs, slight overshoot
+export const SPRING_SHEET = { type: 'spring', stiffness: 400, damping: 40 }; // softer, for full-height travel (bottom sheet)
 // Scale-pop for small glyphs (checkbox ✓ and similar).
 export const POP = {
   initial: { scale: 0.4, opacity: 0 },
@@ -322,28 +332,57 @@ export function Badge({ children, className, style }) {
 }
 
 // ─── MODAL (bottom sheet) ───
-// Entrance-only by design: call sites conditional-render ({state && <Modal>})
-// and close via their own state setters, so an exit animation can't run.
+// Portaled to <body> (escapes PageBody's z-1 stacking context — otherwise
+// BottomNav paints over modals opened from inside page content). Slides up
+// from below; backdrop tap and dragging the handle down dismiss it WITH the
+// exit animation: internal `open` state drives an inner AnimatePresence and
+// onExitComplete calls onClose() once the sheet is off-screen. Closes via
+// caller state (ModalActions Save/Cancel) stay instant by design — do not
+// wrap call sites in AnimatePresence.
 export function Modal({ children, onClose }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.15 }}
-      onClick={onClose}
-      className="fixed inset-0 z-100 flex items-end justify-center bg-black/70 backdrop-blur-sm"
-    >
-      <motion.div
-        initial={{ y: 24, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={SPRING_FAST}
-        onClick={(e) => e.stopPropagation()}
-        className="max-h-[85vh] w-full max-w-[430px] overflow-y-auto rounded-t-3xl border border-b-0 border-indigo-500/20 bg-linear-to-b from-white to-indigo-50 px-5 pt-6 pb-9 dark:border-slate-600/30 dark:from-slate-800 dark:to-slate-900"
-      >
-        <div className="mx-auto mb-5 h-1 w-9 rounded-xs bg-slate-300 dark:bg-slate-700" />
-        {children}
-      </motion.div>
-    </motion.div>
+  const [open, setOpen] = useState(true);
+  const dragControls = useDragControls();
+  const dismiss = () => setOpen(false);
+  return createPortal(
+    <AnimatePresence onExitComplete={onClose}>
+      {open && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.18 }}
+          onClick={dismiss}
+          className="fixed inset-0 z-100 flex items-end justify-center bg-black/70 backdrop-blur-sm"
+        >
+          <motion.div
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
+            transition={SPRING_SHEET}
+            drag="y"
+            dragListener={false}
+            dragControls={dragControls}
+            dragConstraints={{ top: 0, bottom: 0 }}
+            dragElastic={{ top: 0, bottom: 0.9 }}
+            onDragEnd={(_, info) => {
+              if (info.offset.y > 100 || info.velocity.y > 800) dismiss();
+            }}
+            onClick={(e) => e.stopPropagation()}
+            className="max-h-[85vh] w-full max-w-[430px] overflow-y-auto rounded-t-3xl border border-b-0 border-indigo-500/20 bg-linear-to-b from-white to-indigo-50 px-5 pt-6 pb-[calc(36px+env(safe-area-inset-bottom))] dark:border-slate-600/30 dark:from-slate-800 dark:to-slate-900"
+          >
+            {/* Drag handle — generous touch target around the visual pill */}
+            <div
+              onPointerDown={(e) => dragControls.start(e)}
+              className="-mx-5 -mt-6 cursor-grab touch-none px-5 pt-6 pb-4 active:cursor-grabbing"
+            >
+              <div className="mx-auto h-1 w-9 rounded-xs bg-slate-300 dark:bg-slate-700" />
+            </div>
+            {children}
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>,
+    document.body,
   );
 }
 

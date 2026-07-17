@@ -5,13 +5,22 @@ description: Headlessly screenshot Cožy's authenticated screens against the loc
 
 # Visual check of authenticated screens
 
-The app only offers Google sign-in, but authenticated screens can be tested headlessly against the local stack by minting a session over the admin API and injecting it into the browser.
+The app's only real sign-in is Google, but authenticated screens can be tested headlessly against the local stack — either through the dev-only password login (dev builds) or by minting a session over the admin API and injecting it into the browser (works on any build).
 
 ## Prerequisites
 
 - Local stack running: `npx supabase status` (start with `npx supabase start` if not) — copy the **anon** and **service_role** keys from its output. API URL: `http://127.0.0.1:55321`.
 - App running on `http://localhost:3000` — `npm run dev` is fine for styling; use `npm run build && npm start` when the service worker / offline behavior matters.
 - `agent-browser` CLI (installed globally).
+
+## Dev-build shortcut
+
+On `npm run dev` builds the login screen shows a password form under the Google button (`NODE_ENV === 'development'` only). That replaces steps 1 and 3 of the recipe:
+
+- Instead of the admin-API curl: `node scripts/dev-user.mjs vtest@cozy.local vtest-pass-1234` (creates/updates a confirmed user; password defaults to `cozy-dev` if omitted).
+- Instead of injecting the session: have agent-browser open the dev login and fill the form.
+
+Step 2 (password-grant JWT) is still needed for the seeding curls in step 4. Prod builds (`npm run build && npm start`) have no dev login — use the full recipe below.
 
 ## Recipe
 

@@ -14,7 +14,7 @@ CLAUDE.md holds the rules and the _why_; this skill is the **order of operations
 
 ## 1. Module file (new module only)
 
-One file `components/XModule.js`, one default export. The module owns **only UI state** (`useState` for screen/filters/modals) — no data hooks, no Supabase imports.
+One file `components/XModule.js`, one default export. The module owns **only UI state** (`useState` for screen/filters/modals) — no data hooks, no Supabase imports. Sole exception: module-local **external-API** data (non-Supabase fetches à la HomeModule's LPP/BicikeLJ), seeded from module-scope caches so remounts paint instantly — see CLAUDE.md → Structure.
 
 ## 2. Data wiring (new module / new data only)
 

@@ -19,7 +19,8 @@ import { useLocaleSwitch } from './IntlProvider';
 import { rpcErrorKey } from '@/lib/intl';
 import { supabase } from '@/lib/supabase';
 import { cx, localDateStr } from '@/lib/utils';
-import { Modal, ConfirmModal, BottomNav, Toaster, Loader, Segmented, Avatar, PRESS, PRESS_SM } from './ui';
+import { X } from 'lucide-react';
+import { Modal, ConfirmModal, BottomNav, Toaster, Loader, Segmented, Avatar, PRESS, PRESS_SM, ROW_FLAT } from './ui';
 import { notifyError } from '@/lib/notify';
 import TodoApp from './TodoApp';
 import HomeScreen from './HomeScreen';
@@ -254,8 +255,8 @@ export default function AppShell({ user, household, members, signOut }) {
       <Modal onClose={() => setShowSettings(false)}>
         <div className="mb-5 text-center">
           <div className="mb-2 text-5xl">🏠</div>
-          <h2 className="mb-1 text-xl font-extrabold">{household.name}</h2>
-          <p className="text-sm text-slate-400 dark:text-slate-500">
+          <h2 className="mb-1 font-serif text-2xl font-semibold tracking-tight">{household.name}</h2>
+          <p className="text-sm text-stone-500 dark:text-stone-400">
             {t('signedInAs', { name: user.user_metadata?.full_name || user.email })}
           </p>
         </div>
@@ -274,7 +275,6 @@ export default function AppShell({ user, household, members, signOut }) {
         {/* THEME SWITCHER */}
         <Segmented
           className="mb-5"
-          tone="indigo"
           value={theme}
           onChange={switchTheme}
           options={[
@@ -284,35 +284,34 @@ export default function AppShell({ user, household, members, signOut }) {
         />
 
         {/* Join code */}
-        <div className="mb-4 rounded-xl border border-sky-400/20 bg-sky-400/6 p-4 text-center">
-          <div className="mb-1.5 text-xs font-bold tracking-[1px] text-sky-400 uppercase">{t('inviteCode')}</div>
-          <div className="text-4xl font-black tracking-[8px] text-slate-800 dark:text-slate-200">
+        <div className="mb-4 rounded-xl border border-stone-200 bg-stone-50 p-4 text-center dark:border-white/10 dark:bg-stone-950/60">
+          <div className="mb-1.5 text-xs font-bold tracking-[1px] text-orange-600 uppercase dark:text-orange-400">
+            {t('inviteCode')}
+          </div>
+          <div className="text-4xl font-black tracking-[8px] text-stone-900 dark:text-stone-100">
             {household.join_code}
           </div>
-          <div className="mt-1 text-xs text-slate-300 dark:text-slate-600">{t('shareCode')}</div>
+          <div className="mt-1 text-xs text-stone-400 dark:text-stone-500">{t('shareCode')}</div>
         </div>
 
         {/* Members */}
         <div className="mb-5">
-          <div className="mb-2 text-sm font-bold text-slate-500 dark:text-slate-400">
+          <div className="mb-1 text-sm font-bold text-stone-500 dark:text-stone-400">
             {t('members')} ({members.length})
           </div>
           {members.map((m) => (
-            <div
-              key={m.id}
-              className="mb-1 flex items-center gap-2.5 rounded-xl border border-indigo-500/15 bg-white/70 px-3 py-2.5 dark:border-slate-600/20 dark:bg-slate-800/50"
-            >
+            <div key={m.id} className={ROW_FLAT}>
               <Avatar name={m.display_name} />
               <div className="flex-1">
-                <div className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                <div className="text-sm font-semibold text-stone-900 dark:text-stone-100">
                   {m.display_name || tc('user')}
                 </div>
-                <div className="text-xs text-slate-300 dark:text-slate-600">
+                <div className="text-xs text-stone-400 dark:text-stone-500">
                   {m.role === 'owner' ? t('owner') : t('member')}
                 </div>
               </div>
               {m.user_id === user.id ? (
-                <span className="text-xs font-semibold text-sky-400">{t('you')}</span>
+                <span className="text-xs font-semibold text-orange-600 dark:text-orange-400">{t('you')}</span>
               ) : (
                 members.find((x) => x.user_id === user.id)?.role === 'owner' && (
                   <button
@@ -326,9 +325,12 @@ export default function AppShell({ user, household, members, signOut }) {
                         },
                       })
                     }
-                    className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-lg border border-red-500/20 bg-red-500/12 text-sm text-red-500"
+                    className={cx(
+                      'flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border-none bg-red-500/10 text-red-600 dark:text-red-400',
+                      PRESS_SM,
+                    )}
                   >
-                    ✕
+                    <X className="size-3.5" />
                   </button>
                 )
               )}
@@ -338,12 +340,12 @@ export default function AppShell({ user, household, members, signOut }) {
 
         {/* Google Calendar */}
         <div className="mb-5">
-          <div className="mb-2.5 text-sm font-bold text-slate-500 dark:text-slate-400">{t('googleCalendar')}</div>
+          <div className="mb-2.5 text-sm font-bold text-stone-500 dark:text-stone-400">{t('googleCalendar')}</div>
           {calConnected ? (
-            <div className="flex items-center gap-2.5 rounded-xl border border-green-500/20 bg-green-500/6 px-3.5 py-3">
+            <div className="flex items-center gap-2.5 rounded-xl border border-green-600/20 bg-green-600/8 px-3.5 py-3 dark:border-green-500/20 dark:bg-green-500/10">
               <div className="flex-1">
-                <div className="text-sm font-bold text-green-500">{t('connected')}</div>
-                <div className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">{calConnection?.google_email}</div>
+                <div className="text-sm font-bold text-green-700 dark:text-green-400">{t('connected')}</div>
+                <div className="mt-0.5 text-xs text-stone-500 dark:text-stone-400">{calConnection?.google_email}</div>
               </div>
               <button
                 onClick={() =>
@@ -352,7 +354,10 @@ export default function AppShell({ user, household, members, signOut }) {
                     onConfirm: () => removeCalConnection(calConnection.id),
                   })
                 }
-                className="cursor-pointer rounded-lg border border-red-500/20 bg-red-500/8 px-2.5 py-1.5 text-xs font-semibold text-red-500"
+                className={cx(
+                  'cursor-pointer rounded-full border-none bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-600 dark:text-red-400',
+                  PRESS_SM,
+                )}
               >
                 {t('disconnect')}
               </button>
@@ -363,7 +368,10 @@ export default function AppShell({ user, household, members, signOut }) {
                 setShowSettings(false);
                 connectCalendar();
               }}
-              className="w-full cursor-pointer rounded-xl border border-indigo-500/30 bg-indigo-500/8 p-3.5 text-sm font-bold text-indigo-400"
+              className={cx(
+                'w-full cursor-pointer rounded-full border-none bg-stone-900 p-3.5 text-sm font-bold text-white dark:bg-stone-100 dark:text-stone-900',
+                PRESS,
+              )}
             >
               {t('connectCalendar')}
             </button>
@@ -372,22 +380,24 @@ export default function AppShell({ user, household, members, signOut }) {
 
         {/* Notifications */}
         <div className="mb-5">
-          <div className="mb-2.5 text-sm font-bold text-slate-500 dark:text-slate-400">{t('notifications')}</div>
+          <div className="mb-2.5 text-sm font-bold text-stone-500 dark:text-stone-400">{t('notifications')}</div>
           {push.needsInstall ? (
-            <p className="text-xs text-slate-400 dark:text-slate-500">{t('notificationsIosHint')}</p>
+            <p className="text-xs text-stone-400 dark:text-stone-500">{t('notificationsIosHint')}</p>
           ) : !push.supported ? (
-            <p className="text-xs text-slate-400 dark:text-slate-500">{t('notificationsUnsupported')}</p>
+            <p className="text-xs text-stone-400 dark:text-stone-500">{t('notificationsUnsupported')}</p>
           ) : push.permission === 'denied' ? (
-            <p className="text-xs text-slate-400 dark:text-slate-500">{t('notificationsDenied')}</p>
+            <p className="text-xs text-stone-400 dark:text-stone-500">{t('notificationsDenied')}</p>
           ) : push.subscribed ? (
-            <div className="flex items-center gap-2.5 rounded-xl border border-green-500/20 bg-green-500/6 px-3.5 py-3">
-              <div className="flex-1 text-sm font-bold text-green-500">{t('notificationsEnabled')}</div>
+            <div className="flex items-center gap-2.5 rounded-xl border border-green-600/20 bg-green-600/8 px-3.5 py-3 dark:border-green-500/20 dark:bg-green-500/10">
+              <div className="flex-1 text-sm font-bold text-green-700 dark:text-green-400">
+                {t('notificationsEnabled')}
+              </div>
               <button
                 onClick={push.disable}
                 disabled={push.busy}
                 className={cx(
                   PRESS_SM,
-                  'cursor-pointer rounded-lg border border-red-500/20 bg-red-500/8 px-2.5 py-1.5 text-xs font-semibold text-red-500',
+                  'cursor-pointer rounded-full border-none bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-600 dark:text-red-400',
                 )}
               >
                 {t('notificationsDisable')}
@@ -399,7 +409,7 @@ export default function AppShell({ user, household, members, signOut }) {
               disabled={push.busy}
               className={cx(
                 PRESS,
-                'w-full cursor-pointer rounded-xl border border-indigo-500/30 bg-indigo-500/8 p-3.5 text-sm font-bold text-indigo-400 disabled:opacity-50',
+                'w-full cursor-pointer rounded-full border-none bg-stone-900 p-3.5 text-sm font-bold text-white disabled:opacity-50 dark:bg-stone-100 dark:text-stone-900',
               )}
             >
               {t('notificationsEnable')}
@@ -409,7 +419,10 @@ export default function AppShell({ user, household, members, signOut }) {
 
         <button
           onClick={handleSignOut}
-          className="w-full cursor-pointer rounded-xl border border-red-500/20 bg-red-500/5 p-3.5 text-base font-bold text-red-500"
+          className={cx(
+            'w-full cursor-pointer rounded-full border border-red-500/25 bg-red-500/10 p-3.5 text-base font-bold text-red-600 dark:text-red-400',
+            PRESS,
+          )}
         >
           {tc('signOut')}
         </button>

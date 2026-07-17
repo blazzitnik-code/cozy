@@ -2,6 +2,7 @@
 import { useState, useRef } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useTranslations, useFormatter } from 'next-intl';
+import { Archive, Pencil, Plus, X } from 'lucide-react';
 import { useTodoLists, useTodoArchivedLists, useTodoItems } from '@/lib/hooks';
 import { cx, dueTone, DUE_TEXT, DUE_BAR, DUE_BADGE } from '@/lib/utils';
 import {
@@ -101,7 +102,9 @@ export default function TodoApp({ user, householdId, members }) {
         <PageBody>
           <div className="mb-6 flex items-center gap-2.5">
             <BackBtn onClick={() => setScreen('home')} />
-            <h2 className="text-xl font-bold text-slate-800 dark:text-slate-200">{t('archiveTitle')}</h2>
+            <h2 className="font-serif text-2xl font-semibold tracking-tight text-stone-900 dark:text-stone-100">
+              {t('archiveTitle')}
+            </h2>
           </div>
           {archivedLists.length === 0 ? (
             <EmptyState icon="😭">{t('noArchived')}</EmptyState>
@@ -118,8 +121,8 @@ export default function TodoApp({ user, householdId, members }) {
                 <div className="mb-2.5 flex items-center gap-2.5">
                   <span className="text-2xl">{list.emoji}</span>
                   <div className="min-w-0 flex-1">
-                    <div className="text-base font-semibold text-slate-800 dark:text-slate-200">{list.title}</div>
-                    <div className="text-xs text-slate-400 dark:text-slate-500">
+                    <div className="text-base font-semibold text-stone-900 dark:text-stone-100">{list.title}</div>
+                    <div className="text-xs text-stone-400 dark:text-stone-500">
                       {t('archivedAt', { date: format.dateTime(new Date(list.archived_at), 'numericDate') })}
                     </div>
                   </div>
@@ -130,7 +133,7 @@ export default function TodoApp({ user, householdId, members }) {
                       e.stopPropagation();
                       unarchiveList(list.id);
                     }}
-                    className="h-9 flex-1 cursor-pointer rounded-lg border border-indigo-500/20 bg-indigo-500/12 text-sm font-bold text-indigo-500"
+                    className="h-9 flex-1 cursor-pointer rounded-full border-none bg-stone-900 text-sm font-bold text-white dark:bg-stone-100 dark:text-stone-900"
                   >
                     {t('restore')}
                   </button>
@@ -139,7 +142,7 @@ export default function TodoApp({ user, householdId, members }) {
                       e.stopPropagation();
                       deleteList(list.id);
                     }}
-                    className="h-9 flex-1 cursor-pointer rounded-lg border border-red-500/20 bg-red-500/8 text-sm font-bold text-red-500"
+                    className="h-9 flex-1 cursor-pointer rounded-full border border-red-500/25 bg-red-500/10 text-sm font-bold text-red-600 dark:text-red-400"
                   >
                     {t('delete')}
                   </button>
@@ -156,15 +159,15 @@ export default function TodoApp({ user, householdId, members }) {
     <Screen>
       <PageBody>
         <div className="mb-6 flex items-center justify-between">
-          <h1 className="text-3xl font-extrabold">{t('title')}</h1>
+          <h1 className="font-serif text-3xl font-semibold tracking-tight">{t('title')}</h1>
           <IconButton onClick={() => setScreen('archive')} aria-label={ta('archive')}>
-            📦
+            <Archive className="size-4.5" />
           </IconButton>
         </div>
 
         {lists.length === 0 ? (
           <EmptyState icon="📋">
-            <p className="mb-2 text-base font-semibold text-slate-800 dark:text-slate-200">{t('noLists')}</p>
+            <p className="mb-2 text-base font-semibold text-stone-900 dark:text-stone-100">{t('noLists')}</p>
             <p>{t('createFirst')}</p>
           </EmptyState>
         ) : (
@@ -187,16 +190,18 @@ export default function TodoApp({ user, householdId, members }) {
         )}
       </PageBody>
 
-      {/* FAB (shared primitive, repositioned/recolored via twMerge overrides) */}
+      {/* FAB (shared primitive, repositioned via twMerge overrides) */}
       <Fab
         onClick={() => setShowNewList(true)}
-        className="right-5 bottom-[calc(88px+env(safe-area-inset-bottom))] left-auto h-14 w-14 translate-x-0 from-purple-500 to-indigo-500 text-2xl shadow-lg ring-0 shadow-purple-500/35"
+        className="right-5 bottom-[calc(88px+env(safe-area-inset-bottom))] left-auto h-14 w-14 translate-x-0"
       />
 
       {/* New list modal */}
       {showNewList && (
         <Modal onClose={() => setShowNewList(false)}>
-          <h3 className="mb-4 text-lg font-bold text-slate-800 dark:text-slate-200">{t('newList')}</h3>
+          <h3 className="mb-4 font-serif text-xl font-semibold tracking-tight text-stone-900 dark:text-stone-100">
+            {t('newList')}
+          </h3>
           <div className="mb-4 flex flex-wrap gap-1.5">
             {LIST_EMOJIS.map((e) => (
               <button
@@ -205,8 +210,8 @@ export default function TodoApp({ user, householdId, members }) {
                 className={cx(
                   'cursor-pointer rounded-lg border p-1.75 text-2xl',
                   newListEmoji === e
-                    ? 'border-purple-500/50 bg-purple-500/15'
-                    : 'border-indigo-500/15 bg-transparent dark:border-slate-600/20',
+                    ? 'border-stone-900 bg-stone-100 dark:border-stone-100 dark:bg-stone-800'
+                    : 'border-stone-200 bg-transparent dark:border-white/10',
                 )}
               >
                 {e}
@@ -234,7 +239,6 @@ export default function TodoApp({ user, householdId, members }) {
             className="mb-5"
           />
           <ModalActions
-            tone="violet"
             saveLabel={t('createList')}
             disabled={!newListTitle.trim()}
             onSave={handleAddList}
@@ -264,9 +268,9 @@ function TodoListCard({ list, householdId, onClick }) {
       <div className={cx('flex items-center gap-2.5', total > 0 && 'mb-2.5')}>
         <span className="text-2xl">{list.emoji}</span>
         <div className="flex-1">
-          <div className="text-base font-bold text-slate-800 dark:text-slate-200">{list.title}</div>
+          <div className="text-base font-bold text-stone-900 dark:text-stone-100">{list.title}</div>
           {total > 0 && (
-            <div className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">{t('progress', { done, total })}</div>
+            <div className="mt-0.5 text-xs text-stone-400 dark:text-stone-500">{t('progress', { done, total })}</div>
           )}
         </div>
         {dueDate && (
@@ -276,7 +280,7 @@ function TodoListCard({ list, householdId, onClick }) {
         )}
       </div>
       {total > 0 && (
-        <div className="h-0.75 rounded-xs bg-indigo-500/20 dark:bg-slate-600/30">
+        <div className="h-0.75 rounded-xs bg-stone-200 dark:bg-stone-800">
           <div
             className={cx('h-full rounded-xs transition-[width] duration-300', DUE_BAR[tone])}
             style={{ width: pct + '%' }}
@@ -332,7 +336,7 @@ function TodoListScreen({ list, householdId, members, user, onBack, onArchive, o
           {readOnly && (
             <button
               onClick={onUnarchive}
-              className="cursor-pointer rounded-xl border border-indigo-500/20 bg-indigo-500/12 px-3.5 py-2.5 text-sm font-bold text-indigo-500"
+              className="cursor-pointer rounded-full border-none bg-stone-900 px-3.5 py-2.5 text-sm font-bold text-white dark:bg-stone-100 dark:text-stone-900"
             >
               {t('restoreList')}
             </button>
@@ -348,14 +352,16 @@ function TodoListScreen({ list, householdId, members, user, onBack, onArchive, o
             {list.emoji}
           </div>
           <div className="mb-1 flex items-center justify-center gap-2">
-            <h2 className="text-2xl font-extrabold text-slate-800 dark:text-slate-200">{list.title}</h2>
+            <h2 className="font-serif text-3xl font-semibold tracking-tight text-stone-900 dark:text-stone-100">
+              {list.title}
+            </h2>
             {!readOnly && (
               <button
                 aria-label={ta('edit')}
                 onClick={() => setListEdit({ title: list.title, emoji: list.emoji, due_date: list.due_date || '' })}
-                className="cursor-pointer border-none bg-transparent p-1 text-sm text-slate-400 dark:text-slate-500"
+                className="cursor-pointer border-none bg-transparent p-1 text-stone-400 dark:text-stone-500"
               >
-                ✏️
+                <Pencil className="size-4" />
               </button>
             )}
           </div>
@@ -367,13 +373,13 @@ function TodoListScreen({ list, householdId, members, user, onBack, onArchive, o
             </div>
           )}
           {total > 0 && (
-            <div className="mt-1 text-xs text-slate-400 dark:text-slate-500">{t('progress', { done, total })}</div>
+            <div className="mt-1 text-xs text-stone-400 dark:text-stone-500">{t('progress', { done, total })}</div>
           )}
         </div>
 
         {/* Progress */}
         {total > 0 && (
-          <div className="mb-5 h-1 rounded-xs bg-indigo-500/20 dark:bg-slate-600/30">
+          <div className="mb-5 h-1 rounded-xs bg-stone-200 dark:bg-stone-800">
             <div
               className={cx('h-full rounded-xs transition-[width] duration-300', DUE_BAR[tone])}
               style={{ width: pct + '%' }}
@@ -398,14 +404,15 @@ function TodoListScreen({ list, householdId, members, user, onBack, onArchive, o
             <button
               onClick={handleAdd}
               disabled={!newItem.trim()}
+              aria-label={ta('add')}
               className={cx(
-                'flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border-none text-2xl text-white',
+                'flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-none',
                 newItem.trim()
-                  ? 'cursor-pointer bg-linear-135 from-purple-500 to-indigo-500'
-                  : 'cursor-default bg-white/70 dark:bg-slate-800/50',
+                  ? 'cursor-pointer bg-stone-900 text-white dark:bg-stone-100 dark:text-stone-900'
+                  : 'cursor-default bg-stone-200 text-stone-400 dark:bg-stone-800 dark:text-stone-600',
               )}
             >
-              +
+              <Plus className="size-5.5" />
             </button>
           </div>
         )}
@@ -478,7 +485,9 @@ function TodoListScreen({ list, householdId, members, user, onBack, onArchive, o
       {/* List edit modal */}
       {listEdit && (
         <Modal onClose={() => setListEdit(null)}>
-          <h3 className="mb-4 text-base font-bold text-slate-800 dark:text-slate-200">{t('editList')}</h3>
+          <h3 className="mb-4 font-serif text-xl font-semibold tracking-tight text-stone-900 dark:text-stone-100">
+            {t('editList')}
+          </h3>
           <div className="mb-4 flex flex-wrap gap-1.5">
             {LIST_EMOJIS.map((e) => (
               <button
@@ -487,8 +496,8 @@ function TodoListScreen({ list, householdId, members, user, onBack, onArchive, o
                 className={cx(
                   'cursor-pointer rounded-lg border p-1.75 text-2xl',
                   listEdit.emoji === e
-                    ? 'border-purple-500/50 bg-purple-500/15'
-                    : 'border-indigo-500/15 bg-transparent dark:border-slate-600/20',
+                    ? 'border-stone-900 bg-stone-100 dark:border-stone-100 dark:bg-stone-800'
+                    : 'border-stone-200 bg-transparent dark:border-white/10',
                 )}
               >
                 {e}
@@ -512,7 +521,6 @@ function TodoListScreen({ list, householdId, members, user, onBack, onArchive, o
             className="mb-5"
           />
           <ModalActions
-            tone="violet"
             onSave={async () => {
               if (!listEdit.title.trim()) return;
               await onUpdateList(list.id, {
@@ -530,7 +538,9 @@ function TodoListScreen({ list, householdId, members, user, onBack, onArchive, o
       {/* Item detail modal */}
       {itemDetail && (
         <Modal onClose={() => setItemDetail(null)}>
-          <h3 className="mb-4 text-base font-bold text-slate-800 dark:text-slate-200">{t('editItem')}</h3>
+          <h3 className="mb-4 font-serif text-xl font-semibold tracking-tight text-stone-900 dark:text-stone-100">
+            {t('editItem')}
+          </h3>
           <Label className="mb-1.5 text-xs">{t('itemTitle')}</Label>
           <Input
             size="sm"
@@ -545,10 +555,9 @@ function TodoListScreen({ list, householdId, members, user, onBack, onArchive, o
             onChange={(e) => setItemDetail((d) => ({ ...d, notes: e.target.value }))}
             placeholder={t('notesPlaceholder')}
             rows={4}
-            className="mb-5 box-border w-full resize-none rounded-xl border border-indigo-500/25 bg-white/90 px-3.5 py-3 text-base leading-normal font-medium text-slate-800 outline-none dark:border-indigo-500/30 dark:bg-slate-800/80 dark:text-slate-200"
+            className="mb-5 box-border w-full resize-none rounded-xl border border-stone-300 bg-white px-3.5 py-3 text-base leading-normal font-medium text-stone-900 transition-colors outline-none focus:border-orange-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-100"
           />
           <ModalActions
-            tone="violet"
             onSave={async () => {
               if (!itemDetail.title.trim()) return;
               await updateItem(itemDetail.id, { title: itemDetail.title.trim(), notes: itemDetail.notes || null });
@@ -586,16 +595,14 @@ function TodoItemRow({
       {...LIST_ROW}
       className={cx(
         'flex items-center gap-2.5 py-2.75',
-        !isLast && 'border-b border-indigo-500/15 dark:border-slate-600/20',
+        !isLast && 'border-b border-dotted border-stone-300 dark:border-stone-700',
       )}
     >
       <button
         onClick={onToggle}
         className={cx(
           'flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-md border-2 text-sm text-white transition-colors duration-150',
-          item.checked
-            ? 'border-green-500 bg-green-500'
-            : 'border-indigo-500/20 bg-transparent dark:border-slate-600/30',
+          item.checked ? 'border-green-600 bg-green-600' : 'border-stone-300 bg-transparent dark:border-stone-700',
         )}
       >
         {item.checked && <motion.span {...POP}>✓</motion.span>}
@@ -605,13 +612,13 @@ function TodoItemRow({
         <div
           className={cx(
             'text-base font-medium',
-            item.checked ? 'text-slate-400 line-through dark:text-slate-500' : 'text-slate-800 dark:text-slate-200',
+            item.checked ? 'text-stone-400 line-through dark:text-stone-500' : 'text-stone-900 dark:text-stone-100',
           )}
         >
           {item.title}
         </div>
         {item.notes && (
-          <div className="mt-0.5 overflow-hidden text-xs text-ellipsis whitespace-nowrap text-slate-400 dark:text-slate-500">
+          <div className="mt-0.5 overflow-hidden text-xs text-ellipsis whitespace-nowrap text-stone-400 dark:text-stone-500">
             📝 {item.notes}
           </div>
         )}
@@ -624,8 +631,8 @@ function TodoItemRow({
           className={cx(
             'flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border-none text-xs font-bold',
             member
-              ? 'bg-linear-135 from-sky-500 to-indigo-500 text-white'
-              : 'bg-indigo-500/20 text-slate-400 dark:bg-slate-600/30 dark:text-slate-500',
+              ? 'bg-stone-800 text-stone-100 dark:bg-stone-200 dark:text-stone-900'
+              : 'bg-stone-200 text-stone-500 dark:bg-stone-800 dark:text-stone-400',
           )}
         >
           {member ? (member.display_name || '?')[0].toUpperCase() : '+'}
@@ -638,7 +645,7 @@ function TodoItemRow({
           >
             <div
               onClick={() => onAssign(null)}
-              className="cursor-pointer rounded-lg px-2.5 py-2 text-sm text-slate-400 dark:text-slate-500"
+              className="cursor-pointer rounded-lg px-2.5 py-2 text-sm text-stone-400 dark:text-stone-500"
             >
               {t('nobody')}
             </div>
@@ -646,7 +653,7 @@ function TodoItemRow({
               <div
                 key={m.user_id || m.id}
                 onClick={() => onAssign(m.user_id)}
-                className="cursor-pointer rounded-lg px-2.5 py-2 text-sm font-medium text-slate-800 dark:text-slate-200"
+                className="cursor-pointer rounded-lg px-2.5 py-2 text-sm font-medium text-stone-900 dark:text-stone-100"
               >
                 {m.display_name || tc('user')}
               </div>
@@ -658,9 +665,9 @@ function TodoItemRow({
       <button
         aria-label={ta('delete')}
         onClick={onDelete}
-        className="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-md border-none bg-transparent text-sm text-slate-300 dark:text-slate-600"
+        className="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-md border-none bg-transparent text-stone-400 dark:text-stone-600"
       >
-        ✕
+        <X className="size-4" />
       </button>
     </motion.div>
   );

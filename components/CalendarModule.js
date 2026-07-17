@@ -1,30 +1,10 @@
 'use client';
 import { useState } from 'react';
 import { useTranslations, useFormatter } from 'next-intl';
-import { detectEventType, cx } from '@/lib/utils';
+import { Settings } from 'lucide-react';
+import { detectEventType, cx, PERSON } from '@/lib/utils';
 import { eventTitle } from '@/lib/intl';
-import { Screen, PageBody, Btn, Modal, Input, Label, IconButton } from './ui';
-
-// Person lane tones — current user = indigo, partner = pink.
-// Full literal class strings for the Tailwind scanner.
-const PERSON = {
-  me: {
-    dot: 'bg-indigo-500',
-    lane: 'border-indigo-500/15',
-    block: 'bg-indigo-500/9',
-    border: 'border-indigo-500/25',
-    borderHi: 'border-indigo-500/50',
-    text: 'text-indigo-500',
-  },
-  partner: {
-    dot: 'bg-pink-500',
-    lane: 'border-pink-500/15',
-    block: 'bg-pink-500/9',
-    border: 'border-pink-500/25',
-    borderHi: 'border-pink-500/50',
-    text: 'text-pink-500',
-  },
-};
+import { Screen, PageBody, Btn, Modal, Input, Label, IconButton, PRESS } from './ui';
 
 export default function CalendarModule({
   user,
@@ -95,7 +75,7 @@ export default function CalendarModule({
         </div>
         {ev.label && <div className={cx('mt-px text-[10px] font-semibold', p.text)}>{ev.label}</div>}
         {!ev.is_all_day && ev.start_time && (
-          <div className="mt-0.5 text-[10px] text-slate-400 dark:text-slate-500">
+          <div className="mt-0.5 text-[10px] text-stone-400 dark:text-stone-500">
             {fmtTime(ev.start_time)}
             {ev.end_time ? `–${fmtTime(ev.end_time)}` : ''}
           </div>
@@ -110,13 +90,13 @@ export default function CalendarModule({
         {/* Header */}
         <div className="mb-4 flex items-center justify-between pt-3">
           <div>
-            <h1 className="text-2xl font-extrabold">{t('title')}</h1>
-            <div className="mt-0.5 text-xs text-slate-500 capitalize dark:text-slate-400">
+            <h1 className="font-serif text-3xl font-semibold tracking-tight">{t('title')}</h1>
+            <div className="mt-0.5 text-xs text-stone-500 capitalize dark:text-stone-400">
               {format.dateTime(selDay, 'monthYear')}
             </div>
           </div>
           <IconButton onClick={onOpenSettings} aria-label={ta('settings')}>
-            ⚙️
+            <Settings className="size-4.5" />
           </IconButton>
         </div>
 
@@ -129,14 +109,18 @@ export default function CalendarModule({
               className={cx(
                 'flex flex-1 cursor-pointer flex-col items-center gap-0.75 rounded-xl border px-0.5 py-2',
                 isSel(d)
-                  ? 'border-indigo-500/50 bg-indigo-500/15'
-                  : 'border-indigo-500/15 bg-transparent dark:border-slate-600/20',
+                  ? 'border-stone-900 bg-stone-900 dark:border-stone-100 dark:bg-stone-100'
+                  : 'border-stone-200 bg-transparent dark:border-white/10',
               )}
             >
               <span
                 className={cx(
                   'text-[9px] font-semibold',
-                  isToday(d) ? 'text-indigo-400' : 'text-slate-400 dark:text-slate-500',
+                  isSel(d)
+                    ? 'text-white/70 dark:text-stone-900/70'
+                    : isToday(d)
+                      ? 'text-orange-600 dark:text-orange-400'
+                      : 'text-stone-400 dark:text-stone-500',
                 )}
               >
                 {dow[d.getDay()]}
@@ -145,15 +129,15 @@ export default function CalendarModule({
                 className={cx(
                   'text-base font-extrabold',
                   isSel(d)
-                    ? 'text-indigo-400'
+                    ? 'text-white dark:text-stone-900'
                     : isToday(d)
-                      ? 'text-slate-800 dark:text-slate-200'
-                      : 'text-slate-500 dark:text-slate-400',
+                      ? 'text-orange-600 dark:text-orange-400'
+                      : 'text-stone-500 dark:text-stone-400',
                 )}
               >
                 {d.getDate()}
               </span>
-              {isToday(d) && <span className="h-0.75 w-0.75 rounded-full bg-indigo-400" />}
+              {isToday(d) && <span className="h-0.75 w-0.75 rounded-full bg-orange-500" />}
             </button>
           ))}
         </div>
@@ -162,11 +146,14 @@ export default function CalendarModule({
         {!calConnected && (
           <div className="px-5 py-10 text-center">
             <div className="mb-3 text-5xl">📅</div>
-            <div className="mb-1.5 text-base font-bold text-slate-800 dark:text-slate-200">{t('connectTitle')}</div>
-            <div className="mb-5 text-sm text-slate-500 dark:text-slate-400">{t('connectHint')}</div>
+            <div className="mb-1.5 text-base font-bold text-stone-900 dark:text-stone-100">{t('connectTitle')}</div>
+            <div className="mb-5 text-sm text-stone-500 dark:text-stone-400">{t('connectHint')}</div>
             <button
               onClick={connectCalendar}
-              className="cursor-pointer rounded-xl border-none bg-linear-135 from-indigo-500 to-indigo-400 px-6 py-3.25 text-sm font-bold text-white"
+              className={cx(
+                'cursor-pointer rounded-full border-none bg-stone-900 px-6 py-3.25 text-sm font-bold text-white dark:bg-stone-100 dark:text-stone-900',
+                PRESS,
+              )}
             >
               {t('connectBtn')}
             </button>
@@ -181,13 +168,13 @@ export default function CalendarModule({
               <div />
               <div className="flex items-center gap-1.5 pl-2">
                 <div className={cx('h-2 w-2 shrink-0 rounded-full', PERSON.me.dot)} />
-                <span className="overflow-hidden text-xs font-bold text-ellipsis whitespace-nowrap text-slate-500 dark:text-slate-400">
+                <span className="overflow-hidden text-xs font-bold text-ellipsis whitespace-nowrap text-stone-500 dark:text-stone-400">
                   {calConnection?.google_email?.split('@')[0] || t('you')}
                 </span>
               </div>
               <div className="flex items-center gap-1.5 pl-2">
                 <div className={cx('h-2 w-2 shrink-0 rounded-full', PERSON.partner.dot)} />
-                <span className="overflow-hidden text-xs font-bold text-ellipsis whitespace-nowrap text-slate-500 dark:text-slate-400">
+                <span className="overflow-hidden text-xs font-bold text-ellipsis whitespace-nowrap text-stone-500 dark:text-stone-400">
                   {partnerConn?.google_email?.split('@')[0] || t('partner')}
                 </span>
               </div>
@@ -195,7 +182,7 @@ export default function CalendarModule({
 
             {/* Loading — only block on Google API fetch, not DB */}
             {calLoading && (
-              <div className="py-6 text-center text-sm text-slate-500 dark:text-slate-400">{tc('loading')}</div>
+              <div className="py-6 text-center text-sm text-stone-500 dark:text-stone-400">{tc('loading')}</div>
             )}
 
             {/* Hour grid */}
@@ -215,7 +202,7 @@ export default function CalendarModule({
                     <div
                       className={cx(
                         'pt-2.5 pr-1 text-right text-[10px] font-medium',
-                        bothFree ? 'text-green-500' : 'text-slate-400 dark:text-slate-500',
+                        bothFree ? 'text-green-600 dark:text-green-400' : 'text-stone-400 dark:text-stone-500',
                       )}
                     >
                       {hour}:00
@@ -236,7 +223,7 @@ export default function CalendarModule({
 
             {/* Partner not connected note */}
             {calConnections.length > 1 && !partnerConn && (
-              <div className="mt-2 p-4 text-center text-xs text-slate-400 dark:text-slate-500">
+              <div className="mt-2 p-4 text-center text-xs text-stone-400 dark:text-stone-500">
                 {t('partnerNotConnected')}
               </div>
             )}
@@ -248,9 +235,11 @@ export default function CalendarModule({
       {calEventDetail && (
         <Modal onClose={() => setCalEventDetail(null)}>
           <div className="mb-1 text-xl">{detectEventType(calEventDetail.title)}</div>
-          <h3 className="mb-1 text-lg font-extrabold">{eventTitle(calEventDetail.title, t)}</h3>
+          <h3 className="mb-1 font-serif text-xl font-semibold tracking-tight">
+            {eventTitle(calEventDetail.title, t)}
+          </h3>
           {!calEventDetail.is_all_day && calEventDetail.start_time && (
-            <div className="mb-4 text-sm text-slate-500 dark:text-slate-400">
+            <div className="mb-4 text-sm text-stone-500 dark:text-stone-400">
               {fmtTime(calEventDetail.start_time)}
               {calEventDetail.end_time ? ` – ${fmtTime(calEventDetail.end_time)}` : ''}
             </div>
@@ -258,10 +247,11 @@ export default function CalendarModule({
           <button
             onClick={() => setCalEventDetail((d) => ({ ...d, is_important: !d.is_important }))}
             className={cx(
-              'mb-3 w-full cursor-pointer rounded-xl border p-3 text-sm font-bold',
+              'mb-3 w-full cursor-pointer rounded-full border p-3 text-sm font-bold',
+              PRESS,
               calEventDetail.is_important
-                ? 'border-amber-500/40 bg-amber-500/12 text-amber-500'
-                : 'border-indigo-500/20 bg-white/70 text-slate-400 dark:border-slate-600/30 dark:bg-slate-800/50 dark:text-slate-500',
+                ? 'border-amber-500/40 bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400'
+                : 'border-stone-300 bg-white text-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400',
             )}
           >
             {calEventDetail.is_important ? t('important') : t('markImportant')}

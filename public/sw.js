@@ -4,20 +4,18 @@
  *
  * Strategies:
  *  - navigations            → network-first, fallback to cache, then cached '/'
- *  - /_next/static/*        → cache-first (content-hashed, immutable)
- *  - Google Fonts CSS       → stale-while-revalidate
- *  - Google Fonts woff2     → cache-first
+ *  - /_next/static/*        → cache-first (content-hashed, immutable; includes
+ *                             the next/font self-hosted woff2 files)
  *  - Supabase /rest/v1/ GET → network-first, fallback to cache (last-known data offline)
  *
  * Bump VERSION to invalidate all caches on the next activate.
  */
 
-const VERSION = 'v1';
+const VERSION = 'v2';
 const PAGES = `cozy-pages-${VERSION}`;
 const STATIC = `cozy-static-${VERSION}`;
-const FONTS = `cozy-fonts-${VERSION}`;
 const DATA = `cozy-data-${VERSION}`;
-const ALL_CACHES = [PAGES, STATIC, FONTS, DATA];
+const ALL_CACHES = [PAGES, STATIC, DATA];
 
 const SHELL = ['/', '/manifest.json', '/icon-192.png', '/icon-512.png'];
 
@@ -67,18 +65,6 @@ async function cacheFirst(request, cacheName) {
   return response;
 }
 
-async function staleWhileRevalidate(request, cacheName) {
-  const cache = await caches.open(cacheName);
-  const cached = await cache.match(request);
-  const network = fetch(request)
-    .then((response) => {
-      if (response.ok) cache.put(request, response.clone());
-      return response;
-    })
-    .catch(() => cached);
-  return cached || network;
-}
-
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   if (request.method !== 'GET') return;
@@ -93,15 +79,6 @@ self.addEventListener('fetch', (event) => {
 
   if (url.origin === self.location.origin && url.pathname.startsWith('/_next/static/')) {
     event.respondWith(cacheFirst(request, STATIC));
-    return;
-  }
-
-  if (url.hostname === 'fonts.googleapis.com') {
-    event.respondWith(staleWhileRevalidate(request, FONTS));
-    return;
-  }
-  if (url.hostname === 'fonts.gstatic.com') {
-    event.respondWith(cacheFirst(request, FONTS));
     return;
   }
 

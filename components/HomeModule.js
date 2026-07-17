@@ -1,21 +1,24 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
+import { Pencil, RotateCw, X } from 'lucide-react';
 import { useHomeSettings } from '@/lib/hooks';
 import { cx } from '@/lib/utils';
-import { Modal, Input, Card, SectionHeader, ModalActions, POPOVER } from './ui';
+import { Modal, Input, Card, SectionHeader, ModalActions, POPOVER, PRESS_SM } from './ui';
 
 const LPP_BASE = 'https://data.lpp.si/api';
 const BIKE_API_KEY = process.env.NEXT_PUBLIC_BICIKELJ_API_KEY;
 const BIKE_CONTRACT = 'ljubljana';
 
 // Repeated class recipes local to this module
-const DIM_LABEL = 'text-slate-300 dark:text-slate-600';
+const DIM_LABEL = 'text-stone-400 dark:text-stone-600';
 const ROW = 'flex gap-1.5 mb-2 items-center';
 const CHIP =
-  'flex-1 bg-white/70 dark:bg-slate-800/50 border border-indigo-500/15 dark:border-slate-600/20 rounded-lg py-2 px-3';
-const ADD_BTN = 'text-xs py-1 px-2.5 rounded-lg border-none bg-indigo-500/15 text-indigo-400 cursor-pointer font-bold';
-const RM_BTN = 'w-9 h-9 rounded-lg border-none bg-red-500/12 text-red-500 cursor-pointer shrink-0 text-sm';
+  'flex-1 bg-stone-50 dark:bg-stone-950/60 border border-stone-200 dark:border-white/10 rounded-lg py-2 px-3';
+const ADD_BTN =
+  'text-xs py-1 px-2.5 rounded-full border-none bg-stone-900 text-white dark:bg-stone-100 dark:text-stone-900 cursor-pointer font-bold';
+const RM_BTN =
+  'w-9 h-9 rounded-full border-none bg-red-500/10 text-red-600 dark:text-red-400 cursor-pointer shrink-0 flex items-center justify-center';
 const TILE = 'rounded-xl py-3 px-2 text-center';
 
 async function fetchLppStations() {
@@ -75,8 +78,8 @@ function StationSearch({ placeholder, stations, onSelect }) {
                 setQuery('');
               }}
               className={cx(
-                'cursor-pointer px-3 py-2.5 text-sm text-slate-800 dark:text-slate-200',
-                i < results.length - 1 && 'border-b border-indigo-500/15 dark:border-slate-600/20',
+                'cursor-pointer px-3 py-2.5 text-sm text-stone-900 dark:text-stone-100',
+                i < results.length - 1 && 'border-b border-stone-200 dark:border-white/10',
               )}
             >
               {s.name}
@@ -123,7 +126,9 @@ function EditModal({ settings, onSave, onClose }) {
 
   return (
     <Modal onClose={onClose}>
-      <h3 className="mb-5 text-lg font-bold text-slate-800 dark:text-slate-200">{t('settingsTitle')}</h3>
+      <h3 className="mb-5 font-serif text-xl font-semibold tracking-tight text-stone-900 dark:text-stone-100">
+        {t('settingsTitle')}
+      </h3>
 
       {/* Home address */}
       <SectionHeader className="mb-1.5">{t('homeAddress')}</SectionHeader>
@@ -174,7 +179,7 @@ function EditModal({ settings, onSave, onClose }) {
               onClick={() => setDestinations(destinations.filter((_, j) => j !== i))}
               className={RM_BTN}
             >
-              ✕
+              <X className="size-4" />
             </button>
           </div>
         ))}
@@ -200,7 +205,7 @@ function EditModal({ settings, onSave, onClose }) {
                 setShortcuts(n);
               }}
               placeholder="🔗"
-              className="box-border w-12 shrink-0 rounded-lg border border-indigo-500/25 bg-white/90 px-1 py-2.5 text-center text-lg text-slate-800 outline-none dark:border-indigo-500/30 dark:bg-slate-800/80 dark:text-slate-200"
+              className="box-border w-12 shrink-0 rounded-lg border border-stone-300 bg-white px-1 py-2.5 text-center text-lg text-stone-900 transition-colors outline-none focus:border-orange-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-100"
             />
             <Input
               size="xs"
@@ -229,7 +234,7 @@ function EditModal({ settings, onSave, onClose }) {
               onClick={() => setShortcuts(shortcuts.filter((_, j) => j !== i))}
               className={RM_BTN}
             >
-              ✕
+              <X className="size-4" />
             </button>
           </div>
         ))}
@@ -243,21 +248,21 @@ function EditModal({ settings, onSave, onClose }) {
         {busStops.map((s, i) => (
           <div key={i} className={ROW}>
             <div className={CHIP}>
-              <div className="text-sm font-semibold text-slate-800 dark:text-slate-200">{s.name}</div>
-              <div className="text-xs text-slate-400 dark:text-slate-500">{t('codeLabel', { code: s.code })}</div>
+              <div className="text-sm font-semibold text-stone-900 dark:text-stone-100">{s.name}</div>
+              <div className="text-xs text-stone-400 dark:text-stone-500">{t('codeLabel', { code: s.code })}</div>
             </div>
             <button
               aria-label={ta('remove')}
               onClick={() => setBusStops(busStops.filter((_, j) => j !== i))}
               className={RM_BTN}
             >
-              ✕
+              <X className="size-4" />
             </button>
           </div>
         ))}
         {busStops.length < 3 &&
           (loadingStations ? (
-            <div className="py-2 text-xs text-slate-400 dark:text-slate-500">{t('loadingStations')}</div>
+            <div className="py-2 text-xs text-stone-400 dark:text-stone-500">{t('loadingStations')}</div>
           ) : lppStations.length > 0 ? (
             <StationSearch
               placeholder={t('searchLpp')}
@@ -270,8 +275,8 @@ function EditModal({ settings, onSave, onClose }) {
               }
             />
           ) : (
-            <div className="py-2 text-xs text-slate-400 dark:text-slate-500">
-              {t('searchUnavailable')} <span className="text-indigo-400">opendata.si/lpp</span>
+            <div className="py-2 text-xs text-stone-400 dark:text-stone-500">
+              {t('searchUnavailable')} <span className="text-orange-600 dark:text-orange-400">opendata.si/lpp</span>
             </div>
           ))}
       </div>
@@ -284,8 +289,8 @@ function EditModal({ settings, onSave, onClose }) {
         {bikeStations.map((s, i) => (
           <div key={i} className={ROW}>
             <div className={CHIP}>
-              <div className="text-sm font-semibold text-slate-800 dark:text-slate-200">{s.name}</div>
-              <div className="text-xs text-slate-400 dark:text-slate-500">
+              <div className="text-sm font-semibold text-stone-900 dark:text-stone-100">{s.name}</div>
+              <div className="text-xs text-stone-400 dark:text-stone-500">
                 {t('stationNumber', { number: s.number })}
               </div>
             </div>
@@ -294,13 +299,13 @@ function EditModal({ settings, onSave, onClose }) {
               onClick={() => setBikeStations(bikeStations.filter((_, j) => j !== i))}
               className={RM_BTN}
             >
-              ✕
+              <X className="size-4" />
             </button>
           </div>
         ))}
         {bikeStations.length < 3 &&
           (loadingStations ? (
-            <div className="py-2 text-xs text-slate-400 dark:text-slate-500">{t('loadingStations')}</div>
+            <div className="py-2 text-xs text-stone-400 dark:text-stone-500">{t('loadingStations')}</div>
           ) : (
             <StationSearch
               placeholder={t('searchBike')}
@@ -310,7 +315,7 @@ function EditModal({ settings, onSave, onClose }) {
           ))}
       </div>
 
-      <ModalActions tone="orange" onSave={handleSave} onCancel={onClose} />
+      <ModalActions onSave={handleSave} onCancel={onClose} />
     </Modal>
   );
 }
@@ -372,8 +377,8 @@ export default function HomeModule({ user, householdId }) {
         <SectionHeader className={DIM_LABEL}>{t('sectionTitle')}</SectionHeader>
         <Card onClick={() => setEditing(true)} className="cursor-pointer px-4 py-5 text-center">
           <div className="mb-2 text-4xl">🏠</div>
-          <div className="mb-1 text-sm font-bold text-slate-800 dark:text-slate-200">{t('setupTitle')}</div>
-          <div className="text-xs text-slate-400 dark:text-slate-500">{t('setupDesc')}</div>
+          <div className="mb-1 text-sm font-bold text-stone-900 dark:text-stone-100">{t('setupTitle')}</div>
+          <div className="text-xs text-stone-400 dark:text-stone-500">{t('setupDesc')}</div>
         </Card>
         {editing && <EditModal settings={settings} onSave={handleSave} onClose={() => setEditing(false)} />}
       </div>
@@ -388,9 +393,9 @@ export default function HomeModule({ user, householdId }) {
         <button
           aria-label={ta('edit')}
           onClick={() => setEditing(true)}
-          className="cursor-pointer border-none bg-transparent p-1 text-base text-slate-400 dark:text-slate-500"
+          className={cx('cursor-pointer border-none bg-transparent p-1 text-stone-400 dark:text-stone-500', PRESS_SM)}
         >
-          ✎
+          <Pencil className="size-4" />
         </button>
       </div>
 
@@ -405,8 +410,8 @@ export default function HomeModule({ user, householdId }) {
           <Card className="flex items-center gap-3 rounded-xl px-3.5 py-3">
             <span className="text-2xl">🚦</span>
             <div className="flex-1">
-              <div className="text-sm font-bold text-slate-800 dark:text-slate-200">{t('traffic')}</div>
-              <div className="text-xs text-slate-400 dark:text-slate-500">{t('viewInMaps')}</div>
+              <div className="text-sm font-bold text-stone-900 dark:text-stone-100">{t('traffic')}</div>
+              <div className="text-xs text-stone-400 dark:text-stone-500">{t('viewInMaps')}</div>
             </div>
           </Card>
         </a>
@@ -424,10 +429,12 @@ export default function HomeModule({ user, householdId }) {
               >
                 <Card className={TILE}>
                   <div className="mb-1 text-xl">📍</div>
-                  <div className="overflow-hidden text-xs font-bold text-ellipsis whitespace-nowrap text-slate-800 dark:text-slate-200">
+                  <div className="overflow-hidden text-xs font-bold text-ellipsis whitespace-nowrap text-stone-900 dark:text-stone-100">
                     {dest.name}
                   </div>
-                  <div className="mt-0.5 text-[10px] text-sky-400">{t('navigate')}</div>
+                  <div className="mt-0.5 text-[10px] font-semibold text-orange-600 dark:text-orange-400">
+                    {t('navigate')}
+                  </div>
                 </Card>
               </a>
             ))}
@@ -447,7 +454,7 @@ export default function HomeModule({ user, householdId }) {
               >
                 <Card className={TILE}>
                   <div className="mb-1 text-2xl">{s.emoji || '🔗'}</div>
-                  <div className="overflow-hidden text-xs font-bold text-ellipsis whitespace-nowrap text-slate-800 dark:text-slate-200">
+                  <div className="overflow-hidden text-xs font-bold text-ellipsis whitespace-nowrap text-stone-900 dark:text-stone-100">
                     {s.name}
                   </div>
                 </Card>
@@ -463,17 +470,17 @@ export default function HomeModule({ user, householdId }) {
             <Card key={i} className="rounded-xl px-3.5 py-3">
               <div className={cx('flex items-center gap-2', arrivals.length > 0 && 'mb-2')}>
                 <span className="text-lg">🚌</span>
-                <div className="flex-1 text-sm font-bold text-slate-800 dark:text-slate-200">{stop.name}</div>
+                <div className="flex-1 text-sm font-bold text-stone-900 dark:text-stone-100">{stop.name}</div>
                 <button
                   aria-label={ta('refresh')}
                   onClick={refreshBus}
-                  className="cursor-pointer border-none bg-transparent p-1 text-sm text-slate-400 dark:text-slate-500"
+                  className="cursor-pointer border-none bg-transparent p-1 text-sm text-stone-400 dark:text-stone-500"
                 >
-                  ↻
+                  <RotateCw className="size-4" />
                 </button>
               </div>
               {arrivals.length === 0 ? (
-                <div className="text-xs text-slate-400 dark:text-slate-500">{t('noData')}</div>
+                <div className="text-xs text-stone-400 dark:text-stone-500">{t('noData')}</div>
               ) : (
                 arrivals.slice(0, 3).map((arr, j) => {
                   const eta = arr.eta_min ?? arr.eta ?? arr.eta_seconds;
@@ -483,16 +490,16 @@ export default function HomeModule({ user, householdId }) {
                       key={j}
                       className={cx(
                         'flex items-center justify-between py-1 text-sm',
-                        j > 0 && 'border-t border-indigo-500/8 dark:border-slate-600/10',
+                        j > 0 && 'border-t border-dotted border-stone-200 dark:border-stone-800',
                       )}
                     >
-                      <span className="font-bold text-slate-800 dark:text-slate-200">
+                      <span className="font-bold text-stone-900 dark:text-stone-100">
                         {arr.route_name || arr.route_id || arr.line || '—'}
                       </span>
                       <span
                         className={cx(
                           'font-semibold',
-                          etaMin <= 2 ? 'text-green-500' : 'text-slate-400 dark:text-slate-500',
+                          etaMin <= 2 ? 'text-green-600 dark:text-green-400' : 'text-stone-400 dark:text-stone-500',
                         )}
                       >
                         {etaMin <= 0 ? t('arriving') : t('minutes', { min: etaMin })}
@@ -515,18 +522,18 @@ export default function HomeModule({ user, householdId }) {
               return (
                 <Card key={i} className={TILE}>
                   <div className="mb-1 text-lg">🚲</div>
-                  <div className="mb-0.5 overflow-hidden text-xs font-bold text-ellipsis whitespace-nowrap text-slate-800 dark:text-slate-200">
+                  <div className="mb-0.5 overflow-hidden text-xs font-bold text-ellipsis whitespace-nowrap text-stone-900 dark:text-stone-100">
                     {station.name}
                   </div>
                   <div
                     className={cx(
                       'text-2xl leading-none font-extrabold',
-                      available === 0 ? 'text-red-500' : 'text-green-500',
+                      available === 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400',
                     )}
                   >
                     {available}
                   </div>
-                  <div className="mt-0.5 text-[10px] text-slate-400 dark:text-slate-500">
+                  <div className="mt-0.5 text-[10px] text-stone-400 dark:text-stone-500">
                     {typeof stands === 'number' ? t('stands', { count: stands }) : t('standsUnknown')}
                   </div>
                 </Card>

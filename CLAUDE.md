@@ -7,7 +7,8 @@
 ## Stack and commands
 
 - Next.js 16 app router (JS, no TypeScript, Turbopack), React 19, Supabase JS v2.
-- **Stock Tailwind 4 utility classes everywhere** — no custom tokens, no `@utility`, no CSS modules/styled-components. `app/globals.css` contains ONLY the import, the `dark` custom variant and the Outfit font. Inline `style` props are allowed ONLY for the documented dynamic cases (see Theming).
+- **Stock Tailwind 4 utility classes everywhere** — no custom tokens, no `@utility`, no CSS modules/styled-components. `app/globals.css` contains ONLY the import, the `dark` custom variant and the font tokens (`@theme inline` mapping `--font-sans` → Inter and `--font-serif` → Fraunces, both self-hosted via `next/font/google` in layout.js with `latin-ext` for č/š/ž). Inline `style` props are allowed ONLY for the documented dynamic cases (see Theming).
+- Icons: **lucide-react** for chrome (bottom nav, action buttons, back/close/settings/search…), named imports only; emojis stay as DATA icons (food categories, stores, freezer icons, todo list emojis, empty states).
 - `npm run dev` — app on http://localhost:3000
 - `npm run format` — Prettier with `prettier-plugin-tailwindcss` (canonical class order; `.vscode/settings.json` wires format-on-save + Tailwind IntelliSense for `cx()` and ALL-CAPS class consts). Run before committing.
 - `npx supabase start|stop|status` — local stack in Docker, ports **55321+** (API 55321, DB 55322, Studio 55323; intentionally non-default to avoid clashing with other projects)
@@ -47,18 +48,19 @@ components/ServiceWorkerRegistrar.js — registers public/sw.js (prod builds onl
                                unregisters in dev), relays notification deep-links
 public/sw.js                 — hand-written service worker: offline runtime caching
                                + push/notificationclick handlers (see PWA section)
-components/ui.js             — shared UI: Screen, PageBody, Loader, Card, Input, Label,
-                               SectionHeader, EmptyState, IconButton, Fab, Avatar,
+components/ui.js             — shared UI: Screen, PageBody, Wordmark, Loader, Card, Input,
+                               Label, SectionHeader, EmptyState, IconButton, Fab, Avatar,
                                Segmented, Badge, Pill, FC, Btn, BackBtn, Modal,
                                ModalActions, ConfirmModal, Toaster, LogoToggle,
                                BottomNav, SwipeCard + shared class consts
-                               (CHIP_OFF/CHIP_*_ON, POPOVER, PRESS/PRESS_SM)
-                               + Motion vocabulary (SPRING_FAST/SPRING_POP/
-                               POP/POPOVER_POP/LIST_ROW)
+                               (CHIP_OFF/CHIP_ON, ROW_FLAT, CODE_INPUT, POPOVER,
+                               PRESS/PRESS_SM) + Motion vocabulary (SPRING_FAST/
+                               SPRING_POP/SPRING_SHEET/POP/POPOVER_POP/LIST_ROW)
 lib/hooks.js                 — ALL Supabase access (18 hooks); generic useHouseholdTable
 lib/constants.js             — CATS; per-locale SUGG/SHOP_SUGG/QO ({ sl, en }); FICONS
-lib/utils.js                 — cx (clsx + tailwind-merge), expiry status + STATUS_*
-                               class maps, expiryInfo(), localDateStr()
+lib/utils.js                 — cx (clsx + tailwind-merge), expiry status + STATUS_*/DUE_*
+                               class maps, PERSON tone map (me/partner), expiryInfo(),
+                               localDateStr()
 lib/intl.js                  — useCatLabel(), useExpiryText(), RPC error → key mapping
 lib/supabase.js              — client from env
 messages/sl.json, en.json    — ALL UI strings (next-intl, namespaced per module)
@@ -96,17 +98,26 @@ Architecture: data hooks live in AppShell and flow into modules via props — mo
 - Realtime: hooks listen to `postgres_changes` — a new table must be added to the `supabase_realtime` publication and have RLS/grants.
 - Push: `push_subscriptions` (one row per browser endpoint, user-scoped RLS, `locale` column) + `notify_push()` triggers on `shopping_items`/`todo_items` that POST to the `send-push` edge function via pg_net, and a pg_cron `cozy-daily-digest` job (07:00 UTC). The triggers read `push_fn_url`/`push_fn_secret` from Vault and **no-op when unset** — a fresh environment works without push until `supabase/snippets/setup-push-vault.sql` is run. Debug delivery via `net._http_response`.
 
-## Theming
+## Theming — "warm minimal" design language
 
-- **Stock Tailwind v4 utilities only** — no custom `@theme` tokens, no `@utility` classes. `app/globals.css` is just: the tailwind import, the `dark` custom variant, and `--font-sans` (Outfit).
+- **Stock Tailwind v4 utilities only** — no custom `@theme` color tokens, no `@utility` classes. `app/globals.css` is just: the tailwind import, the `dark` custom variant, and the `@theme inline` font tokens (`--font-sans` Inter, `--font-serif` Fraunces — vars come from `next/font` on `<html>`).
 - Dark mode: `@custom-variant dark` bound to `<html data-theme="dark">`. `layout.js` ships `data-theme="dark"` (app default) + `suppressHydrationWarning`; its pre-paint script applies the saved localStorage `zmrzko_theme`; `switchTheme` in AppShell toggles the attribute. Base page classes (bg/text/scheme) live on `<html>` in layout.js.
-- Convention: **unprefixed classes = light theme, `dark:` = dark theme.** Accents are theme-invariant and take no `dark:`: `sky-400` (accent), `indigo-500`/`indigo-400`, `amber-500`, `red-500` (danger), `green-500` (success), `purple-500` (todo/due), `indigo-500` (me) / `pink-500` (partner) calendar lanes, `violet-300` (nav active).
-- Palette recipe: page `bg-indigo-50 dark:bg-slate-950`; cards `bg-white/80 border-indigo-500/15 dark:bg-slate-800/60 dark:border-slate-600/20`; inputs `bg-white/90 border-indigo-500/25 dark:bg-slate-800/80 dark:border-indigo-500/30`; text `slate-800/500/400/300` ↔ `dark:slate-200/400/500/600` (primary → dim). Gradients via `bg-linear-135 from-… to-…` / `bg-radial`; gradient text via `bg-clip-text text-transparent`.
+- Convention: **unprefixed classes = light theme, `dark:` = dark theme.**
+- **Typography**: Inter for all UI (`font-sans`, the default); Fraunces for the wordmark + big headings only — `font-serif font-semibold tracking-tight` (login `text-5xl`, wordmark/greeting `text-4xl`, module titles `text-3xl`, modal titles `text-xl`/`text-2xl`). Use the `Wordmark` component for "Cožy".
+- **Palette recipe (warm stone/cream + ink + one orange accent)**:
+  - Page: `bg-stone-100 dark:bg-stone-950`, ink text `text-stone-900 dark:text-stone-100`; secondary `text-stone-500 dark:text-stone-400`; dim `text-stone-400 dark:text-stone-500` — **stone-400 is the floor for text** in light (micro-captions/placeholders only), never stone-300.
+  - Cards (hero/summary surfaces): `rounded-2xl border border-stone-200/70 bg-white dark:border-white/10 dark:bg-stone-900` (`Card`); item LISTS are FLAT with dotted hairline dividers (`ROW_FLAT`: `border-b border-dotted border-stone-300 dark:border-stone-700`) — hybrid surface model.
+  - Primary actions = **ink capsules** (theme-inverting): `rounded-full bg-stone-900 text-white dark:bg-stone-100 dark:text-stone-900` (`Btn` primary, `ModalActions` primary, `Fab`, selected chips `CHIP_ON`, `Segmented` active).
+  - Single accent = **orange**, used sparingly: nav active dot + focus rings + input focus (`orange-500`), accent TEXT always `text-orange-600 dark:text-orange-400` (orange-500 text fails AA on white/cream). Locations: calendar "today", freezer add-flow step bar, shopping suggestion "+", favourite label, item labels, invite-code caption.
+  - Semantics keep their hues, darkened for light-mode text: red `-600`/`dark:-400` (danger/expired/wasted), amber `-600`/`dark:-400` (expiry warning/important/urgent), green `-600` or `bg-green-600` (success/ok/free slots). Tint pairs live in `STATUS_*`/`DUE_*` maps in lib/utils.js.
+  - Calendar lanes: shared `PERSON` map in lib/utils.js — me = indigo, partner = pink (softened `-50`/`-100` tints in light, `/10–/25` alphas in dark).
+  - **No gradients** — the old sky→indigo gradient language is gone; surfaces are flat.
 - **Rule: no hardcoded hex/rgba.** Audit: `grep -rnE '#[0-9A-Fa-f]{3,8}\b|rgba?\(' app components lib --include='*.js' | grep -vE 'lib/constants\.js|fill="#|themeColor'` must stay empty (exclusions: CATS data colors, the Google logo SVG, the PWA themeColor meta).
 - Arbitrary values only where stock has no equivalent: app frame `max-w-[430px]`, `text-[9px]`/`text-[10px]` micro-captions, `env(safe-area-inset-*)`/`calc()` offsets, `tracking-[…]`, scrollbar hiding (`[scrollbar-width:none] [&::-webkit-scrollbar]:hidden`).
 - Inline `style` props are allowed ONLY for truly runtime-dynamic values: CSS-var bridges for data-driven colors (`style={{'--cat': cat.color}}` + `bg-(--cat)/13`), computed widths/heights (progress bars, chart bars), Motion animation/drag transforms (Motion writes inline `transform`/`opacity` — expected), Avatar size. Everything else is a class.
 - Conditional classes use `cx()` from `lib/utils.js` (clsx + tailwind-merge: later classes win per CSS property, so `className` overrides on shared components are safe — e.g. `<Card className="rounded-xl">`). Always **full literal class strings** — never concatenate class-name fragments (Tailwind's scanner can't see them). Caveat: twMerge does not merge across variants — a `dark:bg-*` on a component base can only be overridden by another `dark:bg-*`.
-- Repeated visual recipes live in `components/ui.js`, not inline: `PageBody` (page content wrapper), `Card` (surface), `BackBtn`, `ModalActions` (Save/Cancel pair, tones primary/violet/orange/danger), `POPOVER` (opaque dropdown panel), chip states (`CHIP_OFF` + `CHIP_SKY_ON`/`CHIP_INDIGO_ON`/`CHIP_AMBER_ON`). Reuse before writing a new one.
+- Repeated visual recipes live in `components/ui.js`, not inline: `PageBody` (page content wrapper), `Card` (surface), `Wordmark`, `BackBtn`, `ModalActions` (Save/Cancel pair, tones primary/danger), `POPOVER` (opaque dropdown panel), chip states (`CHIP_OFF` + `CHIP_ON` ink pill), `ROW_FLAT` (dotted-divider list row), `CODE_INPUT` (household code). Reuse before writing a new one.
+- **Swipeable/reorderable flat rows need an OPAQUE page-colored bg** (`bg-stone-100 dark:bg-stone-950`, see `STATUS_ROW` and ShopItemRow) — SwipeCard's green reveal layer sits behind the row, and Reorder rows overlap while dragging.
 - Interactive baseline: shared primitives ship press feedback + keyboard focus ring via the `PRESS`/`PRESS_SM` consts (`active:scale-*`, `focus-visible:outline-*`); `Input` highlights its border on focus. New tappable elements should include `PRESS`/`PRESS_SM`.
 - Errors: failed DB writes surface via `notifyError()` (`lib/notify.js`) → `<Toaster />`; never swallow write errors silently.
 
@@ -116,7 +127,6 @@ Architecture: data hooks live in AppShell and flow into modules via props — mo
 - Import from `motion/react` (plain imports, no LazyMotion — drag + layout need full `domMax` anyway). Shared recipes live in `components/ui.js` (`SPRING_FAST`, `SPRING_POP`, `POP`, `POPOVER_POP`, `LIST_ROW`) — reuse/spread these before inventing new values: `<motion.div {...LIST_ROW} key={item.id}>`.
 - **Reduced motion**: global `<MotionConfig reducedMotion="user">` in IntlProvider covers declarative animations; any imperative `animate()` call must gate itself with `useReducedMotion()` (see SwipeCard).
 - **CSS vs Motion**: class-swap transitions (colors, `PRESS`/`PRESS_SM`, chevron rotate) stay CSS. **Never add `whileTap` to elements that have `PRESS`/`PRESS_SM`** — Tailwind v4 `active:scale-*` (the `scale` property) composes with Motion's inline `transform`, so both would fire.
-- **Never put `transition`/`transition-all` on a Motion-animated element** — Tailwind's bare `transition` covers `transform`/`translate`/`scale`/`opacity`, so CSS re-eases Motion's per-frame inline styles and drags/springs lag behind the pointer. Use `transition-colors` (rows) or a scoped `transition-[…]` list (`PRESS`/`PRESS_SM` are already scoped this way).
 - **Lists**: `<AnimatePresence initial={false} mode="popLayout">` around the map (`initial={false}` because modules remount on every tab switch), `relative` on the list container (popLayout positions exiting rows absolutely), stable DB-uuid keys only — never animate index-keyed lists (HomeModule edit rows, Calendar EventBlock). `layout` goes on rows, never on scroll containers.
 - **Drag-to-reorder**: `Reorder.Group as="div"` per flat segment + `Reorder.Item` rows dragged via a `useDragControls` handle (`dragListener={false}`, handle gets `touch-none`) — see `ShopGroup` in ShoppingModule. Order lives in local state during the drag (`onReorder`), `sort_order` is persisted once on drag end by reassigning the segment's own sorted slot values; don't pass `layout` to `Reorder.Item` (already a layout component) and keep `relative` on rows for its auto z-index.
 - **Modal** is a portaled bottom sheet (`createPortal` to `<body>` — escapes `PageBody`'s `z-1` stacking context so BottomNav never paints over it): slides up from below (`SPRING_SHEET`), dismisses by backdrop tap or dragging the handle down (>100 px or fast flick), both WITH the exit animation via an internal `open` state + AnimatePresence whose `onExitComplete` calls `onClose()`. Closes via caller state (ModalActions Save/Cancel) stay instant by design — do not wrap modal call sites in AnimatePresence.
@@ -124,7 +134,7 @@ Architecture: data hooks live in AppShell and flow into modules via props — mo
 
 ## PWA (offline + push)
 
-- **Offline**: `public/sw.js` is hand-written (Turbopack → no Serwist plugin), runtime caching only: navigations + Supabase `/rest/v1/` GETs network-first with cache fallback (last-known data renders offline), `/_next/static/` + Google Fonts cache-first/SWR. Bump the `VERSION` const to invalidate caches. Registered by `ServiceWorkerRegistrar` in **production builds only** (`npm run build && npm start` to test; dev unregisters). `/auth/v1/` and `/functions/v1/` are never cached; sign-out clears `cozy-data*` caches.
+- **Offline**: `public/sw.js` is hand-written (Turbopack → no Serwist plugin), runtime caching only: navigations + Supabase `/rest/v1/` GETs network-first with cache fallback (last-known data renders offline), `/_next/static/` cache-first (includes the next/font self-hosted woff2 — no external font requests). Bump the `VERSION` const to invalidate caches. Registered by `ServiceWorkerRegistrar` in **production builds only** (`npm run build && npm start` to test; dev unregisters). `/auth/v1/` and `/functions/v1/` are never cached; sign-out clears `cozy-data*` caches.
 - **Push flow**: DB trigger/cron → pg_net → `send-push` edge function → web push → `sw.js` `push` handler (always calls `showNotification` — iOS revokes silent-push subscriptions) → `notificationclick` deep-links via URL hash (`/#shopping`), consumed in AppShell.
 - **Client**: `usePushSubscription` in `lib/hooks.js` (subscribe/unsubscribe + row reconcile on every app open); Settings modal has the enable/disable UI. iOS needs the app installed to the home screen (16.4+) — the hook reports `needsInstall`.
 - **Types**: `shopping_added` (to other members), `todo_assigned` (to assignee, not self), `daily_digest` (freezer expiry ≤3 days + todo lists due today).
@@ -134,7 +144,7 @@ Architecture: data hooks live in AppShell and flow into modules via props — mo
 
 - One module = one file in `components/`; DB logic lives exclusively in `lib/hooks.js`.
 - **Code comments (JS/SQL/config/env) in English**; UI strings via next-intl messages (see i18n). Exception: `raise exception` messages in RPC functions are Slovenian — the client maps the known ones to `Errors.rpc.*` keys via `rpcErrorKey()` in `lib/intl.js` and shows unknown ones verbatim.
-- Stock Tailwind utility classes (see Theming); slate/indigo palette with sky/amber accents, light + dark via the `dark:` variant.
+- Stock Tailwind utility classes (see Theming); warm stone/cream palette with ink capsules and a single orange accent, light + dark via the `dark:` variant.
 - Dates/times: `useFormatter()` presets (locale-aware); `localDateStr()` only for YYYY-MM-DD data values.
 
 ## Known tech debt (deliberately deferred)
@@ -149,4 +159,4 @@ Architecture: data hooks live in AppShell and flow into modules via props — mo
 4. ~~Split `ZmrzkoApp.js` into modules (AppShell + HomeScreen/Freezer/Shopping/Calendar + ui.js)~~ ✅
 5. ~~Toast error handling + timezone fix + CSS design-token theming foundation~~ ✅
 6. ~~i18n refactor with **next-intl** ("without i18n routing" mode — client app, locale from settings, SL + EN) replacing the ad-hoc `useT`~~ ✅
-7. Theme design migration: ~~unify all styling onto stock Tailwind utilities (light + dark via `dark:`)~~ ✅ → Nik provides the visual design → restyle by editing classes, mostly in `components/ui.js` and the shared class-map constants
+7. ~~Theme design migration: unify all styling onto stock Tailwind utilities (light + dark via `dark:`) → "warm minimal" redesign from Nik's visual references (Fraunces + Inter, stone/cream + ink capsules + orange accent, hybrid cards/flat lists, lucide chrome icons)~~ ✅

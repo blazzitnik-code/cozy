@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { AnimatePresence, motion, Reorder, useDragControls } from 'motion/react';
 import { useTranslations, useFormatter, useLocale } from 'next-intl';
+import { Ellipsis, GripVertical, Pencil, Plus, Receipt, Settings, Trash2 } from 'lucide-react';
 import { SHOP_SUGG } from '@/lib/constants';
 import { cx } from '@/lib/utils';
 import {
@@ -16,7 +17,7 @@ import {
   IconButton,
   EmptyState,
   BackBtn,
-  CHIP_AMBER_ON,
+  CHIP_ON,
   CHIP_OFF,
   POPOVER,
   POPOVER_POP,
@@ -43,13 +44,13 @@ function ShopItemRow({
   ref,
 }) {
   const dragControls = useDragControls();
+  // Flat list row: opaque page-colored bg (rows overlap while drag-reordering)
+  // + dotted hairline divider.
   const rowClass = cx(
     // transition-colors ONLY — a transition covering transform/opacity would
     // re-ease Motion's per-frame drag/layout writes and make dragging lag.
-    'relative flex touch-pan-y items-center gap-2.5 rounded-xl border px-3.5 py-3 transition-colors duration-200',
-    item.checked
-      ? 'border-indigo-500/6 bg-white/30 opacity-50 dark:border-slate-600/8 dark:bg-slate-800/20'
-      : 'border-indigo-500/15 bg-white/70 dark:border-slate-600/20 dark:bg-slate-800/50',
+    'relative flex touch-pan-y items-center gap-2.5 border-b border-dotted border-stone-300 bg-stone-100 px-0.5 py-3 transition-colors duration-200 last:border-b-0 dark:border-stone-700 dark:bg-stone-950',
+    item.checked && 'opacity-50',
   );
   const inner = (
     <>
@@ -59,9 +60,9 @@ function ShopItemRow({
             e.preventDefault();
             dragControls.start(e);
           }}
-          className="-m-2 shrink-0 cursor-grab touch-none p-2 text-sm text-slate-300 select-none active:cursor-grabbing dark:text-slate-600"
+          className="-m-2 shrink-0 cursor-grab touch-none p-2 text-stone-400 select-none active:cursor-grabbing dark:text-stone-600"
         >
-          ⠿
+          <GripVertical className="size-4" />
         </span>
       )}
       <button
@@ -71,9 +72,7 @@ function ShopItemRow({
         }}
         className={cx(
           'flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-lg border-2 text-sm text-white transition-colors duration-150',
-          item.checked
-            ? 'border-green-500 bg-green-500'
-            : 'border-indigo-500/20 bg-transparent dark:border-slate-600/30',
+          item.checked ? 'border-green-600 bg-green-600' : 'border-stone-300 bg-transparent dark:border-stone-700',
         )}
       >
         {item.checked && <motion.span {...POP}>✓</motion.span>}
@@ -82,7 +81,7 @@ function ShopItemRow({
         <span
           className={cx(
             'text-base font-semibold',
-            item.checked ? 'text-slate-300 line-through dark:text-slate-600' : 'text-slate-800 dark:text-slate-200',
+            item.checked ? 'text-stone-400 line-through dark:text-stone-600' : 'text-stone-900 dark:text-stone-100',
           )}
         >
           {item.name}
@@ -91,7 +90,7 @@ function ShopItemRow({
           <span
             className={cx(
               'ml-2 text-sm',
-              item.checked ? 'text-slate-300 dark:text-slate-600' : 'text-slate-400 dark:text-slate-500',
+              item.checked ? 'text-stone-400 dark:text-stone-600' : 'text-stone-400 dark:text-stone-500',
             )}
           >
             {item.qty}
@@ -158,7 +157,7 @@ function ShopGroup({ items, shopStores, onPersist, rowProps }) {
     adopt(items);
   }, [items]);
   return (
-    <Reorder.Group as="div" axis="y" values={order} onReorder={adopt} className="relative flex flex-col gap-1">
+    <Reorder.Group as="div" axis="y" values={order} onReorder={adopt} className="relative flex flex-col">
       <AnimatePresence initial={false} mode="popLayout">
         {order.map((item) => (
           <ShopItemRow
@@ -371,29 +370,29 @@ export default function ShoppingModule({
       byDate[k].push(a);
     });
     return (
-      <Screen glow2="bg-radial from-amber-500/12 to-transparent to-70% dark:from-amber-500/6">
+      <Screen>
         <PageBody>
           <div className="mb-5 flex items-center gap-3 pt-3">
             <BackBtn onClick={() => setShowShopArchive(false)} />
-            <h2 className="text-xl font-extrabold">{t('historyTitle')}</h2>
+            <h2 className="font-serif text-2xl font-semibold tracking-tight">{t('historyTitle')}</h2>
           </div>
           {shopArchive.length === 0 && <EmptyState icon="🧾">{t('historyEmpty')}</EmptyState>}
           {Object.entries(byDate).map(([date, ditems]) => (
             <div key={date} className="mb-4">
-              <h3 className="mb-2 text-sm font-bold text-slate-500 dark:text-slate-400">{date}</h3>
+              <h3 className="mb-1 text-sm font-bold text-stone-500 dark:text-stone-400">{date}</h3>
               {ditems.map((it, i) => {
                 const store = shopStores.find((s) => s.id === it.store);
                 return (
                   <div
                     key={it.id + '-' + i}
-                    className="mb-[3px] flex items-center justify-between rounded-lg bg-white/70 px-3 py-2 text-sm text-slate-800 dark:bg-slate-800/50 dark:text-slate-200"
+                    className="flex items-center justify-between border-b border-dotted border-stone-300 px-0.5 py-2 text-sm text-stone-900 last:border-b-0 dark:border-stone-700 dark:text-stone-100"
                   >
                     <span>
                       {it.name}
                       {it.qty ? ' · ' + it.qty : ''}
                     </span>
                     {store && (
-                      <span className="text-xs text-slate-300 dark:text-slate-600">
+                      <span className="text-xs text-stone-400 dark:text-stone-600">
                         {store.icon} {store.name}
                       </span>
                     )}
@@ -429,17 +428,17 @@ export default function ShoppingModule({
   };
 
   return (
-    <Screen glow2="bg-radial from-amber-500/12 to-transparent to-70% dark:from-amber-500/6">
+    <Screen>
       <PageBody>
         {/* Header */}
         <div className="mb-3.5 flex items-start justify-between pt-3">
           <LogoToggle mode="shopping" onToggle={onToggleMode} />
           <div className="flex items-center gap-2">
             <IconButton onClick={() => setShowShopArchive(true)} aria-label={ta('history')}>
-              🧾
+              <Receipt className="size-4.5" />
             </IconButton>
             <IconButton onClick={onOpenSettings} aria-label={ta('settings')}>
-              ⚙️
+              <Settings className="size-4.5" />
             </IconButton>
           </div>
         </div>
@@ -450,8 +449,8 @@ export default function ShoppingModule({
             <button
               onClick={() => setActiveStore('all')}
               className={cx(
-                'shrink-0 cursor-pointer rounded-xl border px-3.5 py-2 text-sm font-bold',
-                activeStore === 'all' ? CHIP_AMBER_ON : CHIP_OFF,
+                'shrink-0 cursor-pointer rounded-full border px-3.5 py-2 text-sm font-bold',
+                activeStore === 'all' ? CHIP_ON : CHIP_OFF,
               )}
             >
               {t('allCount', { count: shopItems.filter((i) => !i.checked).length })}
@@ -466,8 +465,8 @@ export default function ShoppingModule({
                     setLastStore(s.id);
                   }}
                   className={cx(
-                    'shrink-0 cursor-pointer rounded-xl border px-3.5 py-2 text-sm font-bold',
-                    activeStore === s.id ? CHIP_AMBER_ON : CHIP_OFF,
+                    'shrink-0 cursor-pointer rounded-full border px-3.5 py-2 text-sm font-bold',
+                    activeStore === s.id ? CHIP_ON : CHIP_OFF,
                   )}
                 >
                   {s.icon} {s.name} ({cnt})
@@ -478,9 +477,9 @@ export default function ShoppingModule({
           <button
             aria-label={ta('manageStores')}
             onClick={() => setShowManageStores(true)}
-            className="absolute inset-y-0 right-0 flex w-9.5 cursor-pointer items-center justify-end rounded-xl border border-indigo-500/20 bg-linear-to-l from-indigo-50 from-60% to-transparent pr-1 text-base font-bold text-slate-400 dark:border-slate-600/30 dark:from-slate-950 dark:text-slate-500"
+            className="absolute inset-y-0 right-0 flex w-9.5 cursor-pointer items-center justify-end border-none bg-linear-to-l from-stone-100 from-60% to-transparent pr-1 text-stone-400 dark:from-stone-950 dark:text-stone-500"
           >
-            ···
+            <Ellipsis className="size-5" />
           </button>
         </div>
 
@@ -498,15 +497,15 @@ export default function ShoppingModule({
                 ? t('addPlaceholder')
                 : t('addToPlaceholder', { store: shopStores.find((s) => s.id === activeStore)?.name })
             }
-            className="box-border w-full rounded-xl border border-amber-500/30 bg-white/90 py-3.5 pr-12.5 pl-4 text-lg font-medium text-slate-800 outline-none dark:bg-slate-800/80 dark:text-slate-200"
+            className="box-border w-full rounded-xl border border-stone-300 bg-white py-3.5 pr-12.5 pl-4 text-lg font-medium text-stone-900 transition-colors outline-none placeholder:text-stone-400 focus:border-orange-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-100"
           />
           {shopInput && (
             <button
               aria-label={ta('add')}
               onClick={() => shopAddItem(shopInput)}
-              className="absolute top-1/2 right-2 flex h-9 w-9 -translate-y-1/2 cursor-pointer items-center justify-center rounded-lg border-none bg-linear-135 from-amber-500 to-amber-600 text-lg text-white"
+              className="absolute top-1/2 right-2 flex h-9 w-9 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border-none bg-stone-900 text-white dark:bg-stone-100 dark:text-stone-900"
             >
-              +
+              <Plus className="size-5" />
             </button>
           )}
           {shopSugg.length > 0 && shopInput && (
@@ -518,9 +517,9 @@ export default function ShoppingModule({
                 <button
                   key={i}
                   onMouseDown={() => shopAddItem(s)}
-                  className="flex w-full cursor-pointer items-center gap-2 rounded-lg border-none bg-transparent px-3.5 py-3 text-left text-base font-medium text-slate-800 dark:text-slate-200"
+                  className="flex w-full cursor-pointer items-center gap-2 rounded-lg border-none bg-transparent px-3.5 py-3 text-left text-base font-medium text-stone-900 dark:text-stone-100"
                 >
-                  <span className="text-amber-500">+</span> {s}
+                  <span className="font-semibold text-orange-600 dark:text-orange-400">+</span> {s}
                 </button>
               ))}
             </motion.div>
@@ -529,14 +528,14 @@ export default function ShoppingModule({
 
         {/* Count + "Bought" button */}
         <div className="mb-3 flex items-center justify-between">
-          <span className="text-sm text-slate-400 dark:text-slate-500">
+          <span className="text-sm text-stone-400 dark:text-stone-500">
             {t('toBuy', { count: uncheckedCount })}
             {checkedCount > 0 ? ` · ${checkedCount} ✓` : ''}
           </span>
           {checkedCount > 0 && (
             <button
               onClick={shopClearChecked}
-              className="cursor-pointer rounded-lg border border-green-500/20 bg-green-500/10 px-3.5 py-1.5 text-sm font-bold text-green-500"
+              className="cursor-pointer rounded-full border-none bg-green-600 px-3.5 py-1.5 text-sm font-bold text-white"
             >
               {t('boughtBtn')}
             </button>
@@ -547,7 +546,7 @@ export default function ShoppingModule({
         <div className="flex flex-col gap-4">
           {shopByCategory.groups.map((group) => (
             <div key={group.key}>
-              <div className="mb-1.5 pl-0.5 text-xs font-bold tracking-[1px] text-slate-300 uppercase dark:text-slate-600">
+              <div className="mb-1.5 pl-0.5 text-xs font-bold tracking-[1px] text-stone-400 uppercase dark:text-stone-600">
                 {t('sections.' + group.key)}
               </div>
               <ShopGroup
@@ -560,10 +559,10 @@ export default function ShoppingModule({
           ))}
           {shopByCategory.checked.length > 0 && (
             <div>
-              <div className="mb-1.5 pl-0.5 text-xs font-bold tracking-[1px] text-slate-300 uppercase dark:text-slate-600">
+              <div className="mb-1.5 pl-0.5 text-xs font-bold tracking-[1px] text-stone-400 uppercase dark:text-stone-600">
                 {t('boughtSection')}
               </div>
-              <div className="relative flex flex-col gap-1">
+              <div className="relative flex flex-col">
                 <AnimatePresence initial={false} mode="popLayout">
                   {shopByCategory.checked.map((item) => (
                     <ShopItemRow
@@ -614,7 +613,7 @@ export default function ShoppingModule({
                   }
                   if (e.key === 'Escape') setEditingId(null);
                 }}
-                className="w-full border-0 border-b-2 border-amber-500 bg-transparent py-1 text-center text-2xl font-extrabold text-slate-800 outline-none dark:text-slate-200"
+                className="w-full border-0 border-b-2 border-orange-500 bg-transparent py-1 text-center font-serif text-2xl font-semibold text-stone-900 outline-none dark:text-stone-100"
               />
             ) : (
               <h2
@@ -622,12 +621,14 @@ export default function ShoppingModule({
                   setEditingId(shopDetail.id);
                   setEditingName(shopDetail.name);
                 }}
-                className="mb-1 cursor-pointer text-2xl font-extrabold"
+                className="mb-1 cursor-pointer font-serif text-3xl font-semibold tracking-tight"
               >
-                {shopDetail.name} <span className="text-sm text-slate-300 dark:text-slate-600">✎</span>
+                {shopDetail.name} <Pencil className="inline size-4 align-baseline text-stone-400 dark:text-stone-600" />
               </h2>
             )}
-            {shopDetail.favourite && <span className="text-sm font-semibold text-amber-500">{t('favourite')}</span>}
+            {shopDetail.favourite && (
+              <span className="text-sm font-semibold text-orange-600 dark:text-orange-400">{t('favourite')}</span>
+            )}
           </div>
 
           <Label>{tc('quantity')}</Label>
@@ -650,10 +651,8 @@ export default function ShoppingModule({
                   dbShopUpdate(shopDetail.id, { qty: q });
                 }}
                 className={cx(
-                  'cursor-pointer rounded-xl border px-3 py-2 text-sm font-semibold',
-                  shopDetail.qty === q
-                    ? 'border-amber-500/50 bg-amber-500/15 text-amber-500'
-                    : 'border-indigo-500/20 bg-white/70 text-slate-500 dark:border-slate-600/30 dark:bg-slate-800/50 dark:text-slate-400',
+                  'cursor-pointer rounded-full border px-3 py-2 text-sm font-semibold',
+                  shopDetail.qty === q ? CHIP_ON : CHIP_OFF,
                 )}
               >
                 {q}
@@ -672,10 +671,8 @@ export default function ShoppingModule({
                   dbShopUpdate(shopDetail.id, { store: s.id });
                 }}
                 className={cx(
-                  'cursor-pointer rounded-xl border px-3.5 py-2.25 text-sm font-bold',
-                  shopDetail.store === s.id
-                    ? 'border-amber-500/50 bg-amber-500/12 text-amber-500'
-                    : 'border-indigo-500/20 bg-white/70 text-slate-500 dark:border-slate-600/30 dark:bg-slate-800/50 dark:text-slate-400',
+                  'cursor-pointer rounded-full border px-3.5 py-2.25 text-sm font-bold',
+                  shopDetail.store === s.id ? CHIP_ON : CHIP_OFF,
                 )}
               >
                 {s.icon} {s.name}
@@ -690,10 +687,10 @@ export default function ShoppingModule({
                 setShopDetail((d) => ({ ...d, favourite: !d.favourite }));
               }}
               className={cx(
-                'flex-1 cursor-pointer rounded-xl border p-3.25 text-sm font-bold',
+                'flex-1 cursor-pointer rounded-full border p-3.25 text-sm font-bold',
                 shopDetail.favourite
-                  ? 'border-amber-500/40 bg-amber-500/10 text-amber-500'
-                  : 'border-indigo-500/20 bg-white/80 text-slate-500 dark:border-slate-600/30 dark:bg-slate-800/60 dark:text-slate-400',
+                  ? 'border-orange-500/40 bg-orange-500/10 text-orange-600 dark:text-orange-400'
+                  : 'border-stone-300 bg-white text-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400',
               )}
             >
               {shopDetail.favourite ? t('favourite') : t('favouriteOff')}
@@ -705,7 +702,7 @@ export default function ShoppingModule({
               await dbShopDelete(shopDetail.id);
               setShopDetail(null);
             }}
-            className="w-full cursor-pointer rounded-xl border border-red-500/20 bg-red-500/5 p-3 text-sm font-semibold text-red-500 opacity-80"
+            className="w-full cursor-pointer rounded-full border border-red-500/25 bg-red-500/10 p-3 text-sm font-semibold text-red-600 dark:text-red-400"
           >
             {t('removeFromList')}
           </button>
@@ -722,7 +719,7 @@ export default function ShoppingModule({
             setNewStore({ name: '', icon: '🔵' });
           }}
         >
-          <h3 className="mb-4 text-center text-lg font-extrabold">{t('stores')}</h3>
+          <h3 className="mb-4 text-center font-serif text-xl font-semibold tracking-tight">{t('stores')}</h3>
 
           {/* All stores — select, edit or delete */}
           {shopStores.map((s) => {
@@ -731,7 +728,7 @@ export default function ShoppingModule({
             return (
               <div key={s.id} className="mb-2">
                 {isEditing ? (
-                  <div className="rounded-xl border border-indigo-500/20 bg-white/70 px-3.5 py-3 dark:border-slate-600/30 dark:bg-slate-800/50">
+                  <div className="rounded-xl border border-stone-200 bg-stone-50 px-3.5 py-3 dark:border-white/10 dark:bg-stone-950/60">
                     <div className="mb-2.5 grid grid-cols-4 gap-2">
                       {STORE_ICONS.map((ic) => (
                         <button
@@ -740,8 +737,8 @@ export default function ShoppingModule({
                           className={cx(
                             'flex aspect-square cursor-pointer items-center justify-center rounded-lg border-2 text-2xl',
                             editingStore.icon === ic
-                              ? 'border-amber-500 bg-amber-500/12'
-                              : 'border-indigo-500/20 bg-white/70 dark:border-slate-600/30 dark:bg-slate-800/50',
+                              ? 'border-stone-900 bg-stone-100 dark:border-stone-100 dark:bg-stone-800'
+                              : 'border-stone-200 bg-white dark:border-stone-700 dark:bg-stone-900',
                           )}
                         >
                           {ic}
@@ -781,20 +778,22 @@ export default function ShoppingModule({
                       className={cx(
                         'flex flex-1 cursor-pointer items-center gap-2.5 rounded-xl border px-3.5 py-3 text-left',
                         activeStore === s.id
-                          ? 'border-amber-500/40 bg-amber-500/12'
-                          : 'border-indigo-500/20 bg-white/70 dark:border-slate-600/30 dark:bg-slate-800/50',
+                          ? 'border-stone-900 bg-stone-50 dark:border-stone-100 dark:bg-stone-800'
+                          : 'border-stone-200 bg-white dark:border-stone-700 dark:bg-stone-900',
                       )}
                     >
                       <span className="text-xl">{s.icon}</span>
                       <span
                         className={cx(
                           'text-sm font-bold',
-                          activeStore === s.id ? 'text-amber-500' : 'text-slate-800 dark:text-slate-200',
+                          activeStore === s.id
+                            ? 'text-stone-900 dark:text-stone-100'
+                            : 'text-stone-700 dark:text-stone-300',
                         )}
                       >
                         {s.name}
                       </span>
-                      {cnt > 0 && <span className="ml-auto text-xs text-slate-400 dark:text-slate-500">{cnt}</span>}
+                      {cnt > 0 && <span className="ml-auto text-xs text-stone-400 dark:text-stone-500">{cnt}</span>}
                     </button>
                     <button
                       aria-label={ta('edit')}
@@ -802,9 +801,9 @@ export default function ShoppingModule({
                         setEditingStore({ id: s.id, name: s.name, icon: s.icon });
                         setShowAddStoreForm(false);
                       }}
-                      className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-indigo-500/20 bg-white/70 text-base text-slate-500 dark:border-slate-600/30 dark:bg-slate-800/50 dark:text-slate-400"
+                      className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-stone-200 bg-white text-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400"
                     >
-                      ✏️
+                      <Pencil className="size-4" />
                     </button>
                     <button
                       aria-label={ta('delete')}
@@ -817,9 +816,9 @@ export default function ShoppingModule({
                           },
                         })
                       }
-                      className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-xl border border-red-500/20 bg-red-500/6 text-base text-red-500"
+                      className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-xl border-none bg-red-500/10 text-red-600 dark:text-red-400"
                     >
-                      🗑
+                      <Trash2 className="size-4" />
                     </button>
                   </div>
                 )}
@@ -828,11 +827,11 @@ export default function ShoppingModule({
           })}
 
           {/* Add new store — collapsed by default */}
-          <div className="mt-3 border-t border-indigo-500/15 pt-3 dark:border-slate-600/20">
+          <div className="mt-3 border-t border-stone-200 pt-3 dark:border-white/10">
             {!showAddStoreForm ? (
               <button
                 onClick={() => setShowAddStoreForm(true)}
-                className="w-full cursor-pointer rounded-xl border border-dashed border-indigo-500/20 bg-transparent p-3 text-sm font-semibold text-slate-400 dark:border-slate-600/30 dark:text-slate-500"
+                className="w-full cursor-pointer rounded-xl border border-dashed border-stone-300 bg-transparent p-3 text-sm font-semibold text-stone-500 dark:border-stone-700 dark:text-stone-400"
               >
                 {t('newStoreBtn')}
               </button>
@@ -847,8 +846,8 @@ export default function ShoppingModule({
                       className={cx(
                         'flex aspect-square cursor-pointer items-center justify-center rounded-lg border-2 text-2xl',
                         newStore.icon === ic
-                          ? 'border-amber-500 bg-amber-500/12'
-                          : 'border-indigo-500/20 bg-white/70 dark:border-slate-600/30 dark:bg-slate-800/50',
+                          ? 'border-stone-900 bg-stone-100 dark:border-stone-100 dark:bg-stone-800'
+                          : 'border-stone-200 bg-white dark:border-stone-700 dark:bg-stone-900',
                       )}
                     >
                       {ic}

@@ -2,10 +2,11 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useTranslations, useFormatter, useLocale } from 'next-intl';
+import { Archive, ChevronDown, Minus, Plus, Search, Settings, SlidersHorizontal, Trash2, X } from 'lucide-react';
 import { useCatLabel, useExpiryText } from '@/lib/intl';
 import { normalizujNiz } from '@/lib/hooks';
 import { CATS, SUGG, FICONS, QO } from '@/lib/constants';
-import { getSt, localDateStr, cx, STATUS_TEXT, STATUS_CARD, STATUS_BADGE } from '@/lib/utils';
+import { getSt, localDateStr, cx, STATUS_TEXT, STATUS_ROW, STATUS_BADGE } from '@/lib/utils';
 import {
   Screen,
   PageBody,
@@ -24,8 +25,7 @@ import {
   EmptyState,
   Fab,
   BackBtn,
-  CHIP_SKY_ON,
-  CHIP_INDIGO_ON,
+  CHIP_ON,
   CHIP_OFF,
   POPOVER,
   POPOVER_POP,
@@ -34,11 +34,11 @@ import {
 
 // Repeated class recipes local to this module
 const SEARCH_INP =
-  'w-full box-border py-3.5 pr-4 pl-9.5 bg-white/90 dark:bg-slate-800/80 border border-indigo-500/20 dark:border-slate-600/30 rounded-xl text-slate-800 dark:text-slate-200 outline-none font-medium text-sm';
+  'w-full box-border py-3.5 pr-4 pl-9.5 bg-white dark:bg-stone-900 border border-stone-300 dark:border-stone-700 rounded-xl text-stone-900 dark:text-stone-100 placeholder:text-stone-400 outline-none font-medium text-sm transition-colors focus:border-orange-500';
 const STEPPER_MINUS =
-  'w-11 h-11 rounded-xl border border-indigo-500/20 dark:border-slate-600/30 bg-white/80 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 text-2xl cursor-pointer flex items-center justify-center';
+  'w-11 h-11 rounded-full border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 text-stone-500 dark:text-stone-400 cursor-pointer flex items-center justify-center';
 const STEPPER_PLUS =
-  'w-11 h-11 rounded-xl border border-indigo-500/30 bg-indigo-500/10 text-indigo-400 text-2xl cursor-pointer flex items-center justify-center';
+  'w-11 h-11 rounded-full border-none bg-stone-900 text-white dark:bg-stone-100 dark:text-stone-900 cursor-pointer flex items-center justify-center';
 
 // ─── FREEZER DROPDOWN ───
 function FreezerDD({ freezers, selected, onChange, onAdd }) {
@@ -83,29 +83,29 @@ function FreezerDD({ freezers, selected, onChange, onAdd }) {
   };
   const check = (on) =>
     cx(
-      'flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-sm border-2 text-xs text-white',
-      on ? 'border-sky-400 bg-sky-400' : 'border-slate-300 bg-transparent dark:border-slate-600',
+      'flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-sm border-2 text-xs text-white dark:text-stone-900',
+      on
+        ? 'border-stone-900 bg-stone-900 dark:border-stone-100 dark:bg-stone-100'
+        : 'border-stone-300 bg-transparent dark:border-stone-600',
     );
   return (
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(!open)}
         className={cx(
-          'flex cursor-pointer items-center gap-1.5 rounded-xl border px-3.5 py-2 text-sm font-bold text-slate-800 dark:text-slate-200',
+          'flex cursor-pointer items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-bold text-stone-900 dark:text-stone-100',
           open
-            ? 'border-sky-400/50 bg-sky-400/12'
-            : 'border-indigo-500/20 bg-white/80 dark:border-slate-600/30 dark:bg-slate-800/60',
+            ? 'border-stone-900 bg-white dark:border-stone-100 dark:bg-stone-900'
+            : 'border-stone-200 bg-white dark:border-stone-700 dark:bg-stone-900',
         )}
       >
         <span>{lbl}</span>
-        <span
+        <ChevronDown
           className={cx(
-            'text-[10px] text-slate-400 transition-transform duration-200 dark:text-slate-500',
+            'size-3.5 text-stone-400 transition-transform duration-200 dark:text-stone-500',
             open && 'rotate-180',
           )}
-        >
-          ▼
-        </span>
+        />
       </button>
       {open && (
         <motion.div
@@ -122,7 +122,9 @@ function FreezerDD({ freezers, selected, onChange, onAdd }) {
             }}
             className={cx(
               'flex w-full cursor-pointer items-center gap-2.5 rounded-xl border-none px-3 py-2.5 text-left text-sm font-semibold',
-              allSel ? 'bg-sky-400/12 text-sky-400' : 'bg-transparent text-slate-500 dark:text-slate-400',
+              allSel
+                ? 'bg-stone-100 text-stone-900 dark:bg-stone-800 dark:text-stone-100'
+                : 'bg-transparent text-stone-500 dark:text-stone-400',
             )}
           >
             <span className={check(allSel)}>{allSel ? '✓' : ''}</span> {tc('all')}
@@ -135,8 +137,8 @@ function FreezerDD({ freezers, selected, onChange, onAdd }) {
                 onClick={() => toggle(f.id)}
                 className={cx(
                   'flex w-full cursor-pointer items-center gap-2.5 rounded-xl border-none px-3 py-2.5 text-left text-sm font-semibold',
-                  !allSel && on ? 'bg-sky-400/8' : 'bg-transparent',
-                  on ? 'text-slate-800 dark:text-slate-200' : 'text-slate-400 dark:text-slate-500',
+                  !allSel && on ? 'bg-stone-100 dark:bg-stone-800' : 'bg-transparent',
+                  on ? 'text-stone-900 dark:text-stone-100' : 'text-stone-400 dark:text-stone-500',
                 )}
               >
                 <span className={check(!allSel && on)}>{!allSel && on ? '✓' : ''}</span> {f.icon} {f.name}
@@ -144,11 +146,11 @@ function FreezerDD({ freezers, selected, onChange, onAdd }) {
             );
           })}
           {/* ADD NEW FREEZER */}
-          <div className="mt-1.5 border-t border-indigo-500/20 pt-1.5 dark:border-slate-600/30">
+          <div className="mt-1.5 border-t border-stone-200 pt-1.5 dark:border-white/10">
             {!showAdd ? (
               <button
                 onClick={() => setShowAdd(true)}
-                className="flex w-full cursor-pointer items-center gap-2 rounded-xl border-none bg-transparent px-3 py-2.5 text-left text-sm font-semibold text-sky-400"
+                className="flex w-full cursor-pointer items-center gap-2 rounded-xl border-none bg-transparent px-3 py-2.5 text-left text-sm font-semibold text-orange-600 dark:text-orange-400"
               >
                 {t('newFreezer')}
               </button>
@@ -161,7 +163,9 @@ function FreezerDD({ freezers, selected, onChange, onAdd }) {
                       onClick={() => setNewIcon(ic)}
                       className={cx(
                         'cursor-pointer rounded-lg border p-1 text-xl',
-                        newIcon === ic ? 'border-sky-400/50 bg-sky-400/13' : 'border-transparent bg-transparent',
+                        newIcon === ic
+                          ? 'border-stone-900 bg-stone-100 dark:border-stone-100 dark:bg-stone-800'
+                          : 'border-transparent bg-transparent',
                       )}
                     >
                       {ic}
@@ -173,7 +177,7 @@ function FreezerDD({ freezers, selected, onChange, onAdd }) {
                   onChange={(e) => setNewName(e.target.value)}
                   placeholder={t('freezerNamePlaceholder')}
                   autoFocus
-                  className="box-border w-full rounded-lg border border-indigo-500/20 bg-white/90 px-2.5 py-2 text-sm text-slate-800 outline-none dark:border-slate-600/30 dark:bg-slate-800/80 dark:text-slate-200"
+                  className="box-border w-full rounded-lg border border-stone-300 bg-white px-2.5 py-2 text-sm text-stone-900 transition-colors outline-none focus:border-orange-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-100"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') doAdd();
                   }}
@@ -183,10 +187,10 @@ function FreezerDD({ freezers, selected, onChange, onAdd }) {
                     onClick={doAdd}
                     disabled={!newName.trim()}
                     className={cx(
-                      'flex-1 rounded-lg border-none p-2 text-sm font-bold text-white',
+                      'flex-1 rounded-lg border-none p-2 text-sm font-bold',
                       newName.trim()
-                        ? 'cursor-pointer bg-linear-135 from-sky-500 to-indigo-500'
-                        : 'cursor-default bg-white/80 opacity-50 dark:bg-slate-800/60',
+                        ? 'cursor-pointer bg-stone-900 text-white dark:bg-stone-100 dark:text-stone-900'
+                        : 'cursor-default bg-stone-200 text-stone-400 dark:bg-stone-800 dark:text-stone-600',
                     )}
                   >
                     {tc('add')}
@@ -196,7 +200,7 @@ function FreezerDD({ freezers, selected, onChange, onAdd }) {
                       setShowAdd(false);
                       setNewName('');
                     }}
-                    className="flex-1 cursor-pointer rounded-lg border border-indigo-500/20 bg-transparent p-2 text-sm font-semibold text-slate-400 dark:border-slate-600/30 dark:text-slate-500"
+                    className="flex-1 cursor-pointer rounded-lg border border-stone-300 bg-transparent p-2 text-sm font-semibold text-stone-500 dark:border-stone-700 dark:text-stone-400"
                   >
                     {tc('cancel')}
                   </button>
@@ -232,7 +236,7 @@ function LabelInp({ value, onChange, labels, placeholder }) {
             <button
               key={i}
               onMouseDown={() => onChange(s)}
-              className="w-full cursor-pointer rounded-lg border-none bg-transparent px-3.5 py-2.5 text-left text-sm font-medium text-slate-800 dark:text-slate-200"
+              className="w-full cursor-pointer rounded-lg border-none bg-transparent px-3.5 py-2.5 text-left text-sm font-medium text-stone-900 dark:text-stone-100"
             >
               📎 {s}
             </button>
@@ -385,7 +389,9 @@ export default function FreezerModule({
         {/* MODAL — EDIT ARCHIVED ITEM */}
         {editArchived && (
           <Modal onClose={() => setEditArchived(null)}>
-            <h3 className="mb-4 text-lg font-bold">{t('editArchived', { name: editArchived.name })}</h3>
+            <h3 className="mb-4 font-serif text-xl font-semibold tracking-tight">
+              {t('editArchived', { name: editArchived.name })}
+            </h3>
             <div className="mb-3">
               <Label>{tc('name')}</Label>
               <Input
@@ -419,7 +425,7 @@ export default function FreezerModule({
                   },
                 })
               }
-              className="w-full cursor-pointer rounded-xl border border-red-500/30 bg-red-500/10 p-3.25 text-base font-semibold text-red-500"
+              className="w-full cursor-pointer rounded-full border border-red-500/25 bg-red-500/10 p-3.25 text-base font-semibold text-red-600 dark:text-red-400"
             >
               {t('deleteFromArchive')}
             </button>
@@ -433,7 +439,7 @@ export default function FreezerModule({
                   },
                 })
               }
-              className="mt-2 w-full cursor-pointer rounded-xl border border-green-500/30 bg-green-500/10 p-3.25 text-base font-semibold text-green-500"
+              className="mt-2 w-full cursor-pointer rounded-full border border-green-600/30 bg-green-600/10 p-3.25 text-base font-semibold text-green-700 dark:border-green-500/30 dark:bg-green-500/10 dark:text-green-400"
             >
               {t('returnToFreezer')}
             </button>
@@ -443,14 +449,12 @@ export default function FreezerModule({
         <PageBody>
           <div className="mb-4 flex items-center gap-3 pt-3">
             <BackBtn onClick={() => setShowArchive(false)} />
-            <h2 className="text-xl font-extrabold">{t('archive')}</h2>
+            <h2 className="font-serif text-2xl font-semibold tracking-tight">{t('archive')}</h2>
           </div>
 
           {/* Search */}
           <div className="relative mb-3">
-            <span className="absolute top-1/2 left-3.5 -translate-y-1/2 text-sm text-slate-300 dark:text-slate-600">
-              🔍
-            </span>
+            <Search className="absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-stone-400 dark:text-stone-600" />
             <input
               value={archSearch}
               onChange={(e) => setArchSearch(e.target.value)}
@@ -461,9 +465,9 @@ export default function FreezerModule({
               <button
                 aria-label={ta('clearSearch')}
                 onClick={() => setArchSearch('')}
-                className="absolute top-1/2 right-3 -translate-y-1/2 cursor-pointer border-none bg-transparent text-base text-slate-400 dark:text-slate-500"
+                className="absolute top-1/2 right-3 -translate-y-1/2 cursor-pointer border-none bg-transparent text-stone-400 dark:text-stone-500"
               >
-                ✕
+                <X className="size-4" />
               </button>
             )}
           </div>
@@ -492,15 +496,15 @@ export default function FreezerModule({
           {/* Stats row with waste tracking */}
           <div className="mb-3.5 grid grid-cols-4 gap-1.5">
             {[
-              [t('results'), tot, 'text-sky-400', 'text-slate-400 dark:text-slate-500'],
+              [t('results'), tot, 'text-stone-900 dark:text-stone-100', 'text-stone-400 dark:text-stone-500'],
               [
                 t('avgPerMonth'),
                 mc ? Math.round(tot / mc) : 0,
-                'text-indigo-400',
-                'text-slate-400 dark:text-slate-500',
+                'text-stone-900 dark:text-stone-100',
+                'text-stone-400 dark:text-stone-500',
               ],
-              [t('used'), usedCount, 'text-green-500', 'text-green-500'],
-              [t('wasted'), wastedCount, 'text-red-500', 'text-red-500'],
+              [t('used'), usedCount, 'text-green-600 dark:text-green-400', 'text-green-600 dark:text-green-400'],
+              [t('wasted'), wastedCount, 'text-red-600 dark:text-red-400', 'text-red-600 dark:text-red-400'],
             ].map(([l, v, valCls, lblCls]) => (
               <Card key={l} className="rounded-xl px-2 py-2.5 text-center">
                 <div className={cx('text-[9px] font-semibold tracking-[1px] uppercase', lblCls)}>{l}</div>
@@ -531,8 +535,8 @@ export default function FreezerModule({
               .map(([k, { label, items: mi }]) => (
                 <div key={k} className="mb-4">
                   <div className="mb-1.5 flex justify-between">
-                    <h3 className="text-sm font-bold text-slate-500 capitalize dark:text-slate-400">{label}</h3>
-                    <span className="text-xs font-semibold text-slate-300 dark:text-slate-600">{mi.length}</span>
+                    <h3 className="text-sm font-bold text-stone-500 capitalize dark:text-stone-400">{label}</h3>
+                    <span className="text-xs font-semibold text-stone-400 dark:text-stone-600">{mi.length}</span>
                   </div>
                   {mi.map((it, i) => {
                     const cat = categories[it.cat] || CATS.drugo;
@@ -541,10 +545,7 @@ export default function FreezerModule({
                         key={it.id + '-' + i}
                         onClick={() => setEditArchived(it)}
                         className={cx(
-                          'mb-[3px] flex cursor-pointer items-center gap-2.5 rounded-xl border px-3 py-2.25',
-                          it.wasted
-                            ? 'border-red-500/15 bg-red-500/6'
-                            : 'border-indigo-500/15 bg-white/70 dark:border-slate-600/20 dark:bg-slate-800/50',
+                          'flex cursor-pointer items-center gap-2.5 border-b border-dotted border-stone-300 px-0.5 py-2.25 last:border-b-0 dark:border-stone-700',
                         )}
                       >
                         <span className="text-lg">{cat.icon}</span>
@@ -552,18 +553,18 @@ export default function FreezerModule({
                           <div
                             className={cx(
                               'text-sm font-semibold',
-                              it.wasted ? 'text-red-500' : 'text-slate-800 dark:text-slate-200',
+                              it.wasted ? 'text-red-600 dark:text-red-400' : 'text-stone-900 dark:text-stone-100',
                             )}
                           >
                             {it.name} {it.wasted && <span className="text-xs opacity-70">· {t('wastedLower')}</span>}
                           </div>
-                          <div className="text-xs text-slate-300 dark:text-slate-600">
+                          <div className="text-xs text-stone-400 dark:text-stone-600">
                             {it.qty}
                             {it.packets > 1 ? ' / ' + t('packetsShort', { count: it.packets }) : ''}
                             {it.label ? ' · ' + it.label : ''}
                           </div>
                         </div>
-                        <div className="shrink-0 text-xs text-slate-300 dark:text-slate-600">
+                        <div className="shrink-0 text-xs text-stone-400 dark:text-stone-600">
                           {format.dateTime(new Date(it.archived_at), 'day')}
                         </div>
                       </div>
@@ -584,9 +585,9 @@ export default function FreezerModule({
                       <h3 className="text-sm font-bold text-(--cat)">
                         {cat.icon} {catLabel(ck, cat)}
                       </h3>
-                      <span className="text-xs font-semibold text-slate-300 dark:text-slate-600">{ci.length}</span>
+                      <span className="text-xs font-semibold text-stone-400 dark:text-stone-600">{ci.length}</span>
                     </div>
-                    <div className="mb-2 h-1.5 overflow-hidden rounded-xs bg-white/80 dark:bg-slate-800/60">
+                    <div className="mb-2 h-1.5 overflow-hidden rounded-xs bg-stone-200 dark:bg-stone-800">
                       <div
                         className="h-full rounded-xs bg-(--cat) opacity-70"
                         style={{ width: Math.min(100, (ci.length / tot) * 300) + '%' }}
@@ -597,27 +598,26 @@ export default function FreezerModule({
                         key={it.id + '-' + i}
                         onClick={() => setEditArchived(it)}
                         className={cx(
-                          'mb-[3px] flex cursor-pointer items-center gap-2.5 rounded-lg px-3 py-1.75',
-                          it.wasted ? 'bg-red-500/6' : 'bg-white/40 dark:bg-slate-800/30',
+                          'flex cursor-pointer items-center gap-2.5 border-b border-dotted border-stone-200 px-0.5 py-1.75 last:border-b-0 dark:border-stone-800',
                         )}
                       >
                         <div
                           className={cx(
                             'flex-1 text-sm font-medium',
-                            it.wasted ? 'text-red-500' : 'text-slate-800 dark:text-slate-200',
+                            it.wasted ? 'text-red-600 dark:text-red-400' : 'text-stone-900 dark:text-stone-100',
                           )}
                         >
                           {it.name}
                           {it.wasted ? ' · ' + t('wastedLower') : ''}
                         </div>
-                        <div className="text-xs text-slate-300 dark:text-slate-600">{it.qty}</div>
-                        <div className="text-xs text-slate-300 dark:text-slate-600">
+                        <div className="text-xs text-stone-400 dark:text-stone-600">{it.qty}</div>
+                        <div className="text-xs text-stone-400 dark:text-stone-600">
                           {format.dateTime(new Date(it.archived_at), 'day')}
                         </div>
                       </div>
                     ))}
                     {ci.length > 5 && (
-                      <div className="px-3 py-1 text-xs text-slate-300 dark:text-slate-600">
+                      <div className="px-3 py-1 text-xs text-stone-400 dark:text-stone-600">
                         {t('moreCount', { count: ci.length - 5 })}
                       </div>
                     )}
@@ -645,11 +645,14 @@ export default function FreezerModule({
                     <div className="mb-2 flex items-center gap-2">
                       <span className="text-xl">{cat.icon}</span>
                       <div>
-                        <div className="text-sm font-bold text-slate-800 dark:text-slate-200">{name}</div>
+                        <div className="text-sm font-bold text-stone-900 dark:text-stone-100">{name}</div>
                         <div className="text-xs font-semibold text-(--cat)">
                           {t('totalTimes', { count: ie.length, label: catLabel(ck, cat) })}
                           {wastedInItem > 0 && (
-                            <span className="text-red-500"> · {t('wastedTimes', { count: wastedInItem })}</span>
+                            <span className="text-red-600 dark:text-red-400">
+                              {' '}
+                              · {t('wastedTimes', { count: wastedInItem })}
+                            </span>
                           )}
                         </div>
                       </div>
@@ -659,7 +662,7 @@ export default function FreezerModule({
                         .sort((a, b) => a[0].localeCompare(b[0]))
                         .map(([k, { count }]) => (
                           <div key={k} className="flex flex-1 flex-col items-center gap-0.5">
-                            <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500">{count}</div>
+                            <div className="text-[10px] font-bold text-stone-400 dark:text-stone-500">{count}</div>
                             <div
                               className="w-full max-w-7 rounded-sm bg-(--cat) opacity-60"
                               style={{ height: Math.max(8, (count / mx) * 36) }}
@@ -673,7 +676,7 @@ export default function FreezerModule({
                         .map(([k, { label }]) => (
                           <div
                             key={k}
-                            className="flex-1 text-center text-[9px] font-semibold text-slate-300 dark:text-slate-600"
+                            className="flex-1 text-center text-[9px] font-semibold text-stone-400 dark:text-stone-600"
                           >
                             {label}
                           </div>
@@ -707,10 +710,10 @@ export default function FreezerModule({
                   setArchCatF([]);
                 }}
               >
-                📦
+                <Archive className="size-4.5" />
               </IconButton>
               <IconButton onClick={onOpenSettings} aria-label={ta('settings')}>
-                ⚙️
+                <Settings className="size-4.5" />
               </IconButton>
             </div>
           </div>
@@ -721,7 +724,7 @@ export default function FreezerModule({
                 <button
                   onClick={() => setFilterStatus(filterStatus === 'expired' ? null : 'expired')}
                   className={cx(
-                    'cursor-pointer rounded-full border px-3 py-1.5 text-xs font-bold text-red-500',
+                    'cursor-pointer rounded-full border px-3 py-1.5 text-xs font-bold text-red-600 dark:text-red-400',
                     filterStatus === 'expired' ? 'border-red-500/60 bg-red-500/25' : 'border-red-500/25 bg-red-500/12',
                   )}
                 >
@@ -732,7 +735,7 @@ export default function FreezerModule({
                 <button
                   onClick={() => setFilterStatus(filterStatus === 'warning' ? null : 'warning')}
                   className={cx(
-                    'cursor-pointer rounded-full border px-3 py-1.5 text-xs font-bold text-amber-500',
+                    'cursor-pointer rounded-full border px-3 py-1.5 text-xs font-bold text-amber-600 dark:text-amber-400',
                     filterStatus === 'warning'
                       ? 'border-amber-500/50 bg-amber-500/20'
                       : 'border-amber-500/20 bg-amber-500/10',
@@ -745,9 +748,9 @@ export default function FreezerModule({
                 <button
                   aria-label={ta('clearFilter')}
                   onClick={() => setFilterStatus(null)}
-                  className="cursor-pointer rounded-full border border-indigo-500/20 bg-transparent px-3 py-1.5 text-xs font-semibold text-slate-400 dark:border-slate-600/30 dark:text-slate-500"
+                  className="cursor-pointer rounded-full border border-stone-300 bg-transparent px-3 py-1.5 text-xs font-semibold text-stone-500 dark:border-stone-700 dark:text-stone-400"
                 >
-                  ✕
+                  <X className="size-3.5" />
                 </button>
               )}
             </div>
@@ -755,9 +758,7 @@ export default function FreezerModule({
 
           <div className={cx('flex gap-2', showCatFilter ? 'mb-2' : 'mb-3')}>
             <div className="relative flex-1">
-              <span className="absolute top-1/2 left-3.5 -translate-y-1/2 text-sm text-slate-300 dark:text-slate-600">
-                🔍
-              </span>
+              <Search className="absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-stone-400 dark:text-stone-600" />
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -768,9 +769,9 @@ export default function FreezerModule({
                 <button
                   aria-label={ta('clearSearch')}
                   onClick={() => setSearch('')}
-                  className="absolute top-1/2 right-3 -translate-y-1/2 cursor-pointer border-none bg-transparent text-base leading-none text-slate-400 dark:text-slate-500"
+                  className="absolute top-1/2 right-3 -translate-y-1/2 cursor-pointer border-none bg-transparent text-stone-400 dark:text-stone-500"
                 >
-                  ✕
+                  <X className="size-4" />
                 </button>
               )}
             </div>
@@ -778,15 +779,15 @@ export default function FreezerModule({
               aria-label={ta('filterCategories')}
               onClick={() => setShowCatFilter(!showCatFilter)}
               className={cx(
-                'relative flex h-11.5 w-11.5 shrink-0 cursor-pointer items-center justify-center rounded-xl border text-lg',
+                'relative flex h-11.5 w-11.5 shrink-0 cursor-pointer items-center justify-center rounded-xl border',
                 showCatFilter || filterCat.length > 0
-                  ? 'border-indigo-500/50 bg-indigo-500/12 text-indigo-400'
-                  : 'border-indigo-500/20 bg-white/80 text-slate-400 dark:border-slate-600/30 dark:bg-slate-800/60 dark:text-slate-500',
+                  ? 'border-stone-900 bg-stone-900 text-white dark:border-stone-100 dark:bg-stone-100 dark:text-stone-900'
+                  : 'border-stone-200 bg-white text-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400',
               )}
             >
-              ☰
+              <SlidersHorizontal className="size-4.5" />
               {filterCat.length > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-indigo-400" />
+                <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-orange-500" />
               )}
             </button>
           </div>
@@ -801,7 +802,7 @@ export default function FreezerModule({
                 transition={{ duration: 0.2, ease: 'easeOut' }}
                 className="overflow-hidden"
               >
-                <div className="flex flex-wrap gap-1.5 rounded-xl border border-indigo-500/15 bg-white/70 px-3 py-2.5 dark:border-slate-600/20 dark:bg-slate-800/50">
+                <div className="flex flex-wrap gap-1.5 rounded-xl border border-stone-200/70 bg-white px-3 py-2.5 dark:border-white/10 dark:bg-stone-900">
                   <Pill small active={filterCat.length === 0} onClick={() => setFilterCat([])}>
                     {tc('all')}
                   </Pill>
@@ -827,7 +828,7 @@ export default function FreezerModule({
           </AnimatePresence>
 
           {/* Items with swipe */}
-          <div className="relative flex flex-col gap-1.5">
+          <div className="relative flex flex-col">
             <AnimatePresence initial={false} mode="popLayout">
               {filtered.map((item) => {
                 const cat = categories[item.cat] || CATS.drugo;
@@ -842,26 +843,30 @@ export default function FreezerModule({
                         setEditMode(false);
                       }}
                     >
+                      {/* Flat row: opaque page-colored bg keeps the swipe reveal
+                          hidden at rest; dotted divider on every row. */}
                       <div
                         style={{ '--cat': cat.color }}
                         className={cx(
-                          'relative cursor-pointer overflow-hidden rounded-2xl border px-3.5 py-3',
-                          STATUS_CARD[status],
+                          'relative cursor-pointer overflow-hidden border-b border-dotted border-stone-300 px-1 py-3 dark:border-stone-700',
+                          STATUS_ROW[status],
                         )}
                       >
-                        <div className="absolute inset-y-0 left-0 w-1 rounded-l-2xl bg-(--cat)" />
+                        <div className="absolute inset-y-2.5 left-0 w-1 rounded-full bg-(--cat)" />
                         <div className="flex items-center justify-between">
                           <div className="flex min-w-0 flex-1 items-center gap-2.5 pl-2">
                             <span className="shrink-0 text-2xl">{cat.icon}</span>
                             <div className="min-w-0">
                               <div className="flex items-center gap-1.25">
-                                <span className="overflow-hidden text-sm font-bold text-ellipsis whitespace-nowrap text-slate-800 dark:text-slate-200">
-                                  {item.packets > 1 && <span className="text-indigo-400">{item.packets}x </span>}
+                                <span className="overflow-hidden text-sm font-bold text-ellipsis whitespace-nowrap text-stone-900 dark:text-stone-100">
+                                  {item.packets > 1 && (
+                                    <span className="text-stone-500 dark:text-stone-400">{item.packets}x </span>
+                                  )}
                                   {item.name}
                                 </span>
                                 {item.sticky && <span className="text-[10px]">📌</span>}
                               </div>
-                              <div className="flex flex-wrap items-center gap-0.75 text-xs text-slate-400 dark:text-slate-500">
+                              <div className="flex flex-wrap items-center gap-0.75 text-xs text-stone-400 dark:text-stone-500">
                                 <span>
                                   {item.qty}
                                   {item.packets > 1 ? ' · ' + t('packetsShort', { count: item.packets }) : ''}
@@ -875,7 +880,9 @@ export default function FreezerModule({
                                 {item.label && (
                                   <>
                                     <span>·</span>
-                                    <span className="font-semibold text-indigo-400">{item.label}</span>
+                                    <span className="font-semibold text-orange-600 dark:text-orange-400">
+                                      {item.label}
+                                    </span>
                                   </>
                                 )}
                               </div>
@@ -890,7 +897,7 @@ export default function FreezerModule({
                             >
                               {expiryText(item.expiry, { short: true })}
                             </div>
-                            <div className="text-[10px] text-slate-300 dark:text-slate-600">
+                            <div className="text-[10px] text-stone-400 dark:text-stone-600">
                               {format.dateTime(new Date(item.expiry), 'day')}
                             </div>
                           </div>
@@ -940,7 +947,7 @@ export default function FreezerModule({
             if (editMode && editData) {
               return (
                 <Modal onClose={() => setEditMode(false)}>
-                  <h3 className="mb-5 text-center text-lg font-extrabold">{t('editItem')}</h3>
+                  <h3 className="mb-5 text-center font-serif text-xl font-semibold tracking-tight">{t('editItem')}</h3>
                   <Label>{tc('name')}</Label>
                   <Input
                     value={editData.name}
@@ -955,10 +962,10 @@ export default function FreezerModule({
                         onClick={() => setEditData((d) => ({ ...d, cat: k }))}
                         style={{ '--cat': v.color }}
                         className={cx(
-                          'cursor-pointer rounded-xl border px-2.75 py-1.75 text-xs font-semibold',
+                          'cursor-pointer rounded-full border px-2.75 py-1.75 text-xs font-semibold',
                           editData.cat === k
                             ? 'border-(--cat)/50 bg-(--cat)/13 text-(--cat)'
-                            : 'border-indigo-500/20 bg-white/70 text-slate-500 dark:border-slate-600/30 dark:bg-slate-800/50 dark:text-slate-400',
+                            : 'border-stone-300 bg-white text-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400',
                         )}
                       >
                         {v.icon} {catLabel(k, v)}
@@ -979,17 +986,17 @@ export default function FreezerModule({
                         <button
                           aria-label={ta('decrease')}
                           onClick={() => setEditData((d) => ({ ...d, packets: Math.max(1, d.packets - 1) }))}
-                          className="h-11.5 w-10 cursor-pointer rounded-lg border border-indigo-500/20 bg-white/80 text-xl text-slate-500 dark:border-slate-600/30 dark:bg-slate-800/60 dark:text-slate-400"
+                          className="flex h-11.5 w-10 cursor-pointer items-center justify-center rounded-full border border-stone-300 bg-white text-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400"
                         >
-                          −
+                          <Minus className="size-4.5" />
                         </button>
                         <span className="min-w-6 text-center text-xl font-extrabold">{editData.packets}</span>
                         <button
                           aria-label={ta('increase')}
                           onClick={() => setEditData((d) => ({ ...d, packets: d.packets + 1 }))}
-                          className="h-11.5 w-10 cursor-pointer rounded-lg border border-indigo-500/30 bg-indigo-500/10 text-xl text-indigo-400"
+                          className="flex h-11.5 w-10 cursor-pointer items-center justify-center rounded-full border-none bg-stone-900 text-white dark:bg-stone-100 dark:text-stone-900"
                         >
-                          +
+                          <Plus className="size-4.5" />
                         </button>
                       </div>
                     </div>
@@ -1027,8 +1034,8 @@ export default function FreezerModule({
                         key={f.id}
                         onClick={() => setEditData((d) => ({ ...d, freezer: f.id }))}
                         className={cx(
-                          'cursor-pointer rounded-xl border px-3.5 py-2.25 text-sm font-bold',
-                          editData.freezer === f.id ? CHIP_SKY_ON : CHIP_OFF,
+                          'cursor-pointer rounded-full border px-3.5 py-2.25 text-sm font-bold',
+                          editData.freezer === f.id ? CHIP_ON : CHIP_OFF,
                         )}
                       >
                         {f.icon} {f.name}
@@ -1066,7 +1073,7 @@ export default function FreezerModule({
                 {/* Redesigned detail layout */}
                 <div className="mb-3 text-center">
                   <span className="text-6xl">{cat.icon}</span>
-                  <h2 className="mt-2 mb-1 text-2xl font-extrabold">{item.name}</h2>
+                  <h2 className="mt-2 mb-1 font-serif text-3xl font-semibold tracking-tight">{item.name}</h2>
                   {/* Status with full text */}
                   <div className={cx('mb-1 text-base font-bold', STATUS_TEXT[status])}>{expiryText(item.expiry)}</div>
                 </div>
@@ -1091,10 +1098,10 @@ export default function FreezerModule({
 
                 {/* Quick packet decrement */}
                 {item.packets > 1 && (
-                  <div className="mb-3.5 flex items-center justify-between rounded-xl border border-indigo-500/15 bg-indigo-500/6 px-4 py-3">
+                  <div className="mb-3.5 flex items-center justify-between rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 dark:border-white/10 dark:bg-stone-950/60">
                     <div>
-                      <div className="text-sm font-bold text-indigo-400">{t('subtractPacket')}</div>
-                      <div className="text-xs text-slate-400 dark:text-slate-500">
+                      <div className="text-sm font-bold text-stone-900 dark:text-stone-100">{t('subtractPacket')}</div>
+                      <div className="text-xs text-stone-400 dark:text-stone-500">
                         {t('currently', { count: item.packets })}
                       </div>
                     </div>
@@ -1105,7 +1112,7 @@ export default function FreezerModule({
                         await dbUpdateItem(item.id, { packets: newP });
                         setShowDetail({ ...item, packets: newP });
                       }}
-                      className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-xl border border-indigo-500/40 bg-indigo-500/15 text-xl font-bold text-indigo-400"
+                      className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border-none bg-stone-900 text-base font-bold text-white dark:bg-stone-100 dark:text-stone-900"
                     >
                       −1
                     </button>
@@ -1116,16 +1123,16 @@ export default function FreezerModule({
                 <div className="mb-2 flex gap-2">
                   <button
                     onClick={() => doArchive(item, false)}
-                    className="flex-3 cursor-pointer rounded-xl border-none bg-linear-135 from-green-500 to-emerald-600 p-3.75 text-base font-bold text-white"
+                    className="flex-3 cursor-pointer rounded-full border-none bg-green-600 p-3.75 text-base font-bold text-white"
                   >
                     {t('usedBtn')}
                   </button>
                   <button
                     aria-label={ta('delete')}
                     onClick={() => doArchive(item, true)}
-                    className="flex-1 cursor-pointer rounded-xl border border-red-500/30 bg-red-500/10 p-3.75 text-sm font-bold text-red-500"
+                    className="flex flex-1 cursor-pointer items-center justify-center rounded-full border border-red-500/25 bg-red-500/10 p-3.75 text-red-600 dark:text-red-400"
                   >
-                    🗑
+                    <Trash2 className="size-4.5" />
                   </button>
                 </div>
                 <div className="mb-2 flex gap-2">
@@ -1134,7 +1141,7 @@ export default function FreezerModule({
                       setEditData({ ...item });
                       setEditMode(true);
                     }}
-                    className="flex-1 cursor-pointer rounded-xl border border-sky-400/30 bg-sky-400/8 p-3 text-sm font-semibold text-sky-400"
+                    className="flex-1 cursor-pointer rounded-full border border-stone-300 bg-white p-3 text-sm font-semibold text-stone-700 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300"
                   >
                     {t('edit')}
                   </button>
@@ -1144,10 +1151,10 @@ export default function FreezerModule({
                       setShowDetail({ ...item, sticky: !item.sticky });
                     }}
                     className={cx(
-                      'flex-1 cursor-pointer rounded-xl border border-indigo-500/20 p-3 text-sm font-semibold dark:border-slate-600/30',
+                      'flex-1 cursor-pointer rounded-full border p-3 text-sm font-semibold',
                       item.sticky
-                        ? 'bg-amber-500/10 text-amber-500'
-                        : 'bg-white/80 text-slate-500 dark:bg-slate-800/60 dark:text-slate-400',
+                        ? 'border-amber-500/40 bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400'
+                        : 'border-stone-300 bg-white text-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400',
                     )}
                   >
                     {item.sticky ? t('unpin') : t('pin')}
@@ -1157,7 +1164,7 @@ export default function FreezerModule({
                       await dbDeleteItem(item.id);
                       setShowDetail(null);
                     }}
-                    className="flex-1 cursor-pointer rounded-xl border border-red-500/15 bg-transparent p-3 text-sm font-semibold text-slate-400 dark:text-slate-500"
+                    className="flex-1 cursor-pointer rounded-xl border border-red-500/15 bg-transparent p-3 text-sm font-semibold text-stone-400 dark:text-stone-500"
                   >
                     {t('delete')}
                   </button>
@@ -1185,13 +1192,13 @@ export default function FreezerModule({
               else setAddStep(addStep - 1);
             }}
           />
-          <h2 className="text-lg font-extrabold">{t('addToFreezer')}</h2>
+          <h2 className="font-serif text-xl font-semibold tracking-tight">{t('addToFreezer')}</h2>
           <button
             aria-label={ta('close')}
             onClick={() => setScreen('home')}
-            className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl border border-indigo-500/20 bg-white/90 text-lg text-slate-500 dark:border-slate-600/30 dark:bg-slate-800/80 dark:text-slate-400"
+            className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-stone-200 bg-white text-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400"
           >
-            ✕
+            <X className="size-4.5" />
           </button>
         </div>
 
@@ -1202,13 +1209,13 @@ export default function FreezerModule({
               <div
                 className={cx(
                   'mb-1.5 h-1 rounded-xs',
-                  i <= addStep ? 'bg-linear-135 from-sky-500 to-indigo-500' : 'bg-slate-300/50 dark:bg-slate-700/50',
+                  i <= addStep ? 'bg-orange-500' : 'bg-stone-200 dark:bg-stone-800',
                 )}
               />
               <span
                 className={cx(
                   'text-xs font-semibold',
-                  i <= addStep ? 'text-sky-400' : 'text-slate-300 dark:text-slate-600',
+                  i <= addStep ? 'text-orange-600 dark:text-orange-400' : 'text-stone-400 dark:text-stone-600',
                 )}
               >
                 {l}
@@ -1233,7 +1240,7 @@ export default function FreezerModule({
                 );
               }}
               placeholder={t('namePlaceholder')}
-              className="box-border w-full rounded-xl border border-indigo-500/25 bg-white/90 px-4 py-3.5 text-lg font-medium text-slate-800 outline-none dark:border-indigo-500/30 dark:bg-slate-800/80 dark:text-slate-200"
+              className="box-border w-full rounded-xl border border-stone-300 bg-white px-4 py-3.5 text-lg font-medium text-stone-900 transition-colors outline-none placeholder:text-stone-400 focus:border-orange-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-100"
             />
             {suggestions.length > 0 && (
               <div className="mt-2 flex flex-col gap-1">
@@ -1250,7 +1257,7 @@ export default function FreezerModule({
                         setAddStep(1);
                       }}
                       style={{ '--cat': cat?.color }}
-                      className="flex cursor-pointer items-center gap-3 rounded-xl border border-indigo-500/20 bg-white/90 px-3.5 py-3.25 text-left text-base text-slate-800 dark:border-slate-600/30 dark:bg-slate-800/80 dark:text-slate-200"
+                      className="flex cursor-pointer items-center gap-3 rounded-xl border border-stone-200/70 bg-white px-3.5 py-3.25 text-left text-base text-stone-900 dark:border-white/10 dark:bg-stone-900 dark:text-stone-100"
                     >
                       <span className="text-2xl">{cat?.icon}</span>
                       <div>
@@ -1266,7 +1273,7 @@ export default function FreezerModule({
             )}
             {addData.name.length >= 2 && suggestions.length === 0 && (
               <div className="mt-4">
-                <p className="mb-2.5 text-sm text-slate-400 dark:text-slate-500">{t('selectCategory')}</p>
+                <p className="mb-2.5 text-sm text-stone-400 dark:text-stone-500">{t('selectCategory')}</p>
                 <div className="grid grid-cols-3 gap-2">
                   {Object.entries(categories).map(([k, v]) => (
                     <button
@@ -1278,7 +1285,7 @@ export default function FreezerModule({
                         setAddStep(1);
                       }}
                       style={{ '--cat': v.color }}
-                      className="cursor-pointer rounded-xl border border-indigo-500/15 bg-white/80 px-1.5 py-3.5 text-center text-slate-800 dark:border-slate-600/20 dark:bg-slate-800/60 dark:text-slate-200"
+                      className="cursor-pointer rounded-xl border border-stone-200/70 bg-white px-1.5 py-3.5 text-center text-stone-900 dark:border-white/10 dark:bg-stone-900 dark:text-stone-100"
                     >
                       <div className="mb-1 text-2xl">{v.icon}</div>
                       <div className="text-xs font-semibold text-(--cat)">{catLabel(k, v)}</div>
@@ -1298,7 +1305,7 @@ export default function FreezerModule({
               style={{ '--cat': (categories[addData.cat] || CATS[addData.cat])?.color }}
             >
               <span className="text-5xl">{(categories[addData.cat] || CATS[addData.cat])?.icon}</span>
-              <h3 className="mt-2 text-xl font-bold">{addData.name}</h3>
+              <h3 className="mt-2 font-serif text-2xl font-semibold tracking-tight">{addData.name}</h3>
               <span className="text-sm font-semibold text-(--cat)">
                 {catLabel(addData.cat, categories[addData.cat] || CATS[addData.cat])}
               </span>
@@ -1318,8 +1325,8 @@ export default function FreezerModule({
                   key={q}
                   onClick={() => setAddData((d) => ({ ...d, qty: q }))}
                   className={cx(
-                    'cursor-pointer rounded-xl border px-3 py-2 text-sm font-semibold',
-                    addData.qty === q ? CHIP_INDIGO_ON : CHIP_OFF,
+                    'cursor-pointer rounded-full border px-3 py-2 text-sm font-semibold',
+                    addData.qty === q ? CHIP_ON : CHIP_OFF,
                   )}
                 >
                   {q}
@@ -1328,16 +1335,16 @@ export default function FreezerModule({
             </div>
 
             {/* Auto-summary */}
-            <div className="mb-5 rounded-xl border border-indigo-500/15 bg-white/70 px-4 py-3.5 dark:border-slate-600/20 dark:bg-slate-800/50">
-              <div className="mb-1.5 flex justify-between text-sm text-slate-500 dark:text-slate-400">
+            <div className="mb-5 rounded-xl border border-stone-200/70 bg-white px-4 py-3.5 dark:border-white/10 dark:bg-stone-900">
+              <div className="mb-1.5 flex justify-between text-sm text-stone-500 dark:text-stone-400">
                 <span>{t('expiryDate')}:</span>
-                <span className="font-bold text-green-500">
+                <span className="font-bold text-green-600 dark:text-green-400">
                   {format.dateTime(new Date(addData.expiry || recalc(addData.frozen, addData.cat)), 'day')}
                 </span>
               </div>
-              <div className="flex justify-between text-sm text-slate-500 dark:text-slate-400">
+              <div className="flex justify-between text-sm text-stone-500 dark:text-stone-400">
                 <span>{t('freezer')}:</span>
-                <span className="font-semibold text-slate-800 dark:text-slate-200">
+                <span className="font-semibold text-stone-900 dark:text-stone-100">
                   {freezers.find((f) => f.id === addData.freezer)?.icon}{' '}
                   {freezers.find((f) => f.id === addData.freezer)?.name}
                 </span>
@@ -1376,8 +1383,8 @@ export default function FreezerModule({
           <div>
             <div className="mb-5 text-center">
               <span className="text-5xl">{(categories[addData.cat] || CATS[addData.cat])?.icon}</span>
-              <h3 className="mt-2 text-xl font-bold">{addData.name}</h3>
-              <span className="text-sm text-slate-400 dark:text-slate-500">
+              <h3 className="mt-2 font-serif text-2xl font-semibold tracking-tight">{addData.name}</h3>
+              <span className="text-sm text-stone-400 dark:text-stone-500">
                 {addData.qty} · {catLabel(addData.cat, categories[addData.cat] || CATS[addData.cat])}
               </span>
             </div>
@@ -1389,7 +1396,7 @@ export default function FreezerModule({
                 onClick={() => setAddData((d) => ({ ...d, packets: Math.max(1, d.packets - 1) }))}
                 className={STEPPER_MINUS}
               >
-                −
+                <Minus className="size-5" />
               </button>
               <span className="min-w-8 text-center text-2xl font-extrabold">{addData.packets}</span>
               <button
@@ -1397,13 +1404,13 @@ export default function FreezerModule({
                 onClick={() => setAddData((d) => ({ ...d, packets: d.packets + 1 }))}
                 className={STEPPER_PLUS}
               >
-                +
+                <Plus className="size-5" />
               </button>
-              <span className="text-sm text-slate-400 dark:text-slate-500">{t('packetsWord')}</span>
+              <span className="text-sm text-stone-400 dark:text-stone-500">{t('packetsWord')}</span>
             </div>
 
             <Label>
-              {t('label')} <span className="font-normal text-slate-300 dark:text-slate-600">({tc('optional')})</span>
+              {t('label')} <span className="font-normal text-stone-400 dark:text-stone-600">({tc('optional')})</span>
             </Label>
             <LabelInp
               value={addData.label}
@@ -1442,8 +1449,8 @@ export default function FreezerModule({
                   key={f.id}
                   onClick={() => setAddData((d) => ({ ...d, freezer: f.id }))}
                   className={cx(
-                    'cursor-pointer rounded-xl border px-4 py-2.5 text-sm font-bold',
-                    addData.freezer === f.id ? CHIP_SKY_ON : CHIP_OFF,
+                    'cursor-pointer rounded-full border px-4 py-2.5 text-sm font-bold',
+                    addData.freezer === f.id ? CHIP_ON : CHIP_OFF,
                   )}
                 >
                   {f.icon} {f.name}

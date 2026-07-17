@@ -1,7 +1,21 @@
 import './globals.css';
+import { Fraunces, Inter } from 'next/font/google';
 import Script from 'next/script';
 import IntlProvider from '@/components/IntlProvider';
 import ServiceWorkerRegistrar from '@/components/ServiceWorkerRegistrar';
+
+// latin-ext is required for č/š/ž (the wordmark "Cožy" itself needs it).
+const inter = Inter({
+  subsets: ['latin', 'latin-ext'],
+  variable: '--font-inter',
+  display: 'swap',
+});
+const fraunces = Fraunces({
+  subsets: ['latin', 'latin-ext'],
+  variable: '--font-fraunces',
+  display: 'swap',
+  axes: ['opsz'],
+});
 
 export const metadata = {
   title: 'Cožy',
@@ -21,7 +35,7 @@ export const viewport = {
   userScalable: false,
   viewportFit: 'cover',
   interactiveWidget: 'resizes-visual',
-  themeColor: '#020617',
+  themeColor: '#0C0A09',
 };
 
 export default function RootLayout({ children }) {
@@ -32,7 +46,7 @@ export default function RootLayout({ children }) {
       lang="sl"
       data-theme="dark"
       suppressHydrationWarning
-      className="overflow-x-hidden overscroll-none bg-indigo-50 text-slate-800 antialiased scheme-light dark:bg-slate-950 dark:text-slate-200 dark:scheme-dark"
+      className={`${inter.variable} ${fraunces.variable} overflow-x-hidden overscroll-none bg-stone-100 text-stone-900 antialiased scheme-light dark:bg-stone-950 dark:text-stone-100 dark:scheme-dark`}
     >
       <head>
         {/* Apply saved theme + language before first paint (dark: classes key off
@@ -42,12 +56,6 @@ export default function RootLayout({ children }) {
           dangerouslySetInnerHTML={{
             __html: `try{var t=localStorage.getItem('zmrzko_theme');if(t)document.documentElement.dataset.theme=t;var l=localStorage.getItem('zmrzko_lang');if(l)document.documentElement.lang=l}catch(e){}`,
           }}
-        />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap"
-          rel="stylesheet"
         />
         <link rel="apple-touch-icon" href="/icon-192.png" />
       </head>

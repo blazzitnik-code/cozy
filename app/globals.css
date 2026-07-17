@@ -5,6 +5,9 @@
    switchTheme in AppShell). Convention: unprefixed = light, dark: = dark. */
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
-@theme {
-  --font-sans: 'Outfit', 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+/* Fonts come from next/font (layout.js) which defines the --font-inter /
+   --font-fraunces variables on <html> — hence @theme inline. */
+@theme inline {
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-fraunces), ui-serif, Georgia, serif;
 }

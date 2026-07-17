@@ -4,7 +4,8 @@ import AppShell from '@/components/AppShell';
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { rpcErrorKey } from '@/lib/intl';
-import { Screen, Loader, Input, Label, Btn } from '@/components/ui';
+import { cx } from '@/lib/utils';
+import { Screen, Loader, Input, Label, Btn, Wordmark, CODE_INPUT, PRESS } from '@/components/ui';
 
 export default function Home() {
   // Root-namespace t: `error` state may hold a message key (Errors.rpc.* /
@@ -28,16 +29,17 @@ export default function Home() {
       <Screen center>
         <div className="w-full px-8 text-center">
           <div className="mb-4 text-7xl">🏠</div>
-          <div className="mb-2 text-4xl font-black">
-            <span className="bg-linear-135 from-slate-800 to-violet-300 bg-clip-text text-transparent dark:from-slate-200">
-              Cožy
-            </span>
+          <div className="mb-2">
+            <Wordmark className="text-5xl" />
           </div>
-          <p className="mb-8 text-base text-slate-400 dark:text-slate-500">{t('Auth.tagline')}</p>
+          <p className="mb-8 text-base text-stone-500 dark:text-stone-400">{t('Auth.tagline')}</p>
 
           <button
             onClick={signInWithGoogle}
-            className="flex w-full cursor-pointer items-center justify-center gap-3 rounded-2xl border border-indigo-500/20 bg-white/80 px-6 py-4 text-base font-bold text-slate-800 dark:border-slate-600/30 dark:bg-slate-800/60 dark:text-slate-200"
+            className={cx(
+              'flex w-full cursor-pointer items-center justify-center gap-3 rounded-full border border-stone-200 bg-white px-6 py-4 text-base font-bold text-stone-900 dark:border-white/10 dark:bg-stone-900 dark:text-stone-100',
+              PRESS,
+            )}
           >
             {/* Google brand mark — fill colors are Google's, not theme colors */}
             <svg width="20" height="20" viewBox="0 0 24 24">
@@ -72,14 +74,14 @@ export default function Home() {
         <div className="w-full px-6">
           <div className="mb-8 text-center">
             <div className="mb-3 text-5xl">👋</div>
-            <h1 className="mb-1 text-2xl font-extrabold">
+            <h1 className="mb-1 font-serif text-3xl font-semibold tracking-tight">
               {t('Auth.hello', { name: user.user_metadata?.full_name?.split(' ')[0] || t('Auth.userFallback') })}
             </h1>
-            <p className="text-sm text-slate-400 dark:text-slate-500">{t('Auth.createOrJoin')}</p>
+            <p className="text-sm text-stone-500 dark:text-stone-400">{t('Auth.createOrJoin')}</p>
           </div>
 
           {error && (
-            <div className="mb-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-center text-sm text-red-500">
+            <div className="mb-4 rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-center text-sm font-semibold text-red-600 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-400">
               {t.has(error) ? t(error) : error}
             </div>
           )}
@@ -91,26 +93,32 @@ export default function Home() {
                   setHhMode('create');
                   setDisplayName(user.user_metadata?.full_name || '');
                 }}
-                className="cursor-pointer rounded-2xl border border-sky-400/30 bg-sky-400/8 p-5 text-left text-slate-800 dark:text-slate-200"
+                className={cx(
+                  'cursor-pointer rounded-2xl border border-stone-200/70 bg-white p-5 text-left text-stone-900 dark:border-white/10 dark:bg-stone-900 dark:text-stone-100',
+                  PRESS,
+                )}
               >
                 <div className="mb-2 text-3xl">🏠</div>
-                <div className="mb-1 text-lg font-bold">{t('Auth.createHousehold')}</div>
-                <div className="text-sm text-slate-400 dark:text-slate-500">{t('Auth.createHouseholdDesc')}</div>
+                <div className="mb-1 font-serif text-xl font-semibold tracking-tight">{t('Auth.createHousehold')}</div>
+                <div className="text-sm text-stone-500 dark:text-stone-400">{t('Auth.createHouseholdDesc')}</div>
               </button>
               <button
                 onClick={() => {
                   setHhMode('join');
                   setDisplayName(user.user_metadata?.full_name || '');
                 }}
-                className="cursor-pointer rounded-2xl border border-indigo-500/20 bg-white/70 p-5 text-left text-slate-800 dark:border-slate-600/30 dark:bg-slate-800/50 dark:text-slate-200"
+                className={cx(
+                  'cursor-pointer rounded-2xl border border-stone-200/70 bg-white p-5 text-left text-stone-900 dark:border-white/10 dark:bg-stone-900 dark:text-stone-100',
+                  PRESS,
+                )}
               >
                 <div className="mb-2 text-3xl">🔗</div>
-                <div className="mb-1 text-lg font-bold">{t('Auth.join')}</div>
-                <div className="text-sm text-slate-400 dark:text-slate-500">{t('Auth.joinDesc')}</div>
+                <div className="mb-1 font-serif text-xl font-semibold tracking-tight">{t('Auth.join')}</div>
+                <div className="text-sm text-stone-500 dark:text-stone-400">{t('Auth.joinDesc')}</div>
               </button>
               <button
                 onClick={signOut}
-                className="mt-2 cursor-pointer border-none bg-transparent p-3 text-sm text-slate-300 dark:text-slate-600"
+                className="mt-2 cursor-pointer border-none bg-transparent p-3 text-sm text-stone-400 dark:text-stone-500"
               >
                 {t('Common.signOut')}
               </button>
@@ -153,7 +161,7 @@ export default function Home() {
                   setHhMode(null);
                   setError('');
                 }}
-                className="mt-2 w-full cursor-pointer border-none bg-transparent p-3 text-sm text-slate-400 dark:text-slate-500"
+                className="mt-2 w-full cursor-pointer border-none bg-transparent p-3 text-sm text-stone-400 dark:text-stone-500"
               >
                 {t('Common.back')}
               </button>
@@ -175,7 +183,7 @@ export default function Home() {
                 onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
                 placeholder={t('Auth.joinCodePlaceholder')}
                 maxLength={6}
-                className="mb-5 box-border w-full rounded-xl border border-indigo-500/25 bg-white/90 px-4 py-3.5 text-center text-2xl font-extrabold tracking-[8px] text-slate-800 outline-none dark:border-indigo-500/30 dark:bg-slate-800/80 dark:text-slate-200"
+                className={cx(CODE_INPUT, 'mb-5')}
               />
               <Btn
                 v="success"
@@ -198,7 +206,7 @@ export default function Home() {
                   setHhMode(null);
                   setError('');
                 }}
-                className="mt-2 w-full cursor-pointer border-none bg-transparent p-3 text-sm text-slate-400 dark:text-slate-500"
+                className="mt-2 w-full cursor-pointer border-none bg-transparent p-3 text-sm text-stone-400 dark:text-stone-500"
               >
                 {t('Common.back')}
               </button>

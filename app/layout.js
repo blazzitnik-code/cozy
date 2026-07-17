@@ -49,21 +49,20 @@ export default function RootLayout({ children }) {
       className={`${inter.variable} ${fraunces.variable} overflow-x-hidden overscroll-none bg-stone-100 text-stone-900 antialiased scheme-light dark:bg-stone-950 dark:text-stone-100 dark:scheme-dark`}
     >
       <head>
-        {/* Apply saved theme + language before first paint (dark: classes key off
-            data-theme; lang is a11y/spellcheck polish — the UI language itself
-            lives in IntlProvider) */}
-        <script
+        <link rel="apple-touch-icon" href="/icon-192.png" />
+      </head>
+      <body className="pt-[env(safe-area-inset-top)]">
+        <Script
+          id="theme-init"
+          strategy="beforeInteractive"
           dangerouslySetInnerHTML={{
             __html: `try{var t=localStorage.getItem('zmrzko_theme');if(t)document.documentElement.dataset.theme=t;var l=localStorage.getItem('zmrzko_lang');if(l)document.documentElement.lang=l}catch(e){}`,
           }}
         />
-        <link rel="apple-touch-icon" href="/icon-192.png" />
-      </head>
-      <body className="pt-[env(safe-area-inset-top)]">
+        <Script src="https://accounts.google.com/gsi/client" strategy="afterInteractive" />
         <ServiceWorkerRegistrar />
         <IntlProvider>{children}</IntlProvider>
       </body>
-      <Script src="https://accounts.google.com/gsi/client" strategy="afterInteractive" />
     </html>
   );
 }

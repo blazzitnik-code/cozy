@@ -1,6 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Dev-only: let LAN devices (phone testing) reach HMR/dev resources.
+  allowedDevOrigins: ['192.168.64.*'],
   async headers() {
     return [
       {

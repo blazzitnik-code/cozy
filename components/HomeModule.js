@@ -1,10 +1,21 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import { Pencil, RotateCw, X } from 'lucide-react';
-import { useHomeSettings } from '@/lib/hooks';
 import { cx } from '@/lib/utils';
-import { Modal, Input, Card, SectionHeader, ModalActions, POPOVER, PRESS_SM } from './ui';
+import { motion } from 'motion/react';
+import {
+  Modal,
+  Input,
+  Card,
+  SectionHeader,
+  ModalActions,
+  POPOVER,
+  POPOVER_POP,
+  PRESS,
+  PRESS_SM,
+  ROW_PRESS,
+} from './ui';
 
 const LPP_BASE = 'https://data.lpp.si/api';
 const BIKE_API_KEY = process.env.NEXT_PUBLIC_BICIKELJ_API_KEY;
@@ -15,10 +26,14 @@ const DIM_LABEL = 'text-stone-400 dark:text-stone-600';
 const ROW = 'flex gap-1.5 mb-2 items-center';
 const CHIP =
   'flex-1 bg-stone-50 dark:bg-stone-950/60 border border-stone-200 dark:border-white/10 rounded-lg py-2 px-3';
-const ADD_BTN =
-  'text-xs py-1 px-2.5 rounded-full border-none bg-stone-900 text-white dark:bg-stone-100 dark:text-stone-900 cursor-pointer font-bold';
-const RM_BTN =
-  'w-9 h-9 rounded-full border-none bg-red-500/10 text-red-600 dark:text-red-400 cursor-pointer shrink-0 flex items-center justify-center';
+const ADD_BTN = cx(
+  'cursor-pointer rounded-full border-none bg-stone-900 px-2.5 py-1 text-xs font-bold text-white dark:bg-stone-100 dark:text-stone-900',
+  PRESS_SM,
+);
+const RM_BTN = cx(
+  'flex h-10.5 w-10.5 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-red-500/10 text-red-600 dark:text-red-400',
+  PRESS_SM,
+);
 const TILE = 'rounded-xl py-3 px-2 text-center';
 
 async function fetchLppStations() {
@@ -69,7 +84,10 @@ function StationSearch({ placeholder, stations, onSelect }) {
     <div className="relative mb-2">
       <Input size="xs" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={placeholder} />
       {results.length > 0 && (
-        <div className={cx(POPOVER, 'absolute inset-x-0 top-full z-50 mt-1 overflow-hidden rounded-lg p-0')}>
+        <motion.div
+          {...POPOVER_POP}
+          className={cx(POPOVER, 'absolute inset-x-0 top-full z-50 mt-1 origin-top overflow-hidden rounded-lg p-0')}
+        >
           {results.map((s, i) => (
             <div
               key={i}
@@ -78,21 +96,32 @@ function StationSearch({ placeholder, stations, onSelect }) {
                 setQuery('');
               }}
               className={cx(
-                'cursor-pointer px-3 py-2.5 text-sm text-stone-900 dark:text-stone-100',
+                'px-3 py-2.5 text-sm text-stone-900 dark:text-stone-100',
+                ROW_PRESS,
                 i < results.length - 1 && 'border-b border-stone-200 dark:border-white/10',
               )}
             >
               {s.name}
             </div>
           ))}
-        </div>
+        </motion.div>
       )}
     </div>
   );
 }
 
 // ─── EDIT MODAL ───
-function EditModal({ settings, onSave, onClose }) {
+// Always-mounted Modal shell; the form body renders only while open, so its
+// useState-from-props form state and the stations fetch reset on every open.
+function EditModal({ open, settings, onSave, onClose }) {
+  return (
+    <Modal open={open} onClose={onClose}>
+      <EditModalBody settings={settings} onSave={onSave} onClose={onClose} />
+    </Modal>
+  );
+}
+
+function EditModalBody({ settings, onSave, onClose }) {
   const t = useTranslations('HomeModule');
   const tc = useTranslations('Common');
   const ta = useTranslations('A11y');
@@ -106,12 +135,19 @@ function EditModal({ settings, onSave, onClose }) {
   const [loadingStations, setLoadingStations] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
     Promise.all([fetchLppStations(), fetchAllBikeStations()])
       .then(([lpp, bike]) => {
+        if (cancelled) return;
         setLppStations(lpp);
         setAllBikeStations(Array.isArray(bike) ? bike : []);
       })
-      .finally(() => setLoadingStations(false));
+      .finally(() => {
+        if (!cancelled) setLoadingStations(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const handleSave = () => {
@@ -125,7 +161,7 @@ function EditModal({ settings, onSave, onClose }) {
   };
 
   return (
-    <Modal onClose={onClose}>
+    <>
       <h3 className="mb-5 font-serif text-xl font-semibold tracking-tight text-stone-900 dark:text-stone-100">
         {t('settingsTitle')}
       </h3>
@@ -143,7 +179,7 @@ function EditModal({ settings, onSave, onClose }) {
       {/* Destinations */}
       <div className="mb-5">
         <div className="mb-2 flex items-center justify-between">
-          <SectionHeader className="mb-1.5">{t('navigation')}</SectionHeader>
+          <SectionHeader className="mb-0">{t('navigation')}</SectionHeader>
           {destinations.length < 3 && (
             <button onClick={() => setDestinations([...destinations, { name: '', address: '' }])} className={ADD_BTN}>
               {t('addBtn')}
@@ -188,7 +224,7 @@ function EditModal({ settings, onSave, onClose }) {
       {/* Shortcuts */}
       <div className="mb-5">
         <div className="mb-2 flex items-center justify-between">
-          <SectionHeader className="mb-1.5">{t('shortcuts')}</SectionHeader>
+          <SectionHeader className="mb-0">{t('shortcuts')}</SectionHeader>
           {shortcuts.length < 6 && (
             <button onClick={() => setShortcuts([...shortcuts, { name: '', url: '', emoji: '' }])} className={ADD_BTN}>
               {t('addBtn')}
@@ -197,7 +233,8 @@ function EditModal({ settings, onSave, onClose }) {
         </div>
         {shortcuts.map((s, i) => (
           <div key={i} className={ROW}>
-            <input
+            <Input
+              size="xs"
               value={s.emoji}
               onChange={(e) => {
                 const n = [...shortcuts];
@@ -205,7 +242,7 @@ function EditModal({ settings, onSave, onClose }) {
                 setShortcuts(n);
               }}
               placeholder="🔗"
-              className="box-border w-12 shrink-0 rounded-lg border border-stone-300 bg-white px-1 py-2.5 text-center text-lg text-stone-900 transition-colors outline-none focus:border-orange-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-100"
+              className="w-12 shrink-0 px-1 text-center text-lg"
             />
             <Input
               size="xs"
@@ -243,7 +280,7 @@ function EditModal({ settings, onSave, onClose }) {
       {/* LPP bus stops */}
       <div className="mb-5">
         <div className="mb-2 flex items-center justify-between">
-          <SectionHeader className="mb-1.5">{t('lppStops')}</SectionHeader>
+          <SectionHeader className="mb-0">{t('lppStops')}</SectionHeader>
         </div>
         {busStops.map((s, i) => (
           <div key={i} className={ROW}>
@@ -284,7 +321,7 @@ function EditModal({ settings, onSave, onClose }) {
       {/* BicikeLJ stations */}
       <div className="mb-6">
         <div className="mb-2 flex items-center justify-between">
-          <SectionHeader className="mb-1.5">{t('bikeStations')}</SectionHeader>
+          <SectionHeader className="mb-0">{t('bikeStations')}</SectionHeader>
         </div>
         {bikeStations.map((s, i) => (
           <div key={i} className={ROW}>
@@ -316,26 +353,53 @@ function EditModal({ settings, onSave, onClose }) {
       </div>
 
       <ModalActions onSave={handleSave} onCancel={onClose} />
-    </Modal>
+    </>
   );
 }
 
+// Last-fetched bus/bike data, kept at module scope so a tab-switch remount
+// paints the previous values instantly and revalidates in the background
+// (state alone would reset — the module unmounts on every tab switch).
+let busCache = {};
+let bikeCache = {};
+
 // ─── MAIN COMPONENT ───
-export default function HomeModule({ user, householdId }) {
+// `settings`/`loading`/`saveSettings` come from AppShell's persistent
+// useHomeSettings, so tab entry renders warm data without a refetch.
+export default function HomeModule({ settings, loading, saveSettings }) {
   const t = useTranslations('HomeModule');
   const ta = useTranslations('A11y');
-  const { settings, loading, saveSettings } = useHomeSettings(householdId, user.id);
   const [editing, setEditing] = useState(false);
-  const [busData, setBusData] = useState({});
-  const [bikeData, setBikeData] = useState({});
+  const [busData, setBusData] = useState(() => busCache);
+  const [bikeData, setBikeData] = useState(() => bikeCache);
+  const [busRefreshing, setBusRefreshing] = useState(false);
+  // The module unmounts on every tab switch — stop the sequential fetch loop
+  // instead of letting it keep fetching (and setting state) after unmount.
+  const alive = useRef(true);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
+  // The 120 s interval and the manual refresh button share this loop — an
+  // overlapping second run would fight over busRefreshing and refetch the
+  // same stops.
+  const busInflight = useRef(false);
 
   const refreshBus = useCallback(async () => {
-    if (!settings?.bus_stops?.length) return;
+    if (!settings?.bus_stops?.length || busInflight.current) return;
+    busInflight.current = true;
+    setBusRefreshing(true);
     for (const stop of settings.bus_stops) {
       if (!stop.code) continue;
       const arrivals = await fetchBusArrivals(stop.code);
-      setBusData((prev) => ({ ...prev, [stop.code]: arrivals }));
+      busCache = { ...busCache, [stop.code]: arrivals };
+      if (!alive.current) break;
+      setBusData(busCache);
     }
+    busInflight.current = false;
+    if (alive.current) setBusRefreshing(false);
   }, [settings]);
 
   const refreshBike = useCallback(async () => {
@@ -347,7 +411,8 @@ export default function HomeModule({ user, householdId }) {
       const found = all.find((s) => s.number === station.number);
       if (found) map[station.number] = found;
     }
-    setBikeData(map);
+    bikeCache = map;
+    if (alive.current) setBikeData(map);
   }, [settings]);
 
   useEffect(() => {
@@ -375,12 +440,12 @@ export default function HomeModule({ user, householdId }) {
     return (
       <div className="mb-5">
         <SectionHeader className={DIM_LABEL}>{t('sectionTitle')}</SectionHeader>
-        <Card onClick={() => setEditing(true)} className="cursor-pointer px-4 py-5 text-center">
+        <Card onClick={() => setEditing(true)} className="px-4 py-5 text-center">
           <div className="mb-2 text-4xl">🏠</div>
           <div className="mb-1 text-sm font-bold text-stone-900 dark:text-stone-100">{t('setupTitle')}</div>
           <div className="text-xs text-stone-400 dark:text-stone-500">{t('setupDesc')}</div>
         </Card>
-        {editing && <EditModal settings={settings} onSave={handleSave} onClose={() => setEditing(false)} />}
+        <EditModal open={editing} settings={settings} onSave={handleSave} onClose={() => setEditing(false)} />
       </div>
     );
   }
@@ -389,7 +454,7 @@ export default function HomeModule({ user, householdId }) {
   return (
     <div className="mb-5">
       <div className="mb-2.5 flex items-center justify-between">
-        <SectionHeader className={DIM_LABEL}>{t('sectionTitle')}</SectionHeader>
+        <SectionHeader className={cx('mb-0', DIM_LABEL)}>{t('sectionTitle')}</SectionHeader>
         <button
           aria-label={ta('edit')}
           onClick={() => setEditing(true)}
@@ -405,7 +470,7 @@ export default function HomeModule({ user, householdId }) {
           href={mapsTrafficLink(settings.home_address)}
           target="_blank"
           rel="noopener noreferrer"
-          className="no-underline"
+          className={cx('block no-underline', PRESS)}
         >
           <Card className="flex items-center gap-3 rounded-xl px-3.5 py-3">
             <span className="text-2xl">🚦</span>
@@ -425,7 +490,7 @@ export default function HomeModule({ user, householdId }) {
                 href={mapsNavLink(settings.home_address, dest.address)}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="no-underline"
+                className={cx('block no-underline', PRESS)}
               >
                 <Card className={TILE}>
                   <div className="mb-1 text-xl">📍</div>
@@ -450,7 +515,7 @@ export default function HomeModule({ user, householdId }) {
                 href={s.url.startsWith('http') ? s.url : 'https://' + s.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="no-underline"
+                className={cx('block no-underline', PRESS)}
               >
                 <Card className={TILE}>
                   <div className="mb-1 text-2xl">{s.emoji || '🔗'}</div>
@@ -474,9 +539,12 @@ export default function HomeModule({ user, householdId }) {
                 <button
                   aria-label={ta('refresh')}
                   onClick={refreshBus}
-                  className="cursor-pointer border-none bg-transparent p-1 text-sm text-stone-400 dark:text-stone-500"
+                  className={cx(
+                    'cursor-pointer border-none bg-transparent p-1 text-sm text-stone-400 dark:text-stone-500',
+                    PRESS_SM,
+                  )}
                 >
-                  <RotateCw className="size-4" />
+                  <RotateCw className={cx('size-4', busRefreshing && 'animate-spin motion-reduce:animate-none')} />
                 </button>
               </div>
               {arrivals.length === 0 ? (
@@ -543,7 +611,7 @@ export default function HomeModule({ user, householdId }) {
         )}
       </div>
 
-      {editing && <EditModal settings={settings} onSave={handleSave} onClose={() => setEditing(false)} />}
+      <EditModal open={editing} settings={settings} onSave={handleSave} onClose={() => setEditing(false)} />
     </div>
   );
 }

@@ -21,6 +21,13 @@ export const metadata = {
   title: 'Cožy',
   description: 'Domača aplikacija za gospodinjstvo',
   manifest: '/manifest.json',
+  icons: {
+    icon: [
+      { url: '/icon.svg', type: 'image/svg+xml' },
+      { url: '/favicon-32.png', sizes: '32x32', type: 'image/png' },
+    ],
+    apple: '/apple-touch-icon.png',
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
@@ -48,10 +55,10 @@ export default function RootLayout({ children }) {
       suppressHydrationWarning
       className={`${inter.variable} ${fraunces.variable} overflow-x-hidden overscroll-none bg-stone-100 text-stone-900 antialiased scheme-light dark:bg-stone-950 dark:text-stone-100 dark:scheme-dark`}
     >
-      <head>
-        <link rel="apple-touch-icon" href="/icon-192.png" />
-      </head>
-      <body className="pt-[env(safe-area-inset-top)]">
+      {/* Safe-area top padding lives on <Screen> (inside its min-h-dvh box) —
+          on <body> it would add to the document height and cause permanent
+          scroll/rubber-banding on iOS. */}
+      <body>
         <Script
           id="theme-init"
           strategy="beforeInteractive"

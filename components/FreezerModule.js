@@ -6,7 +6,7 @@ import { Archive, ChevronDown, Minus, Plus, Search, Settings, SlidersHorizontal,
 import { useCatLabel, useExpiryText } from '@/lib/intl';
 import { normalizujNiz } from '@/lib/hooks';
 import { CATS, SUGG, FICONS, QO } from '@/lib/constants';
-import { getSt, localDateStr, cx, STATUS_TEXT, STATUS_ROW, STATUS_BADGE } from '@/lib/utils';
+import { getSt, localDateStr, localDateFromStr, cx, STATUS_TEXT, STATUS_ROW, STATUS_BADGE } from '@/lib/utils';
 import {
   Screen,
   PageBody,
@@ -30,15 +30,31 @@ import {
   POPOVER,
   POPOVER_POP,
   LIST_ROW,
+  SPRING_FAST,
+  POP,
+  CHIP_IN,
+  COLLAPSE,
+  PRESS,
+  PRESS_SM,
+  ROW_PRESS,
+  ScreenEnter,
+  ScrollChips,
+  StepPane,
+  TickNum,
+  useStepDir,
 } from './ui';
 
 // Repeated class recipes local to this module
 const SEARCH_INP =
-  'w-full box-border py-3.5 pr-4 pl-9.5 bg-white dark:bg-stone-900 border border-stone-300 dark:border-stone-700 rounded-xl text-stone-900 dark:text-stone-100 placeholder:text-stone-400 outline-none font-medium text-sm transition-colors focus:border-orange-500';
-const STEPPER_MINUS =
-  'w-11 h-11 rounded-full border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 text-stone-500 dark:text-stone-400 cursor-pointer flex items-center justify-center';
-const STEPPER_PLUS =
-  'w-11 h-11 rounded-full border-none bg-stone-900 text-white dark:bg-stone-100 dark:text-stone-900 cursor-pointer flex items-center justify-center';
+  'w-full box-border h-12 pr-4 pl-9.5 bg-white dark:bg-stone-900 border border-stone-300 dark:border-stone-700 rounded-xl text-stone-900 dark:text-stone-100 placeholder:text-stone-400 outline-none font-medium text-base transition-colors focus:border-orange-500';
+const STEPPER_MINUS = cx(
+  'flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-stone-300 bg-white text-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400',
+  PRESS_SM,
+);
+const STEPPER_PLUS = cx(
+  'flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border-none bg-stone-900 text-white dark:bg-stone-100 dark:text-stone-900',
+  PRESS_SM,
+);
 
 // ─── FREEZER DROPDOWN ───
 function FreezerDD({ freezers, selected, onChange, onAdd }) {
@@ -94,6 +110,7 @@ function FreezerDD({ freezers, selected, onChange, onAdd }) {
         onClick={() => setOpen(!open)}
         className={cx(
           'flex cursor-pointer items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-bold text-stone-900 dark:text-stone-100',
+          PRESS_SM,
           open
             ? 'border-stone-900 bg-white dark:border-stone-100 dark:bg-stone-900'
             : 'border-stone-200 bg-white dark:border-stone-700 dark:bg-stone-900',
@@ -122,6 +139,7 @@ function FreezerDD({ freezers, selected, onChange, onAdd }) {
             }}
             className={cx(
               'flex w-full cursor-pointer items-center gap-2.5 rounded-xl border-none px-3 py-2.5 text-left text-sm font-semibold',
+              ROW_PRESS,
               allSel
                 ? 'bg-stone-100 text-stone-900 dark:bg-stone-800 dark:text-stone-100'
                 : 'bg-transparent text-stone-500 dark:text-stone-400',
@@ -137,6 +155,7 @@ function FreezerDD({ freezers, selected, onChange, onAdd }) {
                 onClick={() => toggle(f.id)}
                 className={cx(
                   'flex w-full cursor-pointer items-center gap-2.5 rounded-xl border-none px-3 py-2.5 text-left text-sm font-semibold',
+                  ROW_PRESS,
                   !allSel && on ? 'bg-stone-100 dark:bg-stone-800' : 'bg-transparent',
                   on ? 'text-stone-900 dark:text-stone-100' : 'text-stone-400 dark:text-stone-500',
                 )}
@@ -150,7 +169,10 @@ function FreezerDD({ freezers, selected, onChange, onAdd }) {
             {!showAdd ? (
               <button
                 onClick={() => setShowAdd(true)}
-                className="flex w-full cursor-pointer items-center gap-2 rounded-xl border-none bg-transparent px-3 py-2.5 text-left text-sm font-semibold text-orange-600 dark:text-orange-400"
+                className={cx(
+                  'flex w-full items-center gap-2 rounded-xl border-none bg-transparent px-3 py-2.5 text-left text-sm font-semibold text-orange-600 dark:text-orange-400',
+                  ROW_PRESS,
+                )}
               >
                 {t('newFreezer')}
               </button>
@@ -163,6 +185,7 @@ function FreezerDD({ freezers, selected, onChange, onAdd }) {
                       onClick={() => setNewIcon(ic)}
                       className={cx(
                         'cursor-pointer rounded-lg border p-1 text-xl',
+                        PRESS_SM,
                         newIcon === ic
                           ? 'border-stone-900 bg-stone-100 dark:border-stone-100 dark:bg-stone-800'
                           : 'border-transparent bg-transparent',
@@ -172,12 +195,12 @@ function FreezerDD({ freezers, selected, onChange, onAdd }) {
                     </button>
                   ))}
                 </div>
-                <input
+                <Input
+                  size="xs"
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
                   placeholder={t('freezerNamePlaceholder')}
                   autoFocus
-                  className="box-border w-full rounded-lg border border-stone-300 bg-white px-2.5 py-2 text-sm text-stone-900 transition-colors outline-none focus:border-orange-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-100"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') doAdd();
                   }}
@@ -188,6 +211,7 @@ function FreezerDD({ freezers, selected, onChange, onAdd }) {
                     disabled={!newName.trim()}
                     className={cx(
                       'flex-1 rounded-lg border-none p-2 text-sm font-bold',
+                      PRESS_SM,
                       newName.trim()
                         ? 'cursor-pointer bg-stone-900 text-white dark:bg-stone-100 dark:text-stone-900'
                         : 'cursor-default bg-stone-200 text-stone-400 dark:bg-stone-800 dark:text-stone-600',
@@ -200,7 +224,10 @@ function FreezerDD({ freezers, selected, onChange, onAdd }) {
                       setShowAdd(false);
                       setNewName('');
                     }}
-                    className="flex-1 cursor-pointer rounded-lg border border-stone-300 bg-transparent p-2 text-sm font-semibold text-stone-500 dark:border-stone-700 dark:text-stone-400"
+                    className={cx(
+                      'flex-1 rounded-lg border border-stone-300 bg-transparent p-2 text-sm font-semibold text-stone-500 dark:border-stone-700 dark:text-stone-400',
+                      PRESS_SM,
+                    )}
                   >
                     {tc('cancel')}
                   </button>
@@ -231,17 +258,20 @@ function LabelInp({ value, onChange, labels, placeholder }) {
         placeholder={placeholder}
       />
       {sug.length > 0 && (
-        <div className={cx(POPOVER, 'absolute inset-x-0 top-[calc(100%+4px)] z-10')}>
+        <motion.div {...POPOVER_POP} className={cx(POPOVER, 'absolute inset-x-0 top-[calc(100%+4px)] z-10 origin-top')}>
           {sug.map((s, i) => (
             <button
               key={i}
               onMouseDown={() => onChange(s)}
-              className="w-full cursor-pointer rounded-lg border-none bg-transparent px-3.5 py-2.5 text-left text-sm font-medium text-stone-900 dark:text-stone-100"
+              className={cx(
+                'w-full rounded-lg border-none bg-transparent px-3.5 py-2.5 text-left text-sm font-medium text-stone-900 dark:text-stone-100',
+                ROW_PRESS,
+              )}
             >
               📎 {s}
             </button>
           ))}
-        </div>
+        </motion.div>
       )}
     </div>
   );
@@ -289,6 +319,22 @@ export default function FreezerModule({
   const [editArchived, setEditArchived] = useState(null);
   const [archCatF, setArchCatF] = useState([]);
   const [addStep, setAddStep] = useState(0);
+  const [adding, setAdding] = useState(false); // guards double-submit while the insert is in flight
+  const addDir = useStepDir(addStep); // slide direction for the add-flow StepPane
+  // Suppresses the archView pane's own entrance while the archive screen
+  // itself is entering (both mount in the same commit — the rise would
+  // compound); view toggles inside the archive replay it solo.
+  const archViewReady = useRef(false);
+  useEffect(() => {
+    archViewReady.current = showArchive;
+  }, [showArchive]);
+  // Leaving the add flow always resets the step, so the next open slides
+  // forward again (a stale addStep would make useStepDir report "backward").
+  const exitAdd = () => {
+    setScreen('home');
+    setAddStep(0);
+    setAdding(false);
+  };
   const [addData, setAddData] = useState({
     name: '',
     cat: '',
@@ -302,6 +348,21 @@ export default function FreezerModule({
   const [suggestions, setSuggestions] = useState([]);
   const inputRef = useRef(null);
   const [confirmAction, setConfirmAction] = useState(null); // { message, onConfirm }
+
+  // Quick-quantity chip (add flow STEP 1) — rendered per QO group (counts | measures).
+  const qtyChip = (q) => (
+    <button
+      key={q}
+      onClick={() => setAddData((d) => ({ ...d, qty: q }))}
+      className={cx(
+        'shrink-0 cursor-pointer rounded-full border px-3 py-2 text-sm font-semibold whitespace-nowrap',
+        PRESS_SM,
+        addData.qty === q ? CHIP_ON : CHIP_OFF,
+      )}
+    >
+      {q}
+    </button>
+  );
 
   const existingLabels = useMemo(
     () => [...new Set([...items, ...archived].map((i) => i.label).filter(Boolean))],
@@ -338,7 +399,7 @@ export default function FreezerModule({
 
   function recalc(f, c) {
     const cat = categories[c] || CATS[c];
-    const e = new Date(f);
+    const e = localDateFromStr(f);
     e.setMonth(e.getMonth() + (cat?.months || 6));
     return localDateStr(e);
   }
@@ -387,66 +448,74 @@ export default function FreezerModule({
     return (
       <Screen>
         {/* MODAL — EDIT ARCHIVED ITEM */}
-        {editArchived && (
-          <Modal onClose={() => setEditArchived(null)}>
-            <h3 className="mb-4 font-serif text-xl font-semibold tracking-tight">
-              {t('editArchived', { name: editArchived.name })}
-            </h3>
-            <div className="mb-3">
-              <Label>{tc('name')}</Label>
-              <Input
-                value={editArchived.name}
-                onChange={(e) => setEditArchived((p) => ({ ...p, name: e.target.value }))}
+        <Modal open={!!editArchived} onClose={() => setEditArchived(null)}>
+          {editArchived && (
+            <>
+              <h3 className="mb-4 font-serif text-xl font-semibold tracking-tight">
+                {t('editArchived', { name: editArchived.name })}
+              </h3>
+              <div className="mb-3">
+                <Label>{tc('name')}</Label>
+                <Input
+                  value={editArchived.name}
+                  onChange={(e) => setEditArchived((p) => ({ ...p, name: e.target.value }))}
+                />
+              </div>
+              <div className="mb-5">
+                <Label>{tc('quantity')}</Label>
+                <Input
+                  value={editArchived.qty}
+                  onChange={(e) => setEditArchived((p) => ({ ...p, qty: e.target.value }))}
+                />
+              </div>
+              <ModalActions
+                className="mb-2.5"
+                saveLabel={t('save')}
+                onSave={async () => {
+                  await dbUpdateArchived(editArchived.id, { name: editArchived.name, qty: editArchived.qty });
+                  setEditArchived(null);
+                }}
+                onCancel={() => setEditArchived(null)}
               />
-            </div>
-            <div className="mb-5">
-              <Label>{tc('quantity')}</Label>
-              <Input
-                value={editArchived.qty}
-                onChange={(e) => setEditArchived((p) => ({ ...p, qty: e.target.value }))}
-              />
-            </div>
-            <ModalActions
-              className="mb-2.5"
-              saveLabel={t('save')}
-              onSave={async () => {
-                await dbUpdateArchived(editArchived.id, { name: editArchived.name, qty: editArchived.qty });
-                setEditArchived(null);
-              }}
-              onCancel={() => setEditArchived(null)}
-            />
-            <button
-              onClick={() =>
-                setConfirmAction({
-                  message: t('deleteFromArchiveQuestion'),
-                  onConfirm: async () => {
-                    await dbDeleteArchived(editArchived.id);
-                    setEditArchived(null);
-                  },
-                })
-              }
-              className="w-full cursor-pointer rounded-full border border-red-500/25 bg-red-500/10 p-3.25 text-base font-semibold text-red-600 dark:text-red-400"
-            >
-              {t('deleteFromArchive')}
-            </button>
-            <button
-              onClick={() =>
-                setConfirmAction({
-                  message: t('returnQuestion'),
-                  onConfirm: async () => {
-                    await dbUnarchiveItem(editArchived);
-                    setEditArchived(null);
-                  },
-                })
-              }
-              className="mt-2 w-full cursor-pointer rounded-full border border-green-600/30 bg-green-600/10 p-3.25 text-base font-semibold text-green-700 dark:border-green-500/30 dark:bg-green-500/10 dark:text-green-400"
-            >
-              {t('returnToFreezer')}
-            </button>
-          </Modal>
-        )}
+              <button
+                onClick={() =>
+                  setConfirmAction({
+                    message: t('deleteFromArchiveQuestion'),
+                    onConfirm: async () => {
+                      await dbDeleteArchived(editArchived.id);
+                      setEditArchived(null);
+                    },
+                  })
+                }
+                className={cx(
+                  'w-full rounded-full border border-red-500/25 bg-red-500/10 p-3.25 text-base font-semibold text-red-600 dark:text-red-400',
+                  PRESS,
+                )}
+              >
+                {t('deleteFromArchive')}
+              </button>
+              <button
+                onClick={() =>
+                  setConfirmAction({
+                    message: t('returnQuestion'),
+                    onConfirm: async () => {
+                      await dbUnarchiveItem(editArchived);
+                      setEditArchived(null);
+                    },
+                  })
+                }
+                className={cx(
+                  'mt-2 w-full rounded-full border border-green-600/30 bg-green-600/10 p-3.25 text-base font-semibold text-green-700 dark:border-green-500/30 dark:bg-green-500/10 dark:text-green-400',
+                  PRESS,
+                )}
+              >
+                {t('returnToFreezer')}
+              </button>
+            </>
+          )}
+        </Modal>
 
-        <PageBody>
+        <PageBody key="frz-archive">
           <div className="mb-4 flex items-center gap-3 pt-3">
             <BackBtn onClick={() => setShowArchive(false)} />
             <h2 className="font-serif text-2xl font-semibold tracking-tight">{t('archive')}</h2>
@@ -462,13 +531,17 @@ export default function FreezerModule({
               className={SEARCH_INP}
             />
             {archSearch && (
-              <button
+              <motion.button
+                {...POP}
                 aria-label={ta('clearSearch')}
                 onClick={() => setArchSearch('')}
-                className="absolute top-1/2 right-3 -translate-y-1/2 cursor-pointer border-none bg-transparent text-stone-400 dark:text-stone-500"
+                className={cx(
+                  'absolute top-1/2 right-3 -translate-y-1/2 border-none bg-transparent text-stone-400 dark:text-stone-500',
+                  PRESS_SM,
+                )}
               >
                 <X className="size-4" />
-              </button>
+              </motion.button>
             )}
           </div>
 
@@ -528,163 +601,167 @@ export default function FreezerModule({
 
           {tot === 0 && <EmptyState icon="📭">{tc('noResults')}</EmptyState>}
 
-          {/* MONTHLY VIEW */}
-          {archView === 'monthly' &&
-            Object.entries(byMonth)
-              .sort((a, b) => b[0].localeCompare(a[0]))
-              .map(([k, { label, items: mi }]) => (
-                <div key={k} className="mb-4">
-                  <div className="mb-1.5 flex justify-between">
-                    <h3 className="text-sm font-bold text-stone-500 capitalize dark:text-stone-400">{label}</h3>
-                    <span className="text-xs font-semibold text-stone-400 dark:text-stone-600">{mi.length}</span>
+          <ScreenEnter key={archView} initial={archViewReady.current ? undefined : false}>
+            {/* MONTHLY VIEW */}
+            {archView === 'monthly' &&
+              Object.entries(byMonth)
+                .sort((a, b) => b[0].localeCompare(a[0]))
+                .map(([k, { label, items: mi }]) => (
+                  <div key={k} className="mb-4">
+                    <div className="mb-1.5 flex justify-between">
+                      <h3 className="text-sm font-bold text-stone-500 capitalize dark:text-stone-400">{label}</h3>
+                      <span className="text-xs font-semibold text-stone-400 dark:text-stone-600">{mi.length}</span>
+                    </div>
+                    {mi.map((it, i) => {
+                      const cat = categories[it.cat] || CATS.drugo;
+                      return (
+                        <div
+                          key={it.id + '-' + i}
+                          onClick={() => setEditArchived(it)}
+                          className={cx(
+                            'flex items-center gap-2.5 border-b border-dotted border-stone-300 px-0.5 py-2.25 last:border-b-0 dark:border-stone-700',
+                            ROW_PRESS,
+                          )}
+                        >
+                          <span className="text-lg">{cat.icon}</span>
+                          <div className="min-w-0 flex-1">
+                            <div
+                              className={cx(
+                                'text-sm font-semibold',
+                                it.wasted ? 'text-red-600 dark:text-red-400' : 'text-stone-900 dark:text-stone-100',
+                              )}
+                            >
+                              {it.name} {it.wasted && <span className="text-xs opacity-70">· {t('wastedLower')}</span>}
+                            </div>
+                            <div className="text-xs text-stone-400 dark:text-stone-600">
+                              {it.qty}
+                              {it.packets > 1 ? ' / ' + t('packetsShort', { count: it.packets }) : ''}
+                              {it.label ? ' · ' + it.label : ''}
+                            </div>
+                          </div>
+                          <div className="shrink-0 text-xs text-stone-400 dark:text-stone-600">
+                            {format.dateTime(new Date(it.archived_at), 'day')}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                  {mi.map((it, i) => {
-                    const cat = categories[it.cat] || CATS.drugo;
-                    return (
-                      <div
-                        key={it.id + '-' + i}
-                        onClick={() => setEditArchived(it)}
-                        className={cx(
-                          'flex cursor-pointer items-center gap-2.5 border-b border-dotted border-stone-300 px-0.5 py-2.25 last:border-b-0 dark:border-stone-700',
-                        )}
-                      >
-                        <span className="text-lg">{cat.icon}</span>
-                        <div className="min-w-0 flex-1">
+                ))}
+
+            {/* CATEGORY VIEW */}
+            {archView === 'category' &&
+              Object.entries(byCat)
+                .sort((a, b) => b[1].length - a[1].length)
+                .map(([ck, ci]) => {
+                  const cat = categories[ck] || CATS.drugo;
+                  return (
+                    <div key={ck} className="mb-4" style={{ '--cat': cat.color }}>
+                      <div className="mb-1.5 flex justify-between">
+                        <h3 className="text-sm font-bold text-(--cat)">
+                          {cat.icon} {catLabel(ck, cat)}
+                        </h3>
+                        <span className="text-xs font-semibold text-stone-400 dark:text-stone-600">{ci.length}</span>
+                      </div>
+                      <div className="mb-2 h-1.5 overflow-hidden rounded-xs bg-stone-200 dark:bg-stone-800">
+                        <div
+                          className="h-full rounded-xs bg-(--cat) opacity-70"
+                          style={{ width: Math.min(100, (ci.length / tot) * 300) + '%' }}
+                        />
+                      </div>
+                      {ci.slice(0, 5).map((it, i) => (
+                        <div
+                          key={it.id + '-' + i}
+                          onClick={() => setEditArchived(it)}
+                          className={cx(
+                            'flex items-center gap-2.5 border-b border-dotted border-stone-200 px-0.5 py-1.75 last:border-b-0 dark:border-stone-800',
+                            ROW_PRESS,
+                          )}
+                        >
                           <div
                             className={cx(
-                              'text-sm font-semibold',
+                              'flex-1 text-sm font-medium',
                               it.wasted ? 'text-red-600 dark:text-red-400' : 'text-stone-900 dark:text-stone-100',
                             )}
                           >
-                            {it.name} {it.wasted && <span className="text-xs opacity-70">· {t('wastedLower')}</span>}
+                            {it.name}
+                            {it.wasted ? ' · ' + t('wastedLower') : ''}
                           </div>
+                          <div className="text-xs text-stone-400 dark:text-stone-600">{it.qty}</div>
                           <div className="text-xs text-stone-400 dark:text-stone-600">
-                            {it.qty}
-                            {it.packets > 1 ? ' / ' + t('packetsShort', { count: it.packets }) : ''}
-                            {it.label ? ' · ' + it.label : ''}
+                            {format.dateTime(new Date(it.archived_at), 'day')}
                           </div>
                         </div>
-                        <div className="shrink-0 text-xs text-stone-400 dark:text-stone-600">
-                          {format.dateTime(new Date(it.archived_at), 'day')}
+                      ))}
+                      {ci.length > 5 && (
+                        <div className="px-3 py-1 text-xs text-stone-400 dark:text-stone-600">
+                          {t('moreCount', { count: ci.length - 5 })}
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              ))}
+                      )}
+                    </div>
+                  );
+                })}
 
-          {/* CATEGORY VIEW */}
-          {archView === 'category' &&
-            Object.entries(byCat)
-              .sort((a, b) => b[1].length - a[1].length)
-              .map(([ck, ci]) => {
-                const cat = categories[ck] || CATS.drugo;
-                return (
-                  <div key={ck} className="mb-4" style={{ '--cat': cat.color }}>
-                    <div className="mb-1.5 flex justify-between">
-                      <h3 className="text-sm font-bold text-(--cat)">
-                        {cat.icon} {catLabel(ck, cat)}
-                      </h3>
-                      <span className="text-xs font-semibold text-stone-400 dark:text-stone-600">{ci.length}</span>
-                    </div>
-                    <div className="mb-2 h-1.5 overflow-hidden rounded-xs bg-stone-200 dark:bg-stone-800">
-                      <div
-                        className="h-full rounded-xs bg-(--cat) opacity-70"
-                        style={{ width: Math.min(100, (ci.length / tot) * 300) + '%' }}
-                      />
-                    </div>
-                    {ci.slice(0, 5).map((it, i) => (
-                      <div
-                        key={it.id + '-' + i}
-                        onClick={() => setEditArchived(it)}
-                        className={cx(
-                          'flex cursor-pointer items-center gap-2.5 border-b border-dotted border-stone-200 px-0.5 py-1.75 last:border-b-0 dark:border-stone-800',
-                        )}
-                      >
-                        <div
-                          className={cx(
-                            'flex-1 text-sm font-medium',
-                            it.wasted ? 'text-red-600 dark:text-red-400' : 'text-stone-900 dark:text-stone-100',
-                          )}
-                        >
-                          {it.name}
-                          {it.wasted ? ' · ' + t('wastedLower') : ''}
-                        </div>
-                        <div className="text-xs text-stone-400 dark:text-stone-600">{it.qty}</div>
-                        <div className="text-xs text-stone-400 dark:text-stone-600">
-                          {format.dateTime(new Date(it.archived_at), 'day')}
+            {/* PER-ITEM VIEW with mini bar charts */}
+            {archView === 'item' &&
+              Object.entries(byItem)
+                .sort((a, b) => b[1].items.length - a[1].items.length)
+                .map(([name, { cat: ck, items: ie }]) => {
+                  const cat = categories[ck] || CATS.drugo;
+                  const wastedInItem = ie.filter((e) => e.wasted).length;
+                  const mb = {};
+                  ie.forEach((e) => {
+                    const d = new Date(e.archived_at);
+                    const k = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+                    if (!mb[k]) mb[k] = { label: format.dateTime(d, 'monthShortYY'), count: 0 };
+                    mb[k].count++;
+                  });
+                  const mx = Math.max(...Object.values(mb).map((m) => m.count));
+                  return (
+                    <div key={name} className="mb-4" style={{ '--cat': cat.color }}>
+                      <div className="mb-2 flex items-center gap-2">
+                        <span className="text-xl">{cat.icon}</span>
+                        <div>
+                          <div className="text-sm font-bold text-stone-900 dark:text-stone-100">{name}</div>
+                          <div className="text-xs font-semibold text-(--cat)">
+                            {t('totalTimes', { count: ie.length, label: catLabel(ck, cat) })}
+                            {wastedInItem > 0 && (
+                              <span className="text-red-600 dark:text-red-400">
+                                {' '}
+                                · {t('wastedTimes', { count: wastedInItem })}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    ))}
-                    {ci.length > 5 && (
-                      <div className="px-3 py-1 text-xs text-stone-400 dark:text-stone-600">
-                        {t('moreCount', { count: ci.length - 5 })}
+                      <div className="mb-1 flex h-12.5 items-end gap-0.75 px-1">
+                        {Object.entries(mb)
+                          .sort((a, b) => a[0].localeCompare(b[0]))
+                          .map(([k, { count }]) => (
+                            <div key={k} className="flex flex-1 flex-col items-center gap-0.5">
+                              <div className="text-[10px] font-bold text-stone-400 dark:text-stone-500">{count}</div>
+                              <div
+                                className="w-full max-w-7 rounded-sm bg-(--cat) opacity-60"
+                                style={{ height: Math.max(8, (count / mx) * 36) }}
+                              />
+                            </div>
+                          ))}
                       </div>
-                    )}
-                  </div>
-                );
-              })}
-
-          {/* PER-ITEM VIEW with mini bar charts */}
-          {archView === 'item' &&
-            Object.entries(byItem)
-              .sort((a, b) => b[1].items.length - a[1].items.length)
-              .map(([name, { cat: ck, items: ie }]) => {
-                const cat = categories[ck] || CATS.drugo;
-                const wastedInItem = ie.filter((e) => e.wasted).length;
-                const mb = {};
-                ie.forEach((e) => {
-                  const d = new Date(e.archived_at);
-                  const k = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
-                  if (!mb[k]) mb[k] = { label: format.dateTime(d, 'monthShortYY'), count: 0 };
-                  mb[k].count++;
-                });
-                const mx = Math.max(...Object.values(mb).map((m) => m.count));
-                return (
-                  <div key={name} className="mb-4" style={{ '--cat': cat.color }}>
-                    <div className="mb-2 flex items-center gap-2">
-                      <span className="text-xl">{cat.icon}</span>
-                      <div>
-                        <div className="text-sm font-bold text-stone-900 dark:text-stone-100">{name}</div>
-                        <div className="text-xs font-semibold text-(--cat)">
-                          {t('totalTimes', { count: ie.length, label: catLabel(ck, cat) })}
-                          {wastedInItem > 0 && (
-                            <span className="text-red-600 dark:text-red-400">
-                              {' '}
-                              · {t('wastedTimes', { count: wastedInItem })}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="mb-1 flex h-12.5 items-end gap-0.75 px-1">
-                      {Object.entries(mb)
-                        .sort((a, b) => a[0].localeCompare(b[0]))
-                        .map(([k, { count }]) => (
-                          <div key={k} className="flex flex-1 flex-col items-center gap-0.5">
-                            <div className="text-[10px] font-bold text-stone-400 dark:text-stone-500">{count}</div>
+                      <div className="flex gap-0.75 px-1">
+                        {Object.entries(mb)
+                          .sort((a, b) => a[0].localeCompare(b[0]))
+                          .map(([k, { label }]) => (
                             <div
-                              className="w-full max-w-7 rounded-sm bg-(--cat) opacity-60"
-                              style={{ height: Math.max(8, (count / mx) * 36) }}
-                            />
-                          </div>
-                        ))}
+                              key={k}
+                              className="flex-1 text-center text-[9px] font-semibold text-stone-400 dark:text-stone-600"
+                            >
+                              {label}
+                            </div>
+                          ))}
+                      </div>
                     </div>
-                    <div className="flex gap-0.75 px-1">
-                      {Object.entries(mb)
-                        .sort((a, b) => a[0].localeCompare(b[0]))
-                        .map(([k, { label }]) => (
-                          <div
-                            key={k}
-                            className="flex-1 text-center text-[9px] font-semibold text-stone-400 dark:text-stone-600"
-                          >
-                            {label}
-                          </div>
-                        ))}
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+          </ScreenEnter>
         </PageBody>
         <ConfirmModal action={confirmAction} onClose={() => setConfirmAction(null)} />
       </Screen>
@@ -697,7 +774,7 @@ export default function FreezerModule({
   if (screen === 'home') {
     return (
       <Screen>
-        <PageBody>
+        <PageBody key="frz-home">
           <div className="mb-3.5 flex items-start justify-between pt-3">
             <LogoToggle mode="freezer" onToggle={onToggleMode} />
             <div className="flex items-center gap-2">
@@ -718,43 +795,57 @@ export default function FreezerModule({
             </div>
           </div>
 
-          {(expC > 0 || warnC > 0) && (
-            <div className="mb-3 flex flex-wrap gap-1.5">
-              {expC > 0 && (
-                <button
-                  onClick={() => setFilterStatus(filterStatus === 'expired' ? null : 'expired')}
-                  className={cx(
-                    'cursor-pointer rounded-full border px-3 py-1.5 text-xs font-bold text-red-600 dark:text-red-400',
-                    filterStatus === 'expired' ? 'border-red-500/60 bg-red-500/25' : 'border-red-500/25 bg-red-500/12',
+          <AnimatePresence initial={false}>
+            {(expC > 0 || warnC > 0) && (
+              <motion.div key="statusChips" {...COLLAPSE} className="overflow-hidden">
+                <div className="mb-3 flex flex-wrap gap-1.5">
+                  {expC > 0 && (
+                    <motion.button
+                      {...CHIP_IN}
+                      onClick={() => setFilterStatus(filterStatus === 'expired' ? null : 'expired')}
+                      className={cx(
+                        'rounded-full border px-3 py-1.5 text-xs font-bold text-red-600 dark:text-red-400',
+                        PRESS_SM,
+                        filterStatus === 'expired'
+                          ? 'border-red-500/60 bg-red-500/25'
+                          : 'border-red-500/25 bg-red-500/12',
+                      )}
+                    >
+                      {t('expiredCount', { count: expC })}
+                    </motion.button>
                   )}
-                >
-                  {t('expiredCount', { count: expC })}
-                </button>
-              )}
-              {warnC > 0 && (
-                <button
-                  onClick={() => setFilterStatus(filterStatus === 'warning' ? null : 'warning')}
-                  className={cx(
-                    'cursor-pointer rounded-full border px-3 py-1.5 text-xs font-bold text-amber-600 dark:text-amber-400',
-                    filterStatus === 'warning'
-                      ? 'border-amber-500/50 bg-amber-500/20'
-                      : 'border-amber-500/20 bg-amber-500/10',
+                  {warnC > 0 && (
+                    <motion.button
+                      {...CHIP_IN}
+                      onClick={() => setFilterStatus(filterStatus === 'warning' ? null : 'warning')}
+                      className={cx(
+                        'rounded-full border px-3 py-1.5 text-xs font-bold text-amber-600 dark:text-amber-400',
+                        PRESS_SM,
+                        filterStatus === 'warning'
+                          ? 'border-amber-500/50 bg-amber-500/20'
+                          : 'border-amber-500/20 bg-amber-500/10',
+                      )}
+                    >
+                      {t('soonCount', { count: warnC })}
+                    </motion.button>
                   )}
-                >
-                  {t('soonCount', { count: warnC })}
-                </button>
-              )}
-              {filterStatus && (
-                <button
-                  aria-label={ta('clearFilter')}
-                  onClick={() => setFilterStatus(null)}
-                  className="cursor-pointer rounded-full border border-stone-300 bg-transparent px-3 py-1.5 text-xs font-semibold text-stone-500 dark:border-stone-700 dark:text-stone-400"
-                >
-                  <X className="size-3.5" />
-                </button>
-              )}
-            </div>
-          )}
+                  {filterStatus && (
+                    <motion.button
+                      {...CHIP_IN}
+                      aria-label={ta('clearFilter')}
+                      onClick={() => setFilterStatus(null)}
+                      className={cx(
+                        'rounded-full border border-stone-300 bg-transparent px-3 py-1.5 text-xs font-semibold text-stone-500 dark:border-stone-700 dark:text-stone-400',
+                        PRESS_SM,
+                      )}
+                    >
+                      <X className="size-3.5" />
+                    </motion.button>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           <div className={cx('flex gap-2', showCatFilter ? 'mb-2' : 'mb-3')}>
             <div className="relative flex-1">
@@ -766,20 +857,25 @@ export default function FreezerModule({
                 className={cx(SEARCH_INP, search && 'pr-9.5')}
               />
               {search && (
-                <button
+                <motion.button
+                  {...POP}
                   aria-label={ta('clearSearch')}
                   onClick={() => setSearch('')}
-                  className="absolute top-1/2 right-3 -translate-y-1/2 cursor-pointer border-none bg-transparent text-stone-400 dark:text-stone-500"
+                  className={cx(
+                    'absolute top-1/2 right-3 -translate-y-1/2 border-none bg-transparent text-stone-400 dark:text-stone-500',
+                    PRESS_SM,
+                  )}
                 >
                   <X className="size-4" />
-                </button>
+                </motion.button>
               )}
             </div>
             <button
               aria-label={ta('filterCategories')}
               onClick={() => setShowCatFilter(!showCatFilter)}
               className={cx(
-                'relative flex h-11.5 w-11.5 shrink-0 cursor-pointer items-center justify-center rounded-xl border',
+                'relative flex h-12 w-12 shrink-0 cursor-pointer items-center justify-center rounded-xl border',
+                PRESS_SM,
                 showCatFilter || filterCat.length > 0
                   ? 'border-stone-900 bg-stone-900 text-white dark:border-stone-100 dark:bg-stone-100 dark:text-stone-900'
                   : 'border-stone-200 bg-white text-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400',
@@ -936,242 +1032,273 @@ export default function FreezerModule({
           }}
         />
 
-        {/* DETAIL MODAL - REDESIGNED */}
-        {showDetail &&
-          (() => {
-            const item = showDetail;
-            const cat = categories[item.cat] || CATS.drugo;
-            const status = getSt(item);
-            const frz = freezers.find((f) => f.id === item.freezer);
+        {/* DETAIL / EDIT MODAL — one sheet; edit is a content swap of the same
+            sheet (the sheet stays up), any close from either mode animates down */}
+        <Modal open={!!showDetail} onClose={() => (editMode ? setEditMode(false) : setShowDetail(null))}>
+          {showDetail &&
+            (() => {
+              const item = showDetail;
+              const cat = categories[item.cat] || CATS.drugo;
+              const status = getSt(item);
+              const frz = freezers.find((f) => f.id === item.freezer);
 
-            if (editMode && editData) {
-              return (
-                <Modal onClose={() => setEditMode(false)}>
-                  <h3 className="mb-5 text-center font-serif text-xl font-semibold tracking-tight">{t('editItem')}</h3>
-                  <Label>{tc('name')}</Label>
-                  <Input
-                    value={editData.name}
-                    onChange={(e) => setEditData((d) => ({ ...d, name: e.target.value }))}
-                    className="mb-3.5"
-                  />
-                  <Label>{t('category')}</Label>
-                  <div className="mb-3.5 flex flex-wrap gap-1.5">
-                    {Object.entries(categories).map(([k, v]) => (
-                      <button
-                        key={k}
-                        onClick={() => setEditData((d) => ({ ...d, cat: k }))}
-                        style={{ '--cat': v.color }}
-                        className={cx(
-                          'cursor-pointer rounded-full border px-2.75 py-1.75 text-xs font-semibold',
-                          editData.cat === k
-                            ? 'border-(--cat)/50 bg-(--cat)/13 text-(--cat)'
-                            : 'border-stone-300 bg-white text-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400',
-                        )}
-                      >
-                        {v.icon} {catLabel(k, v)}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="mb-3.5 grid grid-cols-2 gap-2.5">
-                    <div>
-                      <Label>{tc('quantity')}</Label>
-                      <Input
-                        value={editData.qty}
-                        onChange={(e) => setEditData((d) => ({ ...d, qty: e.target.value }))}
-                      />
+              if (editMode && editData) {
+                return (
+                  <>
+                    <h3 className="mb-5 text-center font-serif text-xl font-semibold tracking-tight">
+                      {t('editItem')}
+                    </h3>
+                    <Label>{tc('name')}</Label>
+                    <Input
+                      value={editData.name}
+                      onChange={(e) => setEditData((d) => ({ ...d, name: e.target.value }))}
+                      className="mb-3.5"
+                    />
+                    <Label>{t('category')}</Label>
+                    <div className="mb-3.5 flex flex-wrap gap-1.5">
+                      {Object.entries(categories).map(([k, v]) => (
+                        <button
+                          key={k}
+                          onClick={() => setEditData((d) => ({ ...d, cat: k }))}
+                          style={{ '--cat': v.color }}
+                          className={cx(
+                            'cursor-pointer rounded-full border px-2.75 py-1.75 text-xs font-semibold',
+                            PRESS_SM,
+                            editData.cat === k
+                              ? 'border-(--cat)/50 bg-(--cat)/13 text-(--cat)'
+                              : 'border-stone-300 bg-white text-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400',
+                          )}
+                        >
+                          {v.icon} {catLabel(k, v)}
+                        </button>
+                      ))}
                     </div>
-                    <div>
-                      <Label>{t('packets')}</Label>
-                      <div className="flex items-center gap-2">
-                        <button
-                          aria-label={ta('decrease')}
-                          onClick={() => setEditData((d) => ({ ...d, packets: Math.max(1, d.packets - 1) }))}
-                          className="flex h-11.5 w-10 cursor-pointer items-center justify-center rounded-full border border-stone-300 bg-white text-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400"
-                        >
-                          <Minus className="size-4.5" />
-                        </button>
-                        <span className="min-w-6 text-center text-xl font-extrabold">{editData.packets}</span>
-                        <button
-                          aria-label={ta('increase')}
-                          onClick={() => setEditData((d) => ({ ...d, packets: d.packets + 1 }))}
-                          className="flex h-11.5 w-10 cursor-pointer items-center justify-center rounded-full border-none bg-stone-900 text-white dark:bg-stone-100 dark:text-stone-900"
-                        >
-                          <Plus className="size-4.5" />
-                        </button>
+                    <div className="mb-3.5 grid grid-cols-2 gap-2.5">
+                      <div>
+                        <Label>{tc('quantity')}</Label>
+                        <Input
+                          value={editData.qty}
+                          onChange={(e) => setEditData((d) => ({ ...d, qty: e.target.value }))}
+                        />
+                      </div>
+                      <div>
+                        <Label>{t('packets')}</Label>
+                        <div className="flex items-center gap-2">
+                          <button
+                            aria-label={ta('decrease')}
+                            onClick={() => setEditData((d) => ({ ...d, packets: Math.max(1, d.packets - 1) }))}
+                            className={cx(
+                              'flex h-11.5 w-10 items-center justify-center rounded-full border border-stone-300 bg-white text-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400',
+                              PRESS_SM,
+                            )}
+                          >
+                            <Minus className="size-4.5" />
+                          </button>
+                          <TickNum value={editData.packets} className="min-w-6 text-xl font-extrabold" />
+                          <button
+                            aria-label={ta('increase')}
+                            onClick={() => setEditData((d) => ({ ...d, packets: d.packets + 1 }))}
+                            className={cx(
+                              'flex h-11.5 w-10 items-center justify-center rounded-full border-none bg-stone-900 text-white dark:bg-stone-100 dark:text-stone-900',
+                              PRESS_SM,
+                            )}
+                          >
+                            <Plus className="size-4.5" />
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <Label>{t('label')}</Label>
-                  <LabelInp
-                    value={editData.label}
-                    onChange={(v) => setEditData((d) => ({ ...d, label: v }))}
-                    labels={existingLabels}
-                    placeholder={tc('optional')}
-                  />
-                  <div className="h-3.5" />
-                  <div className="mb-3.5 grid grid-cols-2 gap-2.5">
-                    <div>
-                      <Label>{t('frozen')}</Label>
-                      <Input
-                        type="date"
-                        value={editData.frozen}
-                        onChange={(e) => setEditData((d) => ({ ...d, frozen: e.target.value }))}
-                      />
-                    </div>
-                    <div>
-                      <Label>{t('expiryDate')}</Label>
-                      <Input
-                        type="date"
-                        value={editData.expiry}
-                        onChange={(e) => setEditData((d) => ({ ...d, expiry: e.target.value }))}
-                      />
-                    </div>
-                  </div>
-                  <Label>{t('freezer')}</Label>
-                  <div className="mb-5 flex flex-wrap gap-1.5">
-                    {freezers.map((f) => (
-                      <button
-                        key={f.id}
-                        onClick={() => setEditData((d) => ({ ...d, freezer: f.id }))}
-                        className={cx(
-                          'cursor-pointer rounded-full border px-3.5 py-2.25 text-sm font-bold',
-                          editData.freezer === f.id ? CHIP_ON : CHIP_OFF,
-                        )}
-                      >
-                        {f.icon} {f.name}
-                      </button>
-                    ))}
-                  </div>
-                  <Btn
-                    v="success"
-                    onClick={async () => {
-                      await dbUpdateItem(editData.id, {
-                        name: editData.name,
-                        cat: editData.cat,
-                        qty: editData.qty,
-                        packets: editData.packets,
-                        label: editData.label,
-                        frozen: editData.frozen,
-                        expiry: editData.expiry,
-                        freezer: editData.freezer,
-                      });
-                      setShowDetail(editData);
-                      setEditMode(false);
-                    }}
-                  >
-                    {t('save')}
-                  </Btn>
-                  <Btn v="ghost" onClick={() => setEditMode(false)} className="mt-2">
-                    {tc('cancel')}
-                  </Btn>
-                </Modal>
-              );
-            }
-
-            return (
-              <Modal onClose={() => setShowDetail(null)}>
-                {/* Redesigned detail layout */}
-                <div className="mb-3 text-center">
-                  <span className="text-6xl">{cat.icon}</span>
-                  <h2 className="mt-2 mb-1 font-serif text-3xl font-semibold tracking-tight">{item.name}</h2>
-                  {/* Status with full text */}
-                  <div className={cx('mb-1 text-base font-bold', STATUS_TEXT[status])}>{expiryText(item.expiry)}</div>
-                </div>
-
-                {/* Key info: frozen date + expiry first */}
-                <div className="mb-2.5 grid grid-cols-2 gap-2.5">
-                  <FC label={t('frozen')} value={format.dateTime(new Date(item.frozen), 'day')} />
-                  <FC label={t('expiryDate')} value={format.dateTime(new Date(item.expiry), 'day')} />
-                </div>
-                <div className="mb-2.5 grid grid-cols-2 gap-2.5">
-                  <FC
-                    label={tc('quantity')}
-                    value={item.qty + (item.packets > 1 ? ' / ' + t('packetsAbbr', { count: item.packets }) : '')}
-                  />
-                  <FC label={t('freezer')} value={frz ? frz.icon + ' ' + frz.name : '—'} />
-                </div>
-                {/* Category + label row */}
-                <div className={cx('mb-4 grid gap-2.5', item.label ? 'grid-cols-2' : 'grid-cols-1')}>
-                  <FC label={t('category')} value={catLabel(item.cat, cat)} />
-                  {item.label && <FC label={t('label')} value={item.label} />}
-                </div>
-
-                {/* Quick packet decrement */}
-                {item.packets > 1 && (
-                  <div className="mb-3.5 flex items-center justify-between rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 dark:border-white/10 dark:bg-stone-950/60">
-                    <div>
-                      <div className="text-sm font-bold text-stone-900 dark:text-stone-100">{t('subtractPacket')}</div>
-                      <div className="text-xs text-stone-400 dark:text-stone-500">
-                        {t('currently', { count: item.packets })}
+                    <Label>{t('label')}</Label>
+                    <LabelInp
+                      value={editData.label}
+                      onChange={(v) => setEditData((d) => ({ ...d, label: v }))}
+                      labels={existingLabels}
+                      placeholder={tc('optional')}
+                    />
+                    <div className="h-3.5" />
+                    <div className="mb-3.5 grid grid-cols-2 gap-2.5">
+                      <div>
+                        <Label>{t('frozen')}</Label>
+                        <Input
+                          type="date"
+                          value={editData.frozen}
+                          onChange={(e) => setEditData((d) => ({ ...d, frozen: e.target.value }))}
+                        />
+                      </div>
+                      <div>
+                        <Label>{t('expiryDate')}</Label>
+                        <Input
+                          type="date"
+                          value={editData.expiry}
+                          onChange={(e) => setEditData((d) => ({ ...d, expiry: e.target.value }))}
+                        />
                       </div>
                     </div>
-                    <button
-                      aria-label={t('subtractPacket')}
+                    <Label>{t('freezer')}</Label>
+                    <div className="mb-5 flex flex-wrap gap-1.5">
+                      {freezers.map((f) => (
+                        <button
+                          key={f.id}
+                          onClick={() => setEditData((d) => ({ ...d, freezer: f.id }))}
+                          className={cx(
+                            'cursor-pointer rounded-full border px-3.5 py-2.25 text-sm font-bold',
+                            PRESS_SM,
+                            editData.freezer === f.id ? CHIP_ON : CHIP_OFF,
+                          )}
+                        >
+                          {f.icon} {f.name}
+                        </button>
+                      ))}
+                    </div>
+                    <Btn
+                      v="success"
                       onClick={async () => {
-                        const newP = item.packets - 1;
-                        await dbUpdateItem(item.id, { packets: newP });
-                        setShowDetail({ ...item, packets: newP });
+                        await dbUpdateItem(editData.id, {
+                          name: editData.name,
+                          cat: editData.cat,
+                          qty: editData.qty,
+                          packets: editData.packets,
+                          label: editData.label,
+                          frozen: editData.frozen,
+                          expiry: editData.expiry,
+                          freezer: editData.freezer,
+                        });
+                        setShowDetail(editData);
+                        setEditMode(false);
                       }}
-                      className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border-none bg-stone-900 text-base font-bold text-white dark:bg-stone-100 dark:text-stone-900"
                     >
-                      −1
+                      {t('save')}
+                    </Btn>
+                    <Btn v="ghost" onClick={() => setEditMode(false)} className="mt-2">
+                      {tc('cancel')}
+                    </Btn>
+                  </>
+                );
+              }
+
+              return (
+                <>
+                  {/* Redesigned detail layout */}
+                  <div className="mb-3 text-center">
+                    <span className="text-6xl">{cat.icon}</span>
+                    <h2 className="mt-2 mb-1 font-serif text-3xl font-semibold tracking-tight">{item.name}</h2>
+                    {/* Status with full text */}
+                    <div className={cx('mb-1 text-base font-bold', STATUS_TEXT[status])}>{expiryText(item.expiry)}</div>
+                  </div>
+
+                  {/* Key info: frozen date + expiry first */}
+                  <div className="mb-2.5 grid grid-cols-2 gap-2.5">
+                    <FC label={t('frozen')} value={format.dateTime(new Date(item.frozen), 'day')} />
+                    <FC label={t('expiryDate')} value={format.dateTime(new Date(item.expiry), 'day')} />
+                  </div>
+                  <div className="mb-2.5 grid grid-cols-2 gap-2.5">
+                    <FC
+                      label={tc('quantity')}
+                      value={item.qty + (item.packets > 1 ? ' / ' + t('packetsAbbr', { count: item.packets }) : '')}
+                    />
+                    <FC label={t('freezer')} value={frz ? frz.icon + ' ' + frz.name : '—'} />
+                  </div>
+                  {/* Category + label row */}
+                  <div className={cx('mb-4 grid gap-2.5', item.label ? 'grid-cols-2' : 'grid-cols-1')}>
+                    <FC label={t('category')} value={catLabel(item.cat, cat)} />
+                    {item.label && <FC label={t('label')} value={item.label} />}
+                  </div>
+
+                  {/* Quick packet decrement */}
+                  {item.packets > 1 && (
+                    <div className="mb-3.5 flex items-center justify-between rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 dark:border-white/10 dark:bg-stone-950/60">
+                      <div>
+                        <div className="text-sm font-bold text-stone-900 dark:text-stone-100">
+                          {t('subtractPacket')}
+                        </div>
+                        <div className="text-xs text-stone-400 dark:text-stone-500">
+                          {t('currently', { count: item.packets })}
+                        </div>
+                      </div>
+                      <button
+                        aria-label={t('subtractPacket')}
+                        onClick={async () => {
+                          const newP = item.packets - 1;
+                          await dbUpdateItem(item.id, { packets: newP });
+                          setShowDetail({ ...item, packets: newP });
+                        }}
+                        className={cx(
+                          'flex h-11 w-11 items-center justify-center rounded-full border-none bg-stone-900 text-base font-bold text-white dark:bg-stone-100 dark:text-stone-900',
+                          PRESS_SM,
+                        )}
+                      >
+                        −1
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Action buttons - redesigned */}
+                  <div className="mb-2 flex gap-2">
+                    <button
+                      onClick={() => doArchive(item, false)}
+                      className={cx(
+                        'flex-3 rounded-full border-none bg-green-600 p-3.75 text-base font-bold text-white',
+                        PRESS,
+                      )}
+                    >
+                      {t('usedBtn')}
+                    </button>
+                    <button
+                      aria-label={ta('delete')}
+                      onClick={() => doArchive(item, true)}
+                      className={cx(
+                        'flex flex-1 items-center justify-center rounded-full border border-red-500/25 bg-red-500/10 p-3.75 text-red-600 dark:text-red-400',
+                        PRESS,
+                      )}
+                    >
+                      <Trash2 className="size-4.5" />
                     </button>
                   </div>
-                )}
-
-                {/* Action buttons - redesigned */}
-                <div className="mb-2 flex gap-2">
-                  <button
-                    onClick={() => doArchive(item, false)}
-                    className="flex-3 cursor-pointer rounded-full border-none bg-green-600 p-3.75 text-base font-bold text-white"
-                  >
-                    {t('usedBtn')}
-                  </button>
-                  <button
-                    aria-label={ta('delete')}
-                    onClick={() => doArchive(item, true)}
-                    className="flex flex-1 cursor-pointer items-center justify-center rounded-full border border-red-500/25 bg-red-500/10 p-3.75 text-red-600 dark:text-red-400"
-                  >
-                    <Trash2 className="size-4.5" />
-                  </button>
-                </div>
-                <div className="mb-2 flex gap-2">
-                  <button
-                    onClick={() => {
-                      setEditData({ ...item });
-                      setEditMode(true);
-                    }}
-                    className="flex-1 cursor-pointer rounded-full border border-stone-300 bg-white p-3 text-sm font-semibold text-stone-700 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300"
-                  >
-                    {t('edit')}
-                  </button>
-                  <button
-                    onClick={async () => {
-                      await dbUpdateItem(item.id, { sticky: !item.sticky });
-                      setShowDetail({ ...item, sticky: !item.sticky });
-                    }}
-                    className={cx(
-                      'flex-1 cursor-pointer rounded-full border p-3 text-sm font-semibold',
-                      item.sticky
-                        ? 'border-amber-500/40 bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400'
-                        : 'border-stone-300 bg-white text-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400',
-                    )}
-                  >
-                    {item.sticky ? t('unpin') : t('pin')}
-                  </button>
-                  <button
-                    onClick={async () => {
-                      await dbDeleteItem(item.id);
-                      setShowDetail(null);
-                    }}
-                    className="flex-1 cursor-pointer rounded-xl border border-red-500/15 bg-transparent p-3 text-sm font-semibold text-stone-400 dark:text-stone-500"
-                  >
-                    {t('delete')}
-                  </button>
-                </div>
-              </Modal>
-            );
-          })()}
+                  <div className="mb-2 flex gap-2">
+                    <button
+                      onClick={() => {
+                        setEditData({ ...item });
+                        setEditMode(true);
+                      }}
+                      className={cx(
+                        'flex-1 rounded-full border border-stone-300 bg-white p-3 text-sm font-semibold text-stone-700 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300',
+                        PRESS,
+                      )}
+                    >
+                      {t('edit')}
+                    </button>
+                    <button
+                      onClick={async () => {
+                        await dbUpdateItem(item.id, { sticky: !item.sticky });
+                        setShowDetail({ ...item, sticky: !item.sticky });
+                      }}
+                      className={cx(
+                        'flex-1 cursor-pointer rounded-full border p-3 text-sm font-semibold',
+                        PRESS,
+                        item.sticky
+                          ? 'border-amber-500/40 bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400'
+                          : 'border-stone-300 bg-white text-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400',
+                      )}
+                    >
+                      {item.sticky ? t('unpin') : t('pin')}
+                    </button>
+                    <button
+                      onClick={async () => {
+                        await dbDeleteItem(item.id);
+                        setShowDetail(null);
+                      }}
+                      className={cx(
+                        'flex-1 rounded-xl border border-red-500/15 bg-transparent p-3 text-sm font-semibold text-stone-400 dark:text-stone-500',
+                        PRESS,
+                      )}
+                    >
+                      {t('delete')}
+                    </button>
+                  </div>
+                </>
+              );
+            })()}
+        </Modal>
         <ConfirmModal action={confirmAction} onClose={() => setConfirmAction(null)} />
       </Screen>
     );
@@ -1184,302 +1311,322 @@ export default function FreezerModule({
 
   return (
     <Screen>
-      <PageBody className="min-h-screen">
+      <PageBody key="frz-add" className="min-h-dvh">
         <div className="mb-6 flex items-center justify-between">
           <BackBtn
             onClick={() => {
-              if (addStep === 0) setScreen('home');
+              if (addStep === 0) exitAdd();
               else setAddStep(addStep - 1);
             }}
           />
           <h2 className="font-serif text-xl font-semibold tracking-tight">{t('addToFreezer')}</h2>
           <button
             aria-label={ta('close')}
-            onClick={() => setScreen('home')}
-            className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-stone-200 bg-white text-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400"
+            onClick={exitAdd}
+            className={cx(
+              'flex h-10 w-10 items-center justify-center rounded-full border border-stone-200 bg-white text-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400',
+              PRESS_SM,
+            )}
           >
             <X className="size-4.5" />
           </button>
         </div>
 
-        {/* Progress - only show active steps */}
-        <div className="mb-7 flex gap-1.5">
-          {stepLabels.map((l, i) => (
-            <div key={i} className="flex-1 text-center">
-              <div
-                className={cx(
-                  'mb-1.5 h-1 rounded-xs',
-                  i <= addStep ? 'bg-orange-500' : 'bg-stone-200 dark:bg-stone-800',
-                )}
-              />
-              <span
-                className={cx(
-                  'text-xs font-semibold',
-                  i <= addStep ? 'text-orange-600 dark:text-orange-400' : 'text-stone-400 dark:text-stone-600',
-                )}
+        {/* Progress - only active steps; the orange fill sweeps in per segment
+            and the third segment glides into the row when step 2 reveals it
+            (step-index keys are stable, steps never reorder; layout="position"
+            so cell widths snap on the 2↔3 change — the label/fill aren't
+            scale-distorted, only positions glide) */}
+        <div className="relative mb-7 flex gap-1.5">
+          <AnimatePresence initial={false} mode="popLayout">
+            {stepLabels.map((l, i) => (
+              <motion.div
+                key={i}
+                layout="position"
+                {...CHIP_IN}
+                exit={{ opacity: 0, scale: 0.9 }}
+                className="flex-1 text-center"
               >
-                {l}
-              </span>
-            </div>
-          ))}
+                <div className="mb-1.5 h-1 overflow-hidden rounded-xs bg-stone-200 dark:bg-stone-800">
+                  <motion.div
+                    initial={false}
+                    animate={{ scaleX: i <= addStep ? 1 : 0 }}
+                    transition={SPRING_FAST}
+                    className="h-full w-full origin-left rounded-xs bg-orange-500"
+                  />
+                </div>
+                <span
+                  className={cx(
+                    'text-xs font-semibold transition-colors',
+                    i <= addStep ? 'text-orange-600 dark:text-orange-400' : 'text-stone-400 dark:text-stone-600',
+                  )}
+                >
+                  {l}
+                </span>
+              </motion.div>
+            ))}
+          </AnimatePresence>
         </div>
 
-        {/* STEP 0: Name + Category */}
-        {addStep === 0 && (
-          <div>
-            <Label>{t('whatFreezing')}</Label>
-            <input
-              ref={inputRef}
-              value={addData.name}
-              onChange={(e) => {
-                setAddData((d) => ({ ...d, name: e.target.value }));
-                setSuggestions(
-                  e.target.value.length >= 2
-                    ? sugg.filter((s) => s.n.toLowerCase().includes(e.target.value.toLowerCase())).slice(0, 5)
-                    : [],
-                );
-              }}
-              placeholder={t('namePlaceholder')}
-              className="box-border w-full rounded-xl border border-stone-300 bg-white px-4 py-3.5 text-lg font-medium text-stone-900 transition-colors outline-none placeholder:text-stone-400 focus:border-orange-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-100"
-            />
-            {suggestions.length > 0 && (
-              <div className="mt-2 flex flex-col gap-1">
-                {suggestions.map((s, i) => {
-                  const cat = categories[s.c] || CATS[s.c];
-                  return (
-                    <button
-                      key={i}
-                      onClick={() => {
-                        const exp = new Date(addData.frozen);
-                        exp.setMonth(exp.getMonth() + (cat?.months || 6));
-                        setAddData((d) => ({ ...d, name: s.n, cat: s.c, expiry: localDateStr(exp) }));
-                        setSuggestions([]);
-                        setAddStep(1);
-                      }}
-                      style={{ '--cat': cat?.color }}
-                      className="flex cursor-pointer items-center gap-3 rounded-xl border border-stone-200/70 bg-white px-3.5 py-3.25 text-left text-base text-stone-900 dark:border-white/10 dark:bg-stone-900 dark:text-stone-100"
-                    >
-                      <span className="text-2xl">{cat?.icon}</span>
-                      <div>
-                        <div className="font-semibold">{s.n}</div>
-                        <div className="text-xs font-semibold text-(--cat)">
-                          {catLabel(s.c, cat)} · {t('shelfLife', { months: cat?.months ?? 6 })}
-                        </div>
-                      </div>
-                    </button>
+        <StepPane step={addStep} dir={addDir}>
+          {/* STEP 0: Name + Category */}
+          {addStep === 0 && (
+            <div>
+              <Label>{t('whatFreezing')}</Label>
+              <Input
+                ref={inputRef}
+                value={addData.name}
+                onChange={(e) => {
+                  setAddData((d) => ({ ...d, name: e.target.value }));
+                  setSuggestions(
+                    e.target.value.length >= 2
+                      ? sugg.filter((s) => s.n.toLowerCase().includes(e.target.value.toLowerCase())).slice(0, 5)
+                      : [],
                   );
-                })}
+                }}
+                placeholder={t('namePlaceholder')}
+              />
+              {suggestions.length > 0 && (
+                <motion.div {...POPOVER_POP} className="mt-2 flex origin-top flex-col gap-1">
+                  {suggestions.map((s, i) => {
+                    const cat = categories[s.c] || CATS[s.c];
+                    return (
+                      <button
+                        key={i}
+                        onClick={() => {
+                          const exp = localDateFromStr(addData.frozen);
+                          exp.setMonth(exp.getMonth() + (cat?.months || 6));
+                          setAddData((d) => ({ ...d, name: s.n, cat: s.c, expiry: localDateStr(exp) }));
+                          setSuggestions([]);
+                          setAddStep(1);
+                        }}
+                        style={{ '--cat': cat?.color }}
+                        className={cx(
+                          'flex items-center gap-3 rounded-xl border border-stone-200/70 bg-white px-3.5 py-3.25 text-left text-base text-stone-900 dark:border-white/10 dark:bg-stone-900 dark:text-stone-100',
+                          PRESS_SM,
+                        )}
+                      >
+                        <span className="text-2xl">{cat?.icon}</span>
+                        <div>
+                          <div className="font-semibold">{s.n}</div>
+                          <div className="text-xs font-semibold text-(--cat)">
+                            {catLabel(s.c, cat)} · {t('shelfLife', { months: cat?.months ?? 6 })}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </motion.div>
+              )}
+              {addData.name.length >= 2 && suggestions.length === 0 && (
+                <div className="mt-4">
+                  <p className="mb-2.5 text-sm text-stone-400 dark:text-stone-500">{t('selectCategory')}</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {Object.entries(categories).map(([k, v]) => (
+                      <button
+                        key={k}
+                        onClick={() => {
+                          const exp = localDateFromStr(addData.frozen);
+                          exp.setMonth(exp.getMonth() + (v.months || 6));
+                          setAddData((d) => ({ ...d, cat: k, expiry: localDateStr(exp) }));
+                          setAddStep(1);
+                        }}
+                        style={{ '--cat': v.color }}
+                        className={cx(
+                          'rounded-xl border border-stone-200/70 bg-white px-1.5 py-3.5 text-center text-stone-900 dark:border-white/10 dark:bg-stone-900 dark:text-stone-100',
+                          PRESS_SM,
+                        )}
+                      >
+                        <div className="mb-1 text-2xl">{v.icon}</div>
+                        <div className="text-xs font-semibold text-(--cat)">{catLabel(k, v)}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* STEP 1: Quantity + Quick summary + ADD or MORE OPTIONS */}
+          {addStep === 1 && (
+            <div>
+              <div
+                className="mb-5 text-center"
+                style={{ '--cat': (categories[addData.cat] || CATS[addData.cat])?.color }}
+              >
+                <span className="text-5xl">{(categories[addData.cat] || CATS[addData.cat])?.icon}</span>
+                <h3 className="mt-2 font-serif text-2xl font-semibold tracking-tight">{addData.name}</h3>
+                <span className="text-sm font-semibold text-(--cat)">
+                  {catLabel(addData.cat, categories[addData.cat] || CATS[addData.cat])}
+                </span>
               </div>
-            )}
-            {addData.name.length >= 2 && suggestions.length === 0 && (
-              <div className="mt-4">
-                <p className="mb-2.5 text-sm text-stone-400 dark:text-stone-500">{t('selectCategory')}</p>
-                <div className="grid grid-cols-3 gap-2">
-                  {Object.entries(categories).map(([k, v]) => (
-                    <button
-                      key={k}
-                      onClick={() => {
-                        const exp = new Date(addData.frozen);
-                        exp.setMonth(exp.getMonth() + (v.months || 6));
-                        setAddData((d) => ({ ...d, cat: k, expiry: localDateStr(exp) }));
-                        setAddStep(1);
-                      }}
-                      style={{ '--cat': v.color }}
-                      className="cursor-pointer rounded-xl border border-stone-200/70 bg-white px-1.5 py-3.5 text-center text-stone-900 dark:border-white/10 dark:bg-stone-900 dark:text-stone-100"
-                    >
-                      <div className="mb-1 text-2xl">{v.icon}</div>
-                      <div className="text-xs font-semibold text-(--cat)">{catLabel(k, v)}</div>
-                    </button>
-                  ))}
+
+              <Label>{tc('quantity')}</Label>
+              <Input
+                ref={inputRef}
+                value={addData.qty}
+                onChange={(e) => setAddData((d) => ({ ...d, qty: e.target.value }))}
+                placeholder={t('qtyPlaceholder')}
+                className="mb-2"
+              />
+              {/* Quick quantities: counts | divider | measures in one scrollable row */}
+              <ScrollChips className="mb-5">
+                {qo.counts.map(qtyChip)}
+                <span aria-hidden="true" className="w-px shrink-0 self-stretch bg-stone-300 dark:bg-stone-700" />
+                {qo.measures.map(qtyChip)}
+              </ScrollChips>
+
+              {/* Auto-summary */}
+              <div className="mb-5 rounded-xl border border-stone-200/70 bg-white px-4 py-3.5 dark:border-white/10 dark:bg-stone-900">
+                <div className="mb-1.5 flex justify-between text-sm text-stone-500 dark:text-stone-400">
+                  <span>{t('expiryDate')}:</span>
+                  <span className="font-bold text-green-600 dark:text-green-400">
+                    {format.dateTime(new Date(addData.expiry || recalc(addData.frozen, addData.cat)), 'day')}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm text-stone-500 dark:text-stone-400">
+                  <span>{t('freezer')}:</span>
+                  <span className="font-semibold text-stone-900 dark:text-stone-100">
+                    {freezers.find((f) => f.id === addData.freezer)?.icon}{' '}
+                    {freezers.find((f) => f.id === addData.freezer)?.name}
+                  </span>
                 </div>
               </div>
-            )}
-          </div>
-        )}
 
-        {/* STEP 1: Quantity + Quick summary + ADD or MORE OPTIONS */}
-        {addStep === 1 && (
-          <div>
-            <div
-              className="mb-5 text-center"
-              style={{ '--cat': (categories[addData.cat] || CATS[addData.cat])?.color }}
-            >
-              <span className="text-5xl">{(categories[addData.cat] || CATS[addData.cat])?.icon}</span>
-              <h3 className="mt-2 font-serif text-2xl font-semibold tracking-tight">{addData.name}</h3>
-              <span className="text-sm font-semibold text-(--cat)">
-                {catLabel(addData.cat, categories[addData.cat] || CATS[addData.cat])}
-              </span>
+              <Btn
+                v="success"
+                disabled={!addData.qty || adding}
+                onClick={async () => {
+                  setAdding(true);
+                  const exp = addData.expiry || recalc(addData.frozen, addData.cat);
+                  await dbAddItem({
+                    name: addData.name,
+                    cat: addData.cat,
+                    qty: addData.qty,
+                    packets: 1,
+                    label: '',
+                    frozen: addData.frozen,
+                    expiry: exp,
+                    freezer: addData.freezer,
+                    sticky: false,
+                  });
+                  exitAdd();
+                }}
+              >
+                {t('addToFreezer')}
+              </Btn>
+              <Btn v="ghost" disabled={!addData.qty} onClick={() => setAddStep(2)} className="mt-2">
+                {t('moreOptions')}
+              </Btn>
             </div>
+          )}
 
-            <Label>{tc('quantity')}</Label>
-            <Input
-              ref={inputRef}
-              value={addData.qty}
-              onChange={(e) => setAddData((d) => ({ ...d, qty: e.target.value }))}
-              placeholder={t('qtyPlaceholder')}
-              className="mb-2"
-            />
-            <div className="mb-5 flex flex-wrap gap-1.5">
-              {qo.map((q) => (
-                <button
-                  key={q}
-                  onClick={() => setAddData((d) => ({ ...d, qty: q }))}
-                  className={cx(
-                    'cursor-pointer rounded-full border px-3 py-2 text-sm font-semibold',
-                    addData.qty === q ? CHIP_ON : CHIP_OFF,
-                  )}
-                >
-                  {q}
-                </button>
-              ))}
-            </div>
-
-            {/* Auto-summary */}
-            <div className="mb-5 rounded-xl border border-stone-200/70 bg-white px-4 py-3.5 dark:border-white/10 dark:bg-stone-900">
-              <div className="mb-1.5 flex justify-between text-sm text-stone-500 dark:text-stone-400">
-                <span>{t('expiryDate')}:</span>
-                <span className="font-bold text-green-600 dark:text-green-400">
-                  {format.dateTime(new Date(addData.expiry || recalc(addData.frozen, addData.cat)), 'day')}
+          {/* STEP 2: More options - packets, label, edit dates, freezer */}
+          {addStep === 2 && (
+            <div>
+              <div className="mb-5 text-center">
+                <span className="text-5xl">{(categories[addData.cat] || CATS[addData.cat])?.icon}</span>
+                <h3 className="mt-2 font-serif text-2xl font-semibold tracking-tight">{addData.name}</h3>
+                <span className="text-sm text-stone-400 dark:text-stone-500">
+                  {addData.qty} · {catLabel(addData.cat, categories[addData.cat] || CATS[addData.cat])}
                 </span>
               </div>
-              <div className="flex justify-between text-sm text-stone-500 dark:text-stone-400">
-                <span>{t('freezer')}:</span>
-                <span className="font-semibold text-stone-900 dark:text-stone-100">
-                  {freezers.find((f) => f.id === addData.freezer)?.icon}{' '}
-                  {freezers.find((f) => f.id === addData.freezer)?.name}
-                </span>
-              </div>
-            </div>
 
-            <Btn
-              v="success"
-              disabled={!addData.qty}
-              onClick={async () => {
-                const exp = addData.expiry || recalc(addData.frozen, addData.cat);
-                await dbAddItem({
-                  name: addData.name,
-                  cat: addData.cat,
-                  qty: addData.qty,
-                  packets: 1,
-                  label: '',
-                  frozen: addData.frozen,
-                  expiry: exp,
-                  freezer: addData.freezer,
-                  sticky: false,
-                });
-                setScreen('home');
-              }}
-            >
-              {t('addToFreezer')}
-            </Btn>
-            <Btn v="ghost" disabled={!addData.qty} onClick={() => setAddStep(2)} className="mt-2">
-              {t('moreOptions')}
-            </Btn>
-          </div>
-        )}
-
-        {/* STEP 2: More options - packets, label, edit dates, freezer */}
-        {addStep === 2 && (
-          <div>
-            <div className="mb-5 text-center">
-              <span className="text-5xl">{(categories[addData.cat] || CATS[addData.cat])?.icon}</span>
-              <h3 className="mt-2 font-serif text-2xl font-semibold tracking-tight">{addData.name}</h3>
-              <span className="text-sm text-stone-400 dark:text-stone-500">
-                {addData.qty} · {catLabel(addData.cat, categories[addData.cat] || CATS[addData.cat])}
-              </span>
-            </div>
-
-            <Label>{t('packets')}</Label>
-            <div className="mb-4.5 flex items-center gap-3">
-              <button
-                aria-label={ta('decrease')}
-                onClick={() => setAddData((d) => ({ ...d, packets: Math.max(1, d.packets - 1) }))}
-                className={STEPPER_MINUS}
-              >
-                <Minus className="size-5" />
-              </button>
-              <span className="min-w-8 text-center text-2xl font-extrabold">{addData.packets}</span>
-              <button
-                aria-label={ta('increase')}
-                onClick={() => setAddData((d) => ({ ...d, packets: d.packets + 1 }))}
-                className={STEPPER_PLUS}
-              >
-                <Plus className="size-5" />
-              </button>
-              <span className="text-sm text-stone-400 dark:text-stone-500">{t('packetsWord')}</span>
-            </div>
-
-            <Label>
-              {t('label')} <span className="font-normal text-stone-400 dark:text-stone-600">({tc('optional')})</span>
-            </Label>
-            <LabelInp
-              value={addData.label}
-              onChange={(v) => setAddData((d) => ({ ...d, label: v }))}
-              labels={existingLabels}
-              placeholder={t('labelPlaceholder')}
-            />
-            <div className="h-4" />
-
-            <div className="mb-3.5 grid grid-cols-2 gap-2.5">
-              <div>
-                <Label>{t('frozen')}</Label>
-                <Input
-                  type="date"
-                  value={addData.frozen}
-                  onChange={(e) => {
-                    const f = e.target.value;
-                    setAddData((d) => ({ ...d, frozen: f, expiry: recalc(f, d.cat) }));
-                  }}
-                />
-              </div>
-              <div>
-                <Label>{t('expiryDate')}</Label>
-                <Input
-                  type="date"
-                  value={addData.expiry || recalc(addData.frozen, addData.cat)}
-                  onChange={(e) => setAddData((d) => ({ ...d, expiry: e.target.value }))}
-                />
-              </div>
-            </div>
-
-            <Label>{t('freezer')}</Label>
-            <div className="mb-6 flex flex-wrap gap-2">
-              {freezers.map((f) => (
+              <Label>{t('packets')}</Label>
+              <div className="mb-4.5 flex items-center gap-3">
                 <button
-                  key={f.id}
-                  onClick={() => setAddData((d) => ({ ...d, freezer: f.id }))}
-                  className={cx(
-                    'cursor-pointer rounded-full border px-4 py-2.5 text-sm font-bold',
-                    addData.freezer === f.id ? CHIP_ON : CHIP_OFF,
-                  )}
+                  aria-label={ta('decrease')}
+                  onClick={() => setAddData((d) => ({ ...d, packets: Math.max(1, d.packets - 1) }))}
+                  className={STEPPER_MINUS}
                 >
-                  {f.icon} {f.name}
+                  <Minus className="size-5" />
                 </button>
-              ))}
-            </div>
+                <TickNum value={addData.packets} className="min-w-8 text-2xl font-extrabold" />
+                <button
+                  aria-label={ta('increase')}
+                  onClick={() => setAddData((d) => ({ ...d, packets: d.packets + 1 }))}
+                  className={STEPPER_PLUS}
+                >
+                  <Plus className="size-5" />
+                </button>
+                <span className="text-sm text-stone-400 dark:text-stone-500">{t('packetsWord')}</span>
+              </div>
 
-            <Btn
-              v="success"
-              onClick={async () => {
-                const exp = addData.expiry || recalc(addData.frozen, addData.cat);
-                await dbAddItem({
-                  name: addData.name,
-                  cat: addData.cat,
-                  qty: addData.qty,
-                  packets: addData.packets,
-                  label: addData.label,
-                  frozen: addData.frozen,
-                  expiry: exp,
-                  freezer: addData.freezer,
-                  sticky: false,
-                });
-                setScreen('home');
-              }}
-            >
-              {t('addToFreezer')}
-            </Btn>
-          </div>
-        )}
+              <Label>
+                {t('label')} <span className="font-normal text-stone-400 dark:text-stone-600">({tc('optional')})</span>
+              </Label>
+              <LabelInp
+                value={addData.label}
+                onChange={(v) => setAddData((d) => ({ ...d, label: v }))}
+                labels={existingLabels}
+                placeholder={t('labelPlaceholder')}
+              />
+              <div className="h-4" />
+
+              <div className="mb-3.5 grid grid-cols-2 gap-2.5">
+                <div>
+                  <Label>{t('frozen')}</Label>
+                  <Input
+                    type="date"
+                    value={addData.frozen}
+                    onChange={(e) => {
+                      const f = e.target.value;
+                      setAddData((d) => ({ ...d, frozen: f, expiry: recalc(f, d.cat) }));
+                    }}
+                  />
+                </div>
+                <div>
+                  <Label>{t('expiryDate')}</Label>
+                  <Input
+                    type="date"
+                    value={addData.expiry || recalc(addData.frozen, addData.cat)}
+                    onChange={(e) => setAddData((d) => ({ ...d, expiry: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              <Label>{t('freezer')}</Label>
+              <div className="mb-6 flex flex-wrap gap-2">
+                {freezers.map((f) => (
+                  <button
+                    key={f.id}
+                    onClick={() => setAddData((d) => ({ ...d, freezer: f.id }))}
+                    className={cx(
+                      'cursor-pointer rounded-full border px-4 py-2.5 text-sm font-bold',
+                      PRESS_SM,
+                      addData.freezer === f.id ? CHIP_ON : CHIP_OFF,
+                    )}
+                  >
+                    {f.icon} {f.name}
+                  </button>
+                ))}
+              </div>
+
+              <Btn
+                v="success"
+                disabled={adding}
+                onClick={async () => {
+                  setAdding(true);
+                  const exp = addData.expiry || recalc(addData.frozen, addData.cat);
+                  await dbAddItem({
+                    name: addData.name,
+                    cat: addData.cat,
+                    qty: addData.qty,
+                    packets: addData.packets,
+                    label: addData.label,
+                    frozen: addData.frozen,
+                    expiry: exp,
+                    freezer: addData.freezer,
+                    sticky: false,
+                  });
+                  exitAdd();
+                }}
+              >
+                {t('addToFreezer')}
+              </Btn>
+            </div>
+          )}
+        </StepPane>
       </PageBody>
     </Screen>
   );

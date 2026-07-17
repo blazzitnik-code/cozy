@@ -15,7 +15,10 @@
     "delete": "Delete",
     "filterCategories": "Filter by category",
     "manageStores": "Manage stores",
-    "removeMember": "Remove member"
+    "removeMember": "Remove member",
+    "prevWeek": "Previous week",
+    "nextWeek": "Next week",
+    "favourite": "Favourite"
   },
   "NotFound": {
     "title": "Page not found",
@@ -35,7 +38,8 @@
     "noResults": "No results",
     "optional": "optional",
     "user": "User",
-    "signOut": "Sign out"
+    "signOut": "Sign out",
+    "done": "Done"
   },
   "Auth": {
     "tagline": "A home app for your household",
@@ -57,7 +61,11 @@
     "joinCodePlaceholder": "e.g. A4F2BC",
     "creating": "Creating...",
     "joining": "Joining...",
-    "invalidCode": "Invalid code. Check it and try again."
+    "invalidCode": "Invalid code. Check it and try again.",
+    "devLogin": "Dev sign-in",
+    "devEmailPh": "email",
+    "devPasswordPh": "password",
+    "devLoginError": "Sign-in failed. Check the email and password."
   },
   "Nav": {
     "home": "Home",
@@ -181,11 +189,9 @@
     "boughtBtn": "🛒 Bought",
     "boughtSection": "✓ Bought",
     "empty": "The list is empty — add the first item!",
-    "favourite": "⭐ Favourite",
-    "favouriteOff": "☆ Favourite",
     "qtyPlaceholder": "e.g. 1kg, 3×, 500ml...",
     "store": "Store",
-    "removeFromList": "🗑 Remove from list",
+    "removeFromList": "Remove from list",
     "stores": "Stores",
     "deleteStoreConfirm": "Delete store {name}?",
     "newStoreBtn": "+ New store",
@@ -214,6 +220,7 @@
     "connectBtn": "Connect Google Calendar",
     "you": "You",
     "partner": "Partner",
+    "allDay": "All day",
     "partnerNotConnected": "Your partner has not connected their calendar yet",
     "important": "⭐ Important",
     "markImportant": "☆ Mark as important",
@@ -239,7 +246,7 @@
     "overdueWord": "overdue",
     "dueLabel": "due: {date}",
     "daysLeft": "{days, plural, one {# day} other {# days}} left",
-    "finish": "📦 Finish",
+    "finish": "Finish",
     "restoreList": "↩ Restore list",
     "addItemPlaceholder": "Add a task...",
     "open": "Open ({count})",
@@ -311,6 +318,7 @@
       "cannotRemoveOwner": "The owner cannot be removed",
       "wrongUserCreate": "You cannot create a household for another user",
       "wrongUserJoin": "You cannot join on behalf of another user"
-    }
+    },
+    "calendarSync": "Calendar sync is failing — check the Google settings."
   }
 }

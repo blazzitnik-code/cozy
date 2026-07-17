@@ -11,7 +11,7 @@
  * Bump VERSION to invalidate all caches on the next activate.
  */
 
-const VERSION = 'v2';
+const VERSION = 'v5';
 const PAGES = `cozy-pages-${VERSION}`;
 const STATIC = `cozy-static-${VERSION}`;
 const DATA = `cozy-data-${VERSION}`;
@@ -19,11 +19,18 @@ const ALL_CACHES = [PAGES, STATIC, DATA];
 
 const SHELL = ['/', '/manifest.json', '/icon-192.png', '/icon-512.png'];
 
+// The DATA cache accumulates a new entry per distinct REST URL — per-date
+// calendar queries alone would grow it without bound. Oldest entries beyond
+// the cap are evicted after each write (Cache keys are insertion-ordered).
+const DATA_MAX_ENTRIES = 60;
+
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches
       .open(PAGES)
-      .then((cache) => cache.addAll(SHELL))
+      // addAll is atomic — one transient failure would block the whole
+      // install. Cache each shell asset independently instead.
+      .then((cache) => Promise.allSettled(SHELL.map((u) => cache.add(u))))
       .then(() => self.skipWaiting()),
   );
 });
@@ -39,11 +46,21 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+// Evict oldest entries beyond maxEntries. cache.put re-appends an existing
+// request, so insertion order ≈ recency for network-first traffic.
+async function pruneCache(cache, maxEntries) {
+  const keys = await cache.keys();
+  for (let i = 0; i < keys.length - maxEntries; i++) await cache.delete(keys[i]);
+}
+
 async function networkFirst(request, cacheName, fallbackUrl) {
   const cache = await caches.open(cacheName);
   try {
     const response = await fetch(request);
-    if (response.ok) cache.put(request, response.clone());
+    if (response.ok) {
+      const write = cache.put(request, response.clone());
+      if (cacheName === DATA) write.then(() => pruneCache(cache, DATA_MAX_ENTRIES)).catch(() => {});
+    }
     return response;
   } catch (err) {
     const cached = await cache.match(request);
@@ -107,7 +124,7 @@ self.addEventListener('push', (event) => {
       body: payload.body || '',
       tag: payload.tag,
       icon: '/icon-192.png',
-      badge: '/icon-192.png',
+      badge: '/badge-96.png',
       data: { url: payload.url || '/' },
     }),
   );

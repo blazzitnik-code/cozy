@@ -2,9 +2,8 @@
 import { useState, useRef } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useTranslations, useFormatter } from 'next-intl';
-import { Archive, Pencil, Plus, X } from 'lucide-react';
-import { useTodoLists, useTodoArchivedLists, useTodoItems } from '@/lib/hooks';
-import { cx, dueTone, DUE_TEXT, DUE_BAR, DUE_BADGE } from '@/lib/utils';
+import { Archive, Check, Pencil, Plus, X } from 'lucide-react';
+import { cx, dueTone, localDateFromStr, DUE_TEXT, DUE_BAR, DUE_BADGE } from '@/lib/utils';
 import {
   Screen,
   PageBody,
@@ -22,17 +21,36 @@ import {
   POPOVER_POP,
   POP,
   LIST_ROW,
+  PRESS,
+  PRESS_SM,
+  ROW_PRESS,
 } from './ui';
 
 const LIST_EMOJIS = ['📋', '🏖️', '🏠', '🛒', '🎉', '🪴', '🛠️', '✈️', '📚', '🥗', '🌾', '🎸', '🐶', '🌱', '💼'];
 
 // ─── MAIN TODO APP ───
-export default function TodoApp({ user, householdId, members }) {
+// All todo data + mutators arrive via props from AppShell's persistent hooks,
+// so tab switches remount this module with warm data (no refetch flicker).
+export default function TodoApp({
+  user,
+  members,
+  lists,
+  listsLoading,
+  archivedLists,
+  addList,
+  updateList,
+  archiveList,
+  unarchiveList,
+  deleteList,
+  itemsByList,
+  addItem,
+  updateItem,
+  deleteItem,
+  toggleItem,
+}) {
   const t = useTranslations('Todo');
   const ta = useTranslations('A11y');
   const format = useFormatter();
-  const { lists, addList, updateList, archiveList, deleteList } = useTodoLists(householdId);
-  const { lists: archivedLists, unarchiveList } = useTodoArchivedLists(householdId);
 
   const [screen, setScreen] = useState('home'); // 'home' | 'list' | 'archive' | 'archivedList'
   const [activeList, setActiveList] = useState(null);
@@ -41,19 +59,25 @@ export default function TodoApp({ user, householdId, members }) {
   const [newListTitle, setNewListTitle] = useState('');
   const [newListEmoji, setNewListEmoji] = useState('📋');
   const [newListDue, setNewListDue] = useState('');
+  const [creatingList, setCreatingList] = useState(false);
 
   const handleAddList = async () => {
-    if (!newListTitle.trim()) return;
-    await addList({
-      title: newListTitle.trim(),
-      emoji: newListEmoji,
-      due_date: newListDue || null,
-      created_by: user.id,
-    });
-    setNewListTitle('');
-    setNewListEmoji('📋');
-    setNewListDue('');
-    setShowNewList(false);
+    if (!newListTitle.trim() || creatingList) return; // guard rapid double-submit
+    setCreatingList(true);
+    try {
+      await addList({
+        title: newListTitle.trim(),
+        emoji: newListEmoji,
+        due_date: newListDue || null,
+        created_by: user.id,
+      });
+      setNewListTitle('');
+      setNewListEmoji('📋');
+      setNewListDue('');
+      setShowNewList(false);
+    } finally {
+      setCreatingList(false);
+    }
   };
 
   // ─── ARCHIVED LIST VIEW (read-only) ───
@@ -61,7 +85,11 @@ export default function TodoApp({ user, householdId, members }) {
     return (
       <TodoListScreen
         list={activeArchivedList}
-        householdId={householdId}
+        items={itemsByList[activeArchivedList.id] || []}
+        addItem={(title) => addItem(activeArchivedList.id, title)}
+        updateItem={updateItem}
+        deleteItem={deleteItem}
+        toggleItem={toggleItem}
         members={members}
         user={user}
         onBack={() => setScreen('archive')}
@@ -80,7 +108,11 @@ export default function TodoApp({ user, householdId, members }) {
     return (
       <TodoListScreen
         list={activeList}
-        householdId={householdId}
+        items={itemsByList[activeList.id] || []}
+        addItem={(title) => addItem(activeList.id, title)}
+        updateItem={updateItem}
+        deleteItem={deleteItem}
+        toggleItem={toggleItem}
         members={members}
         user={user}
         onBack={() => setScreen('home')}
@@ -99,7 +131,7 @@ export default function TodoApp({ user, householdId, members }) {
   if (screen === 'archive')
     return (
       <Screen>
-        <PageBody>
+        <PageBody key="todo-archive">
           <div className="mb-6 flex items-center gap-2.5">
             <BackBtn onClick={() => setScreen('home')} />
             <h2 className="font-serif text-2xl font-semibold tracking-tight text-stone-900 dark:text-stone-100">
@@ -107,7 +139,9 @@ export default function TodoApp({ user, householdId, members }) {
             </h2>
           </div>
           {archivedLists.length === 0 ? (
-            <EmptyState icon="😭">{t('noArchived')}</EmptyState>
+            listsLoading ? null : (
+              <EmptyState icon="😭">{t('noArchived')}</EmptyState>
+            )
           ) : (
             archivedLists.map((list) => (
               <Card
@@ -116,7 +150,11 @@ export default function TodoApp({ user, householdId, members }) {
                   setActiveArchivedList(list);
                   setScreen('archivedList');
                 }}
-                className="mb-2 cursor-pointer px-4 py-3.5"
+                // press={false}: the card holds Restore/Delete buttons — an
+                // ancestor :active scale would fire on their presses too, so
+                // the card's own feedback is a ROW_PRESS bg tint instead.
+                press={false}
+                className={cx('mb-2 px-4 py-3.5', ROW_PRESS)}
               >
                 <div className="mb-2.5 flex items-center gap-2.5">
                   <span className="text-2xl">{list.emoji}</span>
@@ -133,7 +171,10 @@ export default function TodoApp({ user, householdId, members }) {
                       e.stopPropagation();
                       unarchiveList(list.id);
                     }}
-                    className="h-9 flex-1 cursor-pointer rounded-full border-none bg-stone-900 text-sm font-bold text-white dark:bg-stone-100 dark:text-stone-900"
+                    className={cx(
+                      'h-9 flex-1 rounded-full border-none bg-stone-900 text-sm font-bold text-white dark:bg-stone-100 dark:text-stone-900',
+                      PRESS_SM,
+                    )}
                   >
                     {t('restore')}
                   </button>
@@ -142,7 +183,10 @@ export default function TodoApp({ user, householdId, members }) {
                       e.stopPropagation();
                       deleteList(list.id);
                     }}
-                    className="h-9 flex-1 cursor-pointer rounded-full border border-red-500/25 bg-red-500/10 text-sm font-bold text-red-600 dark:text-red-400"
+                    className={cx(
+                      'h-9 flex-1 rounded-full border border-red-500/25 bg-red-500/10 text-sm font-bold text-red-600 dark:text-red-400',
+                      PRESS_SM,
+                    )}
                   >
                     {t('delete')}
                   </button>
@@ -157,7 +201,7 @@ export default function TodoApp({ user, householdId, members }) {
   // ─── HOME ───
   return (
     <Screen>
-      <PageBody>
+      <PageBody key="todo-home">
         <div className="mb-6 flex items-center justify-between">
           <h1 className="font-serif text-3xl font-semibold tracking-tight">{t('title')}</h1>
           <IconButton onClick={() => setScreen('archive')} aria-label={ta('archive')}>
@@ -166,10 +210,14 @@ export default function TodoApp({ user, householdId, members }) {
         </div>
 
         {lists.length === 0 ? (
-          <EmptyState icon="📋">
-            <p className="mb-2 text-base font-semibold text-stone-900 dark:text-stone-100">{t('noLists')}</p>
-            <p>{t('createFirst')}</p>
-          </EmptyState>
+          // Cold start only: while the first fetch runs, render nothing so
+          // the empty state can't flash before data arrives.
+          listsLoading ? null : (
+            <EmptyState icon="📋">
+              <p className="mb-2 text-base font-semibold text-stone-900 dark:text-stone-100">{t('noLists')}</p>
+              <p>{t('createFirst')}</p>
+            </EmptyState>
+          )
         ) : (
           <div className="relative flex flex-col gap-2.5">
             <AnimatePresence initial={false} mode="popLayout">
@@ -177,7 +225,7 @@ export default function TodoApp({ user, householdId, members }) {
                 <motion.div {...LIST_ROW} key={list.id}>
                   <TodoListCard
                     list={list}
-                    householdId={householdId}
+                    items={itemsByList[list.id] || []}
                     onClick={() => {
                       setActiveList(list);
                       setScreen('list');
@@ -190,81 +238,69 @@ export default function TodoApp({ user, householdId, members }) {
         )}
       </PageBody>
 
-      {/* FAB (shared primitive, repositioned via twMerge overrides) */}
-      <Fab
-        onClick={() => setShowNewList(true)}
-        className="right-5 bottom-[calc(88px+env(safe-area-inset-bottom))] left-auto h-14 w-14 translate-x-0"
-      />
+      {/* FAB */}
+      <Fab onClick={() => setShowNewList(true)} />
 
       {/* New list modal */}
-      {showNewList && (
-        <Modal onClose={() => setShowNewList(false)}>
-          <h3 className="mb-4 font-serif text-xl font-semibold tracking-tight text-stone-900 dark:text-stone-100">
-            {t('newList')}
-          </h3>
-          <div className="mb-4 flex flex-wrap gap-1.5">
-            {LIST_EMOJIS.map((e) => (
-              <button
-                key={e}
-                onClick={() => setNewListEmoji(e)}
-                className={cx(
-                  'cursor-pointer rounded-lg border p-1.75 text-2xl',
-                  newListEmoji === e
-                    ? 'border-stone-900 bg-stone-100 dark:border-stone-100 dark:bg-stone-800'
-                    : 'border-stone-200 bg-transparent dark:border-white/10',
-                )}
-              >
-                {e}
-              </button>
-            ))}
-          </div>
-          <Label className="mb-1.5 text-xs">{t('listTitle')}</Label>
-          <Input
-            size="sm"
-            autoFocus
-            value={newListTitle}
-            onChange={(e) => setNewListTitle(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') handleAddList();
-            }}
-            placeholder={t('listTitlePlaceholder')}
-            className="mb-3"
-          />
-          <Label className="mb-1.5 text-xs">{t('due')}</Label>
-          <Input
-            size="sm"
-            type="date"
-            value={newListDue}
-            onChange={(e) => setNewListDue(e.target.value)}
-            className="mb-5"
-          />
-          <ModalActions
-            saveLabel={t('createList')}
-            disabled={!newListTitle.trim()}
-            onSave={handleAddList}
-            onCancel={() => setShowNewList(false)}
-          />
-        </Modal>
-      )}
+      <Modal open={showNewList} onClose={() => setShowNewList(false)}>
+        <h3 className="mb-4 font-serif text-xl font-semibold tracking-tight text-stone-900 dark:text-stone-100">
+          {t('newList')}
+        </h3>
+        <div className="mb-4 flex flex-wrap gap-1.5">
+          {LIST_EMOJIS.map((e) => (
+            <button
+              key={e}
+              onClick={() => setNewListEmoji(e)}
+              className={cx(
+                'cursor-pointer rounded-lg border p-1.75 text-2xl',
+                PRESS_SM,
+                newListEmoji === e
+                  ? 'border-stone-900 bg-stone-100 dark:border-stone-100 dark:bg-stone-800'
+                  : 'border-stone-200 bg-transparent dark:border-white/10',
+              )}
+            >
+              {e}
+            </button>
+          ))}
+        </div>
+        <Label className="mb-1.5 text-xs">{t('listTitle')}</Label>
+        <Input
+          autoFocus
+          value={newListTitle}
+          onChange={(e) => setNewListTitle(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') handleAddList();
+          }}
+          placeholder={t('listTitlePlaceholder')}
+          className="mb-3"
+        />
+        <Label className="mb-1.5 text-xs">{t('due')}</Label>
+        <Input type="date" value={newListDue} onChange={(e) => setNewListDue(e.target.value)} className="mb-5" />
+        <ModalActions
+          saveLabel={t('createList')}
+          disabled={!newListTitle.trim() || creatingList}
+          onSave={handleAddList}
+          onCancel={() => setShowNewList(false)}
+        />
+      </Modal>
     </Screen>
   );
 }
 
 // ─── LIST CARD (home screen) ───
-function TodoListCard({ list, householdId, onClick }) {
+function TodoListCard({ list, items, onClick }) {
   const t = useTranslations('Todo');
   const format = useFormatter();
-  const { items } = useTodoItems(householdId, list.id);
   const done = items.filter((i) => i.checked).length;
   const total = items.length;
   const pct = total > 0 ? (done / total) * 100 : 0;
-  const dueDate = list.due_date ? new Date(list.due_date) : null;
+  const dueDate = list.due_date ? localDateFromStr(list.due_date) : null;
   const daysLeft = dueDate ? Math.ceil((dueDate - new Date()) / 864e5) : null;
   const isPast = daysLeft !== null && daysLeft < 0;
   const tone = dueTone(daysLeft);
 
   return (
-    <Card onClick={onClick} className="cursor-pointer px-4 py-3.5">
+    <Card onClick={onClick} className="px-4 py-3.5">
       <div className={cx('flex items-center gap-2.5', total > 0 && 'mb-2.5')}>
         <span className="text-2xl">{list.emoji}</span>
         <div className="flex-1">
@@ -292,11 +328,24 @@ function TodoListCard({ list, householdId, onClick }) {
 }
 
 // ─── LIST DETAIL SCREEN ───
-function TodoListScreen({ list, householdId, members, user, onBack, onArchive, onUpdateList, onUnarchive, readOnly }) {
+function TodoListScreen({
+  list,
+  items,
+  addItem,
+  toggleItem,
+  deleteItem,
+  updateItem,
+  members,
+  user,
+  onBack,
+  onArchive,
+  onUpdateList,
+  onUnarchive,
+  readOnly,
+}) {
   const t = useTranslations('Todo');
   const ta = useTranslations('A11y');
   const format = useFormatter();
-  const { items, addItem, toggleItem, deleteItem, updateItem } = useTodoItems(householdId, list.id);
   const [newItem, setNewItem] = useState('');
   const [assignPicker, setAssignPicker] = useState(null); // item id
   const [itemDetail, setItemDetail] = useState(null); // item being edited
@@ -306,7 +355,7 @@ function TodoListScreen({ list, householdId, members, user, onBack, onArchive, o
   const done = items.filter((i) => i.checked).length;
   const total = items.length;
   const pct = total > 0 ? (done / total) * 100 : 0;
-  const dueDate = list.due_date ? new Date(list.due_date) : null;
+  const dueDate = list.due_date ? localDateFromStr(list.due_date) : null;
   const daysLeft = dueDate ? Math.ceil((dueDate - new Date()) / 864e5) : null;
   const isPast = daysLeft !== null && daysLeft < 0;
   const tone = dueTone(daysLeft);
@@ -324,19 +373,22 @@ function TodoListScreen({ list, householdId, members, user, onBack, onArchive, o
 
   return (
     <Screen onClick={() => assignPicker && setAssignPicker(null)}>
-      <PageBody>
+      <PageBody key={`todo-list-${list.id}`}>
         {/* Header */}
         <div className="mb-4 flex items-center justify-between">
           <BackBtn onClick={onBack} />
           {!readOnly && (
-            <BackBtn onClick={onArchive} className="px-3.5">
+            <BackBtn icon={Check} onClick={onArchive} className="px-3.5">
               {t('finish')}
             </BackBtn>
           )}
           {readOnly && (
             <button
               onClick={onUnarchive}
-              className="cursor-pointer rounded-full border-none bg-stone-900 px-3.5 py-2.5 text-sm font-bold text-white dark:bg-stone-100 dark:text-stone-900"
+              className={cx(
+                'rounded-full border-none bg-stone-900 px-3.5 py-2.5 text-sm font-bold text-white dark:bg-stone-100 dark:text-stone-900',
+                PRESS,
+              )}
             >
               {t('restoreList')}
             </button>
@@ -347,7 +399,7 @@ function TodoListScreen({ list, householdId, members, user, onBack, onArchive, o
         <div className="mb-5 text-center">
           <div
             onClick={() => setListEdit({ title: list.title, emoji: list.emoji, due_date: list.due_date || '' })}
-            className="mb-1.5 cursor-pointer text-5xl"
+            className={cx('mb-1.5 inline-block cursor-pointer text-5xl', PRESS_SM)}
           >
             {list.emoji}
           </div>
@@ -359,7 +411,7 @@ function TodoListScreen({ list, householdId, members, user, onBack, onArchive, o
               <button
                 aria-label={ta('edit')}
                 onClick={() => setListEdit({ title: list.title, emoji: list.emoji, due_date: list.due_date || '' })}
-                className="cursor-pointer border-none bg-transparent p-1 text-stone-400 dark:text-stone-500"
+                className={cx('border-none bg-transparent p-1 text-stone-400 dark:text-stone-500', PRESS_SM)}
               >
                 <Pencil className="size-4" />
               </button>
@@ -391,7 +443,6 @@ function TodoListScreen({ list, householdId, members, user, onBack, onArchive, o
         {!readOnly && (
           <div className="mb-5 flex gap-2">
             <Input
-              size="sm"
               ref={inputRef}
               value={newItem}
               onChange={(e) => setNewItem(e.target.value)}
@@ -407,6 +458,7 @@ function TodoListScreen({ list, householdId, members, user, onBack, onArchive, o
               aria-label={ta('add')}
               className={cx(
                 'flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-none',
+                PRESS_SM,
                 newItem.trim()
                   ? 'cursor-pointer bg-stone-900 text-white dark:bg-stone-100 dark:text-stone-900'
                   : 'cursor-default bg-stone-200 text-stone-400 dark:bg-stone-800 dark:text-stone-600',
@@ -483,90 +535,92 @@ function TodoListScreen({ list, householdId, members, user, onBack, onArchive, o
       </PageBody>
 
       {/* List edit modal */}
-      {listEdit && (
-        <Modal onClose={() => setListEdit(null)}>
-          <h3 className="mb-4 font-serif text-xl font-semibold tracking-tight text-stone-900 dark:text-stone-100">
-            {t('editList')}
-          </h3>
-          <div className="mb-4 flex flex-wrap gap-1.5">
-            {LIST_EMOJIS.map((e) => (
-              <button
-                key={e}
-                onClick={() => setListEdit((d) => ({ ...d, emoji: e }))}
-                className={cx(
-                  'cursor-pointer rounded-lg border p-1.75 text-2xl',
-                  listEdit.emoji === e
-                    ? 'border-stone-900 bg-stone-100 dark:border-stone-100 dark:bg-stone-800'
-                    : 'border-stone-200 bg-transparent dark:border-white/10',
-                )}
-              >
-                {e}
-              </button>
-            ))}
-          </div>
-          <Label className="mb-1.5 text-xs">{t('listTitle')}</Label>
-          <Input
-            size="sm"
-            autoFocus
-            value={listEdit.title}
-            onChange={(e) => setListEdit((d) => ({ ...d, title: e.target.value }))}
-            className="mb-3"
-          />
-          <Label className="mb-1.5 text-xs">{t('due')}</Label>
-          <Input
-            size="sm"
-            type="date"
-            value={listEdit.due_date || ''}
-            onChange={(e) => setListEdit((d) => ({ ...d, due_date: e.target.value }))}
-            className="mb-5"
-          />
-          <ModalActions
-            onSave={async () => {
-              if (!listEdit.title.trim()) return;
-              await onUpdateList(list.id, {
-                title: listEdit.title.trim(),
-                emoji: listEdit.emoji,
-                due_date: listEdit.due_date || null,
-              });
-              setListEdit(null);
-            }}
-            onCancel={() => setListEdit(null)}
-          />
-        </Modal>
-      )}
+      <Modal open={!!listEdit} onClose={() => setListEdit(null)}>
+        {listEdit && (
+          <>
+            <h3 className="mb-4 font-serif text-xl font-semibold tracking-tight text-stone-900 dark:text-stone-100">
+              {t('editList')}
+            </h3>
+            <div className="mb-4 flex flex-wrap gap-1.5">
+              {LIST_EMOJIS.map((e) => (
+                <button
+                  key={e}
+                  onClick={() => setListEdit((d) => ({ ...d, emoji: e }))}
+                  className={cx(
+                    'cursor-pointer rounded-lg border p-1.75 text-2xl',
+                    PRESS_SM,
+                    listEdit.emoji === e
+                      ? 'border-stone-900 bg-stone-100 dark:border-stone-100 dark:bg-stone-800'
+                      : 'border-stone-200 bg-transparent dark:border-white/10',
+                  )}
+                >
+                  {e}
+                </button>
+              ))}
+            </div>
+            <Label className="mb-1.5 text-xs">{t('listTitle')}</Label>
+            <Input
+              autoFocus
+              value={listEdit.title}
+              onChange={(e) => setListEdit((d) => ({ ...d, title: e.target.value }))}
+              className="mb-3"
+            />
+            <Label className="mb-1.5 text-xs">{t('due')}</Label>
+            <Input
+              type="date"
+              value={listEdit.due_date || ''}
+              onChange={(e) => setListEdit((d) => ({ ...d, due_date: e.target.value }))}
+              className="mb-5"
+            />
+            <ModalActions
+              onSave={async () => {
+                if (!listEdit.title.trim()) return;
+                await onUpdateList(list.id, {
+                  title: listEdit.title.trim(),
+                  emoji: listEdit.emoji,
+                  due_date: listEdit.due_date || null,
+                });
+                setListEdit(null);
+              }}
+              onCancel={() => setListEdit(null)}
+            />
+          </>
+        )}
+      </Modal>
 
       {/* Item detail modal */}
-      {itemDetail && (
-        <Modal onClose={() => setItemDetail(null)}>
-          <h3 className="mb-4 font-serif text-xl font-semibold tracking-tight text-stone-900 dark:text-stone-100">
-            {t('editItem')}
-          </h3>
-          <Label className="mb-1.5 text-xs">{t('itemTitle')}</Label>
-          <Input
-            size="sm"
-            autoFocus
-            value={itemDetail.title}
-            onChange={(e) => setItemDetail((d) => ({ ...d, title: e.target.value }))}
-            className="mb-3.5"
-          />
-          <Label className="mb-1.5 text-xs">{t('notes')}</Label>
-          <textarea
-            value={itemDetail.notes || ''}
-            onChange={(e) => setItemDetail((d) => ({ ...d, notes: e.target.value }))}
-            placeholder={t('notesPlaceholder')}
-            rows={4}
-            className="mb-5 box-border w-full resize-none rounded-xl border border-stone-300 bg-white px-3.5 py-3 text-base leading-normal font-medium text-stone-900 transition-colors outline-none focus:border-orange-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-100"
-          />
-          <ModalActions
-            onSave={async () => {
-              if (!itemDetail.title.trim()) return;
-              await updateItem(itemDetail.id, { title: itemDetail.title.trim(), notes: itemDetail.notes || null });
-              setItemDetail(null);
-            }}
-            onCancel={() => setItemDetail(null)}
-          />
-        </Modal>
-      )}
+      <Modal open={!!itemDetail} onClose={() => setItemDetail(null)}>
+        {itemDetail && (
+          <>
+            <h3 className="mb-4 font-serif text-xl font-semibold tracking-tight text-stone-900 dark:text-stone-100">
+              {t('editItem')}
+            </h3>
+            <Label className="mb-1.5 text-xs">{t('itemTitle')}</Label>
+            <Input
+              autoFocus
+              value={itemDetail.title}
+              onChange={(e) => setItemDetail((d) => ({ ...d, title: e.target.value }))}
+              className="mb-3.5"
+            />
+            <Label className="mb-1.5 text-xs">{t('notes')}</Label>
+            <textarea
+              value={itemDetail.notes || ''}
+              onChange={(e) => setItemDetail((d) => ({ ...d, notes: e.target.value }))}
+              placeholder={t('notesPlaceholder')}
+              rows={4}
+              className="mb-5 box-border w-full resize-none rounded-xl border border-stone-300 bg-white px-3.5 py-3 text-base leading-normal font-medium text-stone-900 transition-colors outline-none focus:border-orange-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-100"
+            />
+            <ModalActions
+              onSave={async () => {
+                if (!itemDetail.title.trim()) return;
+                await updateItem(itemDetail.id, { title: itemDetail.title.trim(), notes: itemDetail.notes || null });
+                setItemDetail(null);
+              }}
+              onCancel={() => setItemDetail(null)}
+            />
+          </>
+        )}
+      </Modal>
     </Screen>
   );
 }
@@ -602,6 +656,7 @@ function TodoItemRow({
         onClick={onToggle}
         className={cx(
           'flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-md border-2 text-sm text-white transition-colors duration-150',
+          PRESS_SM,
           item.checked ? 'border-green-600 bg-green-600' : 'border-stone-300 bg-transparent dark:border-stone-700',
         )}
       >
@@ -630,6 +685,7 @@ function TodoItemRow({
           onClick={onPickerOpen}
           className={cx(
             'flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border-none text-xs font-bold',
+            PRESS_SM,
             member
               ? 'bg-stone-800 text-stone-100 dark:bg-stone-200 dark:text-stone-900'
               : 'bg-stone-200 text-stone-500 dark:bg-stone-800 dark:text-stone-400',
@@ -645,7 +701,7 @@ function TodoItemRow({
           >
             <div
               onClick={() => onAssign(null)}
-              className="cursor-pointer rounded-lg px-2.5 py-2 text-sm text-stone-400 dark:text-stone-500"
+              className={cx('rounded-lg px-2.5 py-2 text-sm text-stone-400 dark:text-stone-500', ROW_PRESS)}
             >
               {t('nobody')}
             </div>
@@ -653,7 +709,10 @@ function TodoItemRow({
               <div
                 key={m.user_id || m.id}
                 onClick={() => onAssign(m.user_id)}
-                className="cursor-pointer rounded-lg px-2.5 py-2 text-sm font-medium text-stone-900 dark:text-stone-100"
+                className={cx(
+                  'rounded-lg px-2.5 py-2 text-sm font-medium text-stone-900 dark:text-stone-100',
+                  ROW_PRESS,
+                )}
               >
                 {m.display_name || tc('user')}
               </div>
@@ -665,7 +724,10 @@ function TodoItemRow({
       <button
         aria-label={ta('delete')}
         onClick={onDelete}
-        className="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-md border-none bg-transparent text-stone-400 dark:text-stone-600"
+        className={cx(
+          'flex h-6 w-6 shrink-0 items-center justify-center rounded-md border-none bg-transparent text-stone-400 dark:text-stone-600',
+          PRESS_SM,
+        )}
       >
         <X className="size-4" />
       </button>

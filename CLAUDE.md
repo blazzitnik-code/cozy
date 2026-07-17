@@ -10,6 +10,7 @@
 - **Stock Tailwind 4 utility classes everywhere** — no custom tokens, no `@utility`, no CSS modules/styled-components. `app/globals.css` contains ONLY the import, the `dark` custom variant and the font tokens (`@theme inline` mapping `--font-sans` → Inter and `--font-serif` → Fraunces, both self-hosted via `next/font/google` in layout.js with `latin-ext` for č/š/ž). Inline `style` props are allowed ONLY for the documented dynamic cases (see Theming).
 - Icons: **lucide-react** for chrome (bottom nav, action buttons, back/close/settings/search…), named imports only; emojis stay as DATA icons (food categories, stores, freezer icons, todo list emojis, empty states).
 - `npm run dev` — app on http://localhost:3000
+- LAN-device testing (phone): open `http://<mac-ip>:3000` — `next.config.js` `allowedDevOrigins` allows the 192.168.64.\* subnet, and `lib/supabase.js` rewrites the loopback Supabase URL to the page's hostname in dev. Google OAuth can't round-trip to a private-IP local stack (Google forbids http/raw-IP callbacks), so dev builds show a password login under the Google button — set the password with `node scripts/dev-user.mjs <email> [password]` (password defaults to `cozy-dev`; local stack only — re-run after `db reset`).
 - `npm run format` — Prettier with `prettier-plugin-tailwindcss` (canonical class order; `.vscode/settings.json` wires format-on-save + Tailwind IntelliSense for `cx()` and ALL-CAPS class consts). Run before committing.
 - `npx supabase start|stop|status` — local stack in Docker, ports **55321+** (API 55321, DB 55322, Studio 55323; intentionally non-default to avoid clashing with other projects)
 - `npx supabase db reset` — re-runs `supabase/migrations/` + `supabase/seed.sql` (wipes local data)
@@ -54,9 +55,12 @@ components/ui.js             — shared UI: Screen, PageBody, Wordmark, Loader, 
                                ModalActions, ConfirmModal, Toaster, LogoToggle,
                                BottomNav, SwipeCard + shared class consts
                                (CHIP_OFF/CHIP_ON, ROW_FLAT, CODE_INPUT, POPOVER,
-                               PRESS/PRESS_SM) + Motion vocabulary (SPRING_FAST/
-                               SPRING_POP/SPRING_SHEET/POP/POPOVER_POP/LIST_ROW)
-lib/hooks.js                 — ALL Supabase access (18 hooks); generic useHouseholdTable
+                               PRESS/PRESS_SM/ROW_PRESS) + Motion vocabulary
+                               (SPRING_FAST/SPRING_POP/SPRING_SHEET/POP/
+                               POPOVER_POP/LIST_ROW/SCREEN_ENTER/CHIP_IN/
+                               COLLAPSE + ScreenEnter/StepPane/useStepDir/
+                               TickNum/Spinner)
+lib/hooks.js                 — ALL Supabase access (17 hooks); generic useHouseholdTable
 lib/constants.js             — CATS; per-locale SUGG/SHOP_SUGG/QO ({ sl, en }); FICONS
 lib/utils.js                 — cx (clsx + tailwind-merge), expiry status + STATUS_*/DUE_*
                                class maps, PERSON tone map (me/partner), expiryInfo(),
@@ -72,7 +76,7 @@ supabase/functions/send-push — edge function: ALL push sending (@negrel/webpus
 supabase/snippets/           — manual per-environment SQL (Vault secrets for push)
 ```
 
-Architecture: data hooks live in AppShell and flow into modules via props — modules own only their UI state. Reason: switching tabs unmounts modules; module-owned hooks would refetch and flicker on every switch, and unmount naturally resets per-module UI state.
+Architecture: data hooks live in AppShell and flow into modules via props — modules own only their UI state. Reason: switching tabs unmounts modules; module-owned hooks would refetch and flicker on every switch, and unmount naturally resets per-module UI state. Empty states gate on the hook's `loading` flag (never bare `.length === 0`) so they can't flash during the cold-start fetch. Exception: external-API data (LPP bus / BicikeLJ in HomeModule) stays module-local but seeds its state from module-scope caches (`busCache`/`bikeCache`) — remount paints last-known values instantly, then revalidates; the 120 s bus poll is mount-bound so it only runs while the Home tab is visible.
 
 ## i18n (next-intl, "without i18n routing")
 
@@ -123,14 +127,15 @@ Architecture: data hooks live in AppShell and flow into modules via props — mo
 
 ## Motion / animations
 
-- **Micro-animations only** (~200 ms springs): enter/exit, layout moves, drag, small glyph pops. No page/tab/module transitions, no auth-flow transitions — deliberate scope.
-- Import from `motion/react` (plain imports, no LazyMotion — drag + layout need full `domMax` anyway). Shared recipes live in `components/ui.js` (`SPRING_FAST`, `SPRING_POP`, `POP`, `POPOVER_POP`, `LIST_ROW`) — reuse/spread these before inventing new values: `<motion.div {...LIST_ROW} key={item.id}>`.
+- **Three animation tiers**, all ~200 ms springs from `ui.js`: **micro** (enter/exit, layout moves, drag, small glyph pops), **step** (`StepPane` directional slides inside wizards), **screen** (enter-only fade+rise on tab switches, module sub-screens and auth panes).
+- **Screen transitions are ENTER-ONLY by design**: `PageBody` is a motion element that plays `SCREEN_ENTER` on mount and scrolls the window to top. One logical screen = one `<PageBody key="…">` — key each sub-screen branch inside a module (e.g. `frz-home`/`frz-add`/`frz-archive`) so React remounts it. Never wrap screens in `AnimatePresence` (exit animations add tap latency and would stack two full screens); screens without PageBody (auth `<Screen center>` panes, in-place view toggles) use keyed `<ScreenEnter>`.
+- Import from `motion/react` (plain imports, no LazyMotion — drag + layout need full `domMax` anyway). Shared recipes live in `components/ui.js` (`SPRING_FAST`, `SPRING_POP`, `POP`, `POPOVER_POP`, `LIST_ROW`, `SCREEN_ENTER`, `CHIP_IN`, `COLLAPSE` + helpers `ScreenEnter`, `StepPane`, `useStepDir`, `TickNum`, `Spinner`) — reuse/spread these before inventing new values: `<motion.div {...LIST_ROW} key={item.id}>`.
 - **Reduced motion**: global `<MotionConfig reducedMotion="user">` in IntlProvider covers declarative animations; any imperative `animate()` call must gate itself with `useReducedMotion()` (see SwipeCard).
 - **CSS vs Motion**: class-swap transitions (colors, `PRESS`/`PRESS_SM`, chevron rotate) stay CSS. **Never add `whileTap` to elements that have `PRESS`/`PRESS_SM`** — Tailwind v4 `active:scale-*` (the `scale` property) composes with Motion's inline `transform`, so both would fire.
 - **Lists**: `<AnimatePresence initial={false} mode="popLayout">` around the map (`initial={false}` because modules remount on every tab switch), `relative` on the list container (popLayout positions exiting rows absolutely), stable DB-uuid keys only — never animate index-keyed lists (HomeModule edit rows, Calendar EventBlock). `layout` goes on rows, never on scroll containers.
 - **Drag-to-reorder**: `Reorder.Group as="div"` per flat segment + `Reorder.Item` rows dragged via a `useDragControls` handle (`dragListener={false}`, handle gets `touch-none`) — see `ShopGroup` in ShoppingModule. Order lives in local state during the drag (`onReorder`), `sort_order` is persisted once on drag end by reassigning the segment's own sorted slot values; don't pass `layout` to `Reorder.Item` (already a layout component) and keep `relative` on rows for its auto z-index.
-- **Modal** is a portaled bottom sheet (`createPortal` to `<body>` — escapes `PageBody`'s `z-1` stacking context so BottomNav never paints over it): slides up from below (`SPRING_SHEET`), dismisses by backdrop tap or dragging the handle down (>100 px or fast flick), both WITH the exit animation via an internal `open` state + AnimatePresence whose `onExitComplete` calls `onClose()`. Closes via caller state (ModalActions Save/Cancel) stay instant by design — do not wrap modal call sites in AnimatePresence.
-- Motion's animating inline `transform` creates a CSS containing block — never wrap `Screen`/`PageBody`/anything containing `fixed` UI in a motion element (an element animating itself, like Fab/Toaster, is fine).
+- **Modal** is a portaled bottom sheet (`createPortal` to `<body>` — escapes `PageBody`'s `z-1` stacking context so BottomNav never paints over it), **always mounted and `open`-driven**: `<Modal open={!!thing} onClose={…}>{thing && …}</Modal>`. Slides up from below (`SPRING_SHEET`); EVERY close — Save/Cancel handlers nulling caller state, backdrop tap, dragging the handle down (>100 px or fast flick) — flips `open` false while the internal AnimatePresence stays mounted, so the slide-down exit plays for all of them. Never conditional-mount a Modal (`{cond && <Modal>}` unmounts it and kills the exit) and never wrap call sites in AnimatePresence. Children render only while open, so per-open form components remount naturally (fresh `useState`); the `{thing && …}` children guard is only needed when the JSX dereferences the nullable object. The Modal element must keep a stable type across parent re-renders — don't return it from a component defined inside another component's body (see AppShell: `Modal` shell in `chrome`, inner `SettingsBody` holds the content). Stacking: portal DOM order = JSX order, so render `ConfirmModal` after any Modal it can cover; a confirm whose action also closes the sheet beneath animates both down together (expected).
+- Motion's animating inline `transform` creates a CSS containing block — never animate `Screen` itself and never put `fixed` UI (Fab) INSIDE `PageBody`: the Fab stays a sibling of PageBody inside `Screen` (an element animating itself, like Fab/Toaster, is fine; Modal is portaled to `<body>` and always safe). This is why the enter-animated PageBody works: its subtree contains no fixed elements.
 
 ## PWA (offline + push)
 
@@ -146,6 +151,7 @@ Architecture: data hooks live in AppShell and flow into modules via props — mo
 - **Code comments (JS/SQL/config/env) in English**; UI strings via next-intl messages (see i18n). Exception: `raise exception` messages in RPC functions are Slovenian — the client maps the known ones to `Errors.rpc.*` keys via `rpcErrorKey()` in `lib/intl.js` and shows unknown ones verbatim.
 - Stock Tailwind utility classes (see Theming); warm stone/cream palette with ink capsules and a single orange accent, light + dark via the `dark:` variant.
 - Dates/times: `useFormatter()` presets (locale-aware); `localDateStr()` only for YYYY-MM-DD data values.
+- Project skills in `.claude/skills/`: **new-screen** (ordered recipe for a new module/sub-screen) and **visual-check** (headless screenshots of authenticated screens via test user + injected session) — use them for those workflows instead of improvising.
 
 ## Known tech debt (deliberately deferred)
 

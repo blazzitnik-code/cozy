@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   useItems,
   useArchived,
@@ -12,6 +12,8 @@ import {
   useCalendarConnections,
   useCalendarEvents,
   useTodoLists,
+  useTodoItems,
+  useHomeSettings,
   usePushSubscription,
 } from '@/lib/hooks';
 import { useTranslations } from 'next-intl';
@@ -94,11 +96,16 @@ export default function AppShell({ user, household, members, signOut }) {
   const { categories } = useCategories(householdId);
   const {
     items: shopItems,
+    loading: shopLoading,
     addItem: dbShopAdd,
     updateItem: dbShopUpdate,
     deleteItem: dbShopDelete,
   } = useShoppingItems(householdId);
-  const { archived: shopArchive, archiveChecked: dbShopArchiveChecked } = useShoppingArchived(householdId);
+  const {
+    archived: shopArchive,
+    loading: shopArchiveLoading,
+    archiveChecked: dbShopArchiveChecked,
+  } = useShoppingArchived(householdId);
   const { favourites: shopFavourites, toggleFavourite: dbShopToggleFav } = useShoppingFavourites(householdId);
   const {
     stores: shopStores,
@@ -106,7 +113,28 @@ export default function AppShell({ user, household, members, signOut }) {
     updateStore: dbUpdateStore,
     deleteStore: dbDeleteStore,
   } = useShoppingStores(householdId);
-  const { lists: todoLists } = useTodoLists(householdId);
+  const {
+    lists: todoLists,
+    archivedLists: todoArchivedLists,
+    loading: todoListsLoading,
+    addList: dbAddTodoList,
+    updateList: dbUpdateTodoList,
+    archiveList: dbArchiveTodoList,
+    unarchiveList: dbUnarchiveTodoList,
+    deleteList: dbDeleteTodoList,
+  } = useTodoLists(householdId);
+  const {
+    itemsByList: todoItemsByList,
+    addItem: dbAddTodoItem,
+    updateItem: dbUpdateTodoItem,
+    deleteItem: dbDeleteTodoItem,
+    toggleItem: dbToggleTodoItem,
+  } = useTodoItems(householdId);
+  const {
+    settings: homeSettings,
+    loading: homeSettingsLoading,
+    saveSettings: saveHomeSettings,
+  } = useHomeSettings(householdId, user.id);
 
   // ─── WEB PUSH ───
   // locale is needed here (not just in SettingsModal) because the
@@ -123,12 +151,40 @@ export default function AppShell({ user, household, members, signOut }) {
     isConnected: calConnected,
     saveConnection: saveCalConnection,
     removeConnection: removeCalConnection,
+    expireConnection: expireCalConnection,
     saveEvents: saveCalEvents,
   } = useCalendarConnections(householdId, user.id);
   const calDateStr = localDateStr(calDate);
-  const todayStr = useMemo(() => localDateStr(), []);
-  const { events: allCalEvents, refetch: refetchCalEvents } = useCalendarEvents(householdId, calDateStr);
-  const { events: todayCalEvents, updateEvent: updateCalEvent } = useCalendarEvents(householdId, todayStr);
+  // "Today" must roll over at midnight — a PWA left open overnight would keep
+  // querying yesterday's events (HomeScreen's header date, recomputed every
+  // render, would move on without it and the two would disagree).
+  const [todayStr, setTodayStr] = useState(() => localDateStr());
+  const homeSyncDone = useRef(false);
+  useEffect(() => {
+    const now = new Date();
+    const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 5);
+    const t = setTimeout(() => {
+      homeSyncDone.current = false; // re-sync Google events for the new day
+      setTodayStr(localDateStr());
+    }, nextMidnight - now);
+    return () => clearTimeout(t);
+  }, [todayStr]);
+  const {
+    events: allCalEvents,
+    refetch: refetchCalEvents,
+    updateEvent: updateViewedCalEvent,
+  } = useCalendarEvents(householdId, calDateStr);
+  const { events: todayCalEvents, refetch: refetchTodayCalEvents } = useCalendarEvents(householdId, todayStr);
+  // The detail modal edits events on the *viewed* date — write through that
+  // hook instance (it refetches the viewed lanes) and refresh the today
+  // instance too for HomeScreen's "Today" list.
+  const updateCalEvent = useCallback(
+    async (id, updates) => {
+      await updateViewedCalEvent(id, updates);
+      refetchTodayCalEvents();
+    },
+    [updateViewedCalEvent, refetchTodayCalEvents],
+  );
   const [myFetchedEvents, setMyFetchedEvents] = useState([]);
 
   // ─── SETTINGS ───
@@ -155,9 +211,19 @@ export default function AppShell({ user, household, members, signOut }) {
   };
 
   // ─── CALENDAR LOGIC ───
+  // Responses only apply while the fetched date is still the viewed one:
+  // the once-per-session home sync fetches *today* and out-of-order
+  // responses when flipping dates would clobber the lane otherwise.
+  const calDateStrRef = useRef(calDateStr);
+  calDateStrRef.current = calDateStr;
+
+  // Set on a 403 (config-side failure: disabled Calendar API, missing scope —
+  // reconnecting can't fix it): one toast per session, then stop hammering.
+  const calSyncBroken = useRef(false);
+
   const fetchCalEvents = useCallback(
     async (date, token) => {
-      if (!token) return;
+      if (!token || calSyncBroken.current) return;
       setCalLoading(true);
       try {
         const dateStr = date instanceof Date ? localDateStr(date) : date;
@@ -172,33 +238,48 @@ export default function AppShell({ user, household, members, signOut }) {
         if (res.ok) {
           const data = await res.json();
           const items = data.items || [];
-          setMyFetchedEvents(items); // show immediately, no DB dependency
+          if (dateStr === calDateStrRef.current) setMyFetchedEvents(items); // show immediately, no DB dependency
           await saveCalEvents(items, dateStr); // save for partner to see
           refetchCalEvents();
+        } else if (res.status === 401) {
+          // Token revoked/invalid despite a future expires_at — expire the row
+          // so the UI falls back to the connect button.
+          expireCalConnection();
+        } else if (res.status === 403) {
+          calSyncBroken.current = true;
+          console.error('Calendar sync failed:', await res.json().catch(() => res.statusText));
+          notifyError('Errors.calendarSync');
+        } else {
+          console.error('Calendar fetch failed:', res.status, res.statusText);
         }
       } catch (e) {
         console.error('Calendar fetch error:', e);
       }
       setCalLoading(false);
     },
-    [saveCalEvents],
+    [saveCalEvents, expireCalConnection],
   );
 
+  // Clear the lane only when the viewed date changes — re-entering the tab
+  // keeps the previous events visible while the refetch below runs behind them.
   useEffect(() => {
     setMyFetchedEvents([]);
+  }, [calDateStr]);
+
+  useEffect(() => {
     if (mode === 'calendar' && calConnected && calConnection?.access_token) {
       fetchCalEvents(calDate, calConnection.access_token);
     }
   }, [mode, calDate, calConnected, calConnection?.access_token, fetchCalEvents]);
 
-  // Sync today's events once per session for home screen display
-  const homeSyncDone = useRef(false);
+  // Sync today's events once per session (and again after a midnight
+  // rollover — the timer resets homeSyncDone and bumps todayStr).
   useEffect(() => {
     if (calConnected && calConnection?.access_token && !homeSyncDone.current) {
       homeSyncDone.current = true;
       fetchCalEvents(new Date(), calConnection.access_token);
     }
-  }, [calConnected, calConnection?.access_token, fetchCalEvents]);
+  }, [calConnected, calConnection?.access_token, fetchCalEvents, todayStr]);
 
   const connectCalendar = useCallback(
     (silent = false) => {
@@ -211,6 +292,7 @@ export default function AppShell({ user, household, members, signOut }) {
             const info = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
               headers: { Authorization: `Bearer ${resp.access_token}` },
             }).then((r) => r.json());
+            calSyncBroken.current = false; // fresh grant — give sync another go
             await saveCalConnection({ accessToken: resp.access_token, expiresIn: resp.expires_in, email: info.email });
           },
         });
@@ -220,10 +302,17 @@ export default function AppShell({ user, household, members, signOut }) {
       if (window.google?.accounts?.oauth2) {
         init();
       } else {
-        const s = document.createElement('script');
-        s.src = 'https://accounts.google.com/gsi/client';
-        s.onload = init;
-        document.head.appendChild(s);
+        // layout.js already loads the GSI script (afterInteractive) — attach
+        // to the existing tag while it loads instead of injecting a duplicate.
+        const existing = document.querySelector('script[src*="accounts.google.com/gsi/client"]');
+        if (existing) {
+          existing.addEventListener('load', init, { once: true });
+        } else {
+          const s = document.createElement('script');
+          s.src = 'https://accounts.google.com/gsi/client';
+          s.onload = init;
+          document.head.appendChild(s);
+        }
       }
     },
     [saveCalConnection],
@@ -245,223 +334,54 @@ export default function AppShell({ user, household, members, signOut }) {
 
   if (itemsLoading || !hasCats) return <Loader />;
 
-  function SettingsModal() {
-    const t = useTranslations('Settings');
-    const tc = useTranslations('Common');
-    const ta = useTranslations('A11y');
-    const { locale, switchLocale } = useLocaleSwitch();
-    if (!showSettings) return null;
-    return (
-      <Modal onClose={() => setShowSettings(false)}>
-        <div className="mb-5 text-center">
-          <div className="mb-2 text-5xl">🏠</div>
-          <h2 className="mb-1 font-serif text-2xl font-semibold tracking-tight">{household.name}</h2>
-          <p className="text-sm text-stone-500 dark:text-stone-400">
-            {t('signedInAs', { name: user.user_metadata?.full_name || user.email })}
-          </p>
-        </div>
-
-        {/* LANGUAGE SWITCHER — labels stay in their native language on purpose */}
-        <Segmented
-          className="mb-3"
-          value={locale}
-          onChange={switchLocale}
-          options={[
-            { value: 'sl', label: '🇸🇮 Slovenščina' },
-            { value: 'en', label: '🇬🇧 English' },
-          ]}
-        />
-
-        {/* THEME SWITCHER */}
-        <Segmented
-          className="mb-5"
-          value={theme}
-          onChange={switchTheme}
-          options={[
-            { value: 'dark', label: t('themeDark') },
-            { value: 'light', label: t('themeLight') },
-          ]}
-        />
-
-        {/* Join code */}
-        <div className="mb-4 rounded-xl border border-stone-200 bg-stone-50 p-4 text-center dark:border-white/10 dark:bg-stone-950/60">
-          <div className="mb-1.5 text-xs font-bold tracking-[1px] text-orange-600 uppercase dark:text-orange-400">
-            {t('inviteCode')}
-          </div>
-          <div className="text-4xl font-black tracking-[8px] text-stone-900 dark:text-stone-100">
-            {household.join_code}
-          </div>
-          <div className="mt-1 text-xs text-stone-400 dark:text-stone-500">{t('shareCode')}</div>
-        </div>
-
-        {/* Members */}
-        <div className="mb-5">
-          <div className="mb-1 text-sm font-bold text-stone-500 dark:text-stone-400">
-            {t('members')} ({members.length})
-          </div>
-          {members.map((m) => (
-            <div key={m.id} className={ROW_FLAT}>
-              <Avatar name={m.display_name} />
-              <div className="flex-1">
-                <div className="text-sm font-semibold text-stone-900 dark:text-stone-100">
-                  {m.display_name || tc('user')}
-                </div>
-                <div className="text-xs text-stone-400 dark:text-stone-500">
-                  {m.role === 'owner' ? t('owner') : t('member')}
-                </div>
-              </div>
-              {m.user_id === user.id ? (
-                <span className="text-xs font-semibold text-orange-600 dark:text-orange-400">{t('you')}</span>
-              ) : (
-                members.find((x) => x.user_id === user.id)?.role === 'owner' && (
-                  <button
-                    aria-label={ta('removeMember')}
-                    onClick={() =>
-                      setConfirmAction({
-                        message: t('removeMember', { name: m.display_name || t('memberFallback') }),
-                        onConfirm: async () => {
-                          const { error } = await supabase.rpc('remove_household_member', { p_member_id: m.id });
-                          if (error) notifyError(rpcErrorKey(error.message) ?? error.message);
-                        },
-                      })
-                    }
-                    className={cx(
-                      'flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border-none bg-red-500/10 text-red-600 dark:text-red-400',
-                      PRESS_SM,
-                    )}
-                  >
-                    <X className="size-3.5" />
-                  </button>
-                )
-              )}
-            </div>
-          ))}
-        </div>
-
-        {/* Google Calendar */}
-        <div className="mb-5">
-          <div className="mb-2.5 text-sm font-bold text-stone-500 dark:text-stone-400">{t('googleCalendar')}</div>
-          {calConnected ? (
-            <div className="flex items-center gap-2.5 rounded-xl border border-green-600/20 bg-green-600/8 px-3.5 py-3 dark:border-green-500/20 dark:bg-green-500/10">
-              <div className="flex-1">
-                <div className="text-sm font-bold text-green-700 dark:text-green-400">{t('connected')}</div>
-                <div className="mt-0.5 text-xs text-stone-500 dark:text-stone-400">{calConnection?.google_email}</div>
-              </div>
-              <button
-                onClick={() =>
-                  setConfirmAction({
-                    message: t('disconnectConfirm'),
-                    onConfirm: () => removeCalConnection(calConnection.id),
-                  })
-                }
-                className={cx(
-                  'cursor-pointer rounded-full border-none bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-600 dark:text-red-400',
-                  PRESS_SM,
-                )}
-              >
-                {t('disconnect')}
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={() => {
-                setShowSettings(false);
-                connectCalendar();
-              }}
-              className={cx(
-                'w-full cursor-pointer rounded-full border-none bg-stone-900 p-3.5 text-sm font-bold text-white dark:bg-stone-100 dark:text-stone-900',
-                PRESS,
-              )}
-            >
-              {t('connectCalendar')}
-            </button>
-          )}
-        </div>
-
-        {/* Notifications */}
-        <div className="mb-5">
-          <div className="mb-2.5 text-sm font-bold text-stone-500 dark:text-stone-400">{t('notifications')}</div>
-          {push.needsInstall ? (
-            <p className="text-xs text-stone-400 dark:text-stone-500">{t('notificationsIosHint')}</p>
-          ) : !push.supported ? (
-            <p className="text-xs text-stone-400 dark:text-stone-500">{t('notificationsUnsupported')}</p>
-          ) : push.permission === 'denied' ? (
-            <p className="text-xs text-stone-400 dark:text-stone-500">{t('notificationsDenied')}</p>
-          ) : push.subscribed ? (
-            <div className="flex items-center gap-2.5 rounded-xl border border-green-600/20 bg-green-600/8 px-3.5 py-3 dark:border-green-500/20 dark:bg-green-500/10">
-              <div className="flex-1 text-sm font-bold text-green-700 dark:text-green-400">
-                {t('notificationsEnabled')}
-              </div>
-              <button
-                onClick={push.disable}
-                disabled={push.busy}
-                className={cx(
-                  PRESS_SM,
-                  'cursor-pointer rounded-full border-none bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-600 dark:text-red-400',
-                )}
-              >
-                {t('notificationsDisable')}
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={push.enable}
-              disabled={push.busy}
-              className={cx(
-                PRESS,
-                'w-full cursor-pointer rounded-full border-none bg-stone-900 p-3.5 text-sm font-bold text-white disabled:opacity-50 dark:bg-stone-100 dark:text-stone-900',
-              )}
-            >
-              {t('notificationsEnable')}
-            </button>
-          )}
-        </div>
-
-        <button
-          onClick={handleSignOut}
-          className={cx(
-            'w-full cursor-pointer rounded-full border border-red-500/25 bg-red-500/10 p-3.5 text-base font-bold text-red-600 dark:text-red-400',
-            PRESS,
-          )}
-        >
-          {tc('signOut')}
-        </button>
-      </Modal>
-    );
-  }
-
   // ─── SHELL CHROME (nav + settings + settings-confirm), rendered once per mode ───
   const chrome = (
     <>
       <BottomNav mode={mode} onNavigate={navigate} />
-      <SettingsModal />
+      <Modal open={showSettings} onClose={() => setShowSettings(false)}>
+        <SettingsBody
+          user={user}
+          household={household}
+          members={members}
+          theme={theme}
+          switchTheme={switchTheme}
+          push={push}
+          calConnected={calConnected}
+          calConnection={calConnection}
+          removeCalConnection={removeCalConnection}
+          connectCalendar={connectCalendar}
+          setShowSettings={setShowSettings}
+          setConfirmAction={setConfirmAction}
+          handleSignOut={handleSignOut}
+        />
+      </Modal>
       <ConfirmModal action={confirmAction} onClose={() => setConfirmAction(null)} />
       <Toaster />
     </>
   );
 
-  if (mode === 'home') {
-    return (
-      <>
+  // Single return with per-mode branches: BottomNav (and the rest of the
+  // chrome) stays mounted across tab switches, so its layoutId nav dot can
+  // slide between tabs while modules unmount/remount around it.
+  return (
+    <>
+      {mode === 'home' && (
         <HomeScreen
           user={user}
-          householdId={householdId}
           items={items}
           shopItems={shopItems}
           todoLists={todoLists}
+          todoItemsByList={todoItemsByList}
           todayCalEvents={todayCalEvents}
           calConnected={calConnected}
+          homeSettings={homeSettings}
+          homeSettingsLoading={homeSettingsLoading}
+          saveHomeSettings={saveHomeSettings}
           navigate={navigate}
           onOpenSettings={openSettings}
         />
-        {chrome}
-      </>
-    );
-  }
-
-  if (mode === 'calendar') {
-    return (
-      <>
+      )}
+      {mode === 'calendar' && (
         <CalendarModule
           user={user}
           calDate={calDate}
@@ -476,26 +396,31 @@ export default function AppShell({ user, household, members, signOut }) {
           updateCalEvent={updateCalEvent}
           onOpenSettings={openSettings}
         />
-        {chrome}
-      </>
-    );
-  }
-
-  if (mode === 'todo') {
-    return (
-      <div className="relative">
-        <TodoApp user={user} householdId={householdId} members={members} />
-        <BottomNav mode={mode} onNavigate={navigate} />
-        <Toaster />
-      </div>
-    );
-  }
-
-  if (mode === 'shopping') {
-    return (
-      <>
+      )}
+      {mode === 'todo' && (
+        <TodoApp
+          user={user}
+          members={members}
+          lists={todoLists}
+          listsLoading={todoListsLoading}
+          archivedLists={todoArchivedLists}
+          addList={dbAddTodoList}
+          updateList={dbUpdateTodoList}
+          archiveList={dbArchiveTodoList}
+          unarchiveList={dbUnarchiveTodoList}
+          deleteList={dbDeleteTodoList}
+          itemsByList={todoItemsByList}
+          addItem={dbAddTodoItem}
+          updateItem={dbUpdateTodoItem}
+          deleteItem={dbDeleteTodoItem}
+          toggleItem={dbToggleTodoItem}
+        />
+      )}
+      {mode === 'shopping' && (
         <ShoppingModule
           shopItems={shopItems}
+          shopLoading={shopLoading}
+          shopArchiveLoading={shopArchiveLoading}
           dbShopAdd={dbShopAdd}
           dbShopUpdate={dbShopUpdate}
           dbShopDelete={dbShopDelete}
@@ -510,31 +435,228 @@ export default function AppShell({ user, household, members, signOut }) {
           onToggleMode={() => setMode('freezer')}
           onOpenSettings={openSettings}
         />
-        {chrome}
-      </>
-    );
-  }
+      )}
+      {mode === 'freezer' && (
+        <FreezerModule
+          items={items}
+          dbAddItem={dbAddItem}
+          dbUpdateItem={dbUpdateItem}
+          dbDeleteItem={dbDeleteItem}
+          archived={archived}
+          dbArchiveItem={dbArchiveItem}
+          dbUpdateArchived={dbUpdateArchived}
+          dbDeleteArchived={dbDeleteArchived}
+          dbUnarchiveItem={dbUnarchiveItem}
+          freezers={freezers}
+          dbAddFreezer={dbAddFreezer}
+          categories={categories}
+          onToggleMode={() => setMode('shopping')}
+          onOpenSettings={openSettings}
+        />
+      )}
+      {chrome}
+    </>
+  );
+}
 
-  // ─── FREEZER (default mode) ───
+// Settings sheet body — hoisted to module level so the open sheet's subtree
+// survives AppShell re-renders (every realtime update) instead of being
+// remounted each render (which also re-registered the Segmented layoutId
+// thumbs). Its Modal shell stays inside `chrome` with a stable element type.
+function SettingsBody({
+  user,
+  household,
+  members,
+  theme,
+  switchTheme,
+  push,
+  calConnected,
+  calConnection,
+  removeCalConnection,
+  connectCalendar,
+  setShowSettings,
+  setConfirmAction,
+  handleSignOut,
+}) {
+  const t = useTranslations('Settings');
+  const tc = useTranslations('Common');
+  const ta = useTranslations('A11y');
+  const { locale, switchLocale } = useLocaleSwitch();
   return (
     <>
-      <FreezerModule
-        items={items}
-        dbAddItem={dbAddItem}
-        dbUpdateItem={dbUpdateItem}
-        dbDeleteItem={dbDeleteItem}
-        archived={archived}
-        dbArchiveItem={dbArchiveItem}
-        dbUpdateArchived={dbUpdateArchived}
-        dbDeleteArchived={dbDeleteArchived}
-        dbUnarchiveItem={dbUnarchiveItem}
-        freezers={freezers}
-        dbAddFreezer={dbAddFreezer}
-        categories={categories}
-        onToggleMode={() => setMode('shopping')}
-        onOpenSettings={openSettings}
+      <div className="mb-5 text-center">
+        <div className="mb-2 text-5xl">🏠</div>
+        <h2 className="mb-1 font-serif text-2xl font-semibold tracking-tight">{household.name}</h2>
+        <p className="text-sm text-stone-500 dark:text-stone-400">
+          {t('signedInAs', { name: user.user_metadata?.full_name || user.email })}
+        </p>
+      </div>
+
+      {/* LANGUAGE SWITCHER — labels stay in their native language on purpose */}
+      <Segmented
+        className="mb-3"
+        value={locale}
+        onChange={switchLocale}
+        options={[
+          { value: 'sl', label: '🇸🇮 Slovenščina' },
+          { value: 'en', label: '🇬🇧 English' },
+        ]}
       />
-      {chrome}
+
+      {/* THEME SWITCHER */}
+      <Segmented
+        className="mb-5"
+        value={theme}
+        onChange={switchTheme}
+        options={[
+          { value: 'dark', label: t('themeDark') },
+          { value: 'light', label: t('themeLight') },
+        ]}
+      />
+
+      {/* Join code */}
+      <div className="mb-4 rounded-xl border border-stone-200 bg-stone-50 p-4 text-center dark:border-white/10 dark:bg-stone-950/60">
+        <div className="mb-1.5 text-xs font-bold tracking-[1px] text-orange-600 uppercase dark:text-orange-400">
+          {t('inviteCode')}
+        </div>
+        <div className="text-4xl font-black tracking-[8px] text-stone-900 dark:text-stone-100">
+          {household.join_code}
+        </div>
+        <div className="mt-1 text-xs text-stone-400 dark:text-stone-500">{t('shareCode')}</div>
+      </div>
+
+      {/* Members */}
+      <div className="mb-5">
+        <div className="mb-1 text-sm font-bold text-stone-500 dark:text-stone-400">
+          {t('members')} ({members.length})
+        </div>
+        {members.map((m) => (
+          <div key={m.id} className={ROW_FLAT}>
+            <Avatar name={m.display_name} />
+            <div className="flex-1">
+              <div className="text-sm font-semibold text-stone-900 dark:text-stone-100">
+                {m.display_name || tc('user')}
+              </div>
+              <div className="text-xs text-stone-400 dark:text-stone-500">
+                {m.role === 'owner' ? t('owner') : t('member')}
+              </div>
+            </div>
+            {m.user_id === user.id ? (
+              <span className="text-xs font-semibold text-orange-600 dark:text-orange-400">{t('you')}</span>
+            ) : (
+              members.find((x) => x.user_id === user.id)?.role === 'owner' && (
+                <button
+                  aria-label={ta('removeMember')}
+                  onClick={() =>
+                    setConfirmAction({
+                      message: t('removeMember', { name: m.display_name || t('memberFallback') }),
+                      onConfirm: async () => {
+                        const { error } = await supabase.rpc('remove_household_member', { p_member_id: m.id });
+                        if (error) notifyError(rpcErrorKey(error.message) ?? error.message);
+                      },
+                    })
+                  }
+                  className={cx(
+                    'flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border-none bg-red-500/10 text-red-600 dark:text-red-400',
+                    PRESS_SM,
+                  )}
+                >
+                  <X className="size-3.5" />
+                </button>
+              )
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Google Calendar */}
+      <div className="mb-5">
+        <div className="mb-2.5 text-sm font-bold text-stone-500 dark:text-stone-400">{t('googleCalendar')}</div>
+        {calConnected ? (
+          <div className="flex items-center gap-2.5 rounded-xl border border-green-600/20 bg-green-600/8 px-3.5 py-3 dark:border-green-500/20 dark:bg-green-500/10">
+            <div className="flex-1">
+              <div className="text-sm font-bold text-green-700 dark:text-green-400">{t('connected')}</div>
+              <div className="mt-0.5 text-xs text-stone-500 dark:text-stone-400">{calConnection?.google_email}</div>
+            </div>
+            <button
+              onClick={() =>
+                setConfirmAction({
+                  message: t('disconnectConfirm'),
+                  onConfirm: () => removeCalConnection(calConnection.id),
+                })
+              }
+              className={cx(
+                'cursor-pointer rounded-full border-none bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-600 dark:text-red-400',
+                PRESS_SM,
+              )}
+            >
+              {t('disconnect')}
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => {
+              setShowSettings(false);
+              connectCalendar();
+            }}
+            className={cx(
+              'w-full cursor-pointer rounded-full border-none bg-stone-900 p-3.5 text-sm font-bold text-white dark:bg-stone-100 dark:text-stone-900',
+              PRESS,
+            )}
+          >
+            {t('connectCalendar')}
+          </button>
+        )}
+      </div>
+
+      {/* Notifications */}
+      <div className="mb-5">
+        <div className="mb-2.5 text-sm font-bold text-stone-500 dark:text-stone-400">{t('notifications')}</div>
+        {push.needsInstall ? (
+          <p className="text-xs text-stone-400 dark:text-stone-500">{t('notificationsIosHint')}</p>
+        ) : !push.supported ? (
+          <p className="text-xs text-stone-400 dark:text-stone-500">{t('notificationsUnsupported')}</p>
+        ) : push.permission === 'denied' ? (
+          <p className="text-xs text-stone-400 dark:text-stone-500">{t('notificationsDenied')}</p>
+        ) : push.subscribed ? (
+          <div className="flex items-center gap-2.5 rounded-xl border border-green-600/20 bg-green-600/8 px-3.5 py-3 dark:border-green-500/20 dark:bg-green-500/10">
+            <div className="flex-1 text-sm font-bold text-green-700 dark:text-green-400">
+              {t('notificationsEnabled')}
+            </div>
+            <button
+              onClick={push.disable}
+              disabled={push.busy}
+              className={cx(
+                PRESS_SM,
+                'cursor-pointer rounded-full border-none bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-600 dark:text-red-400',
+              )}
+            >
+              {t('notificationsDisable')}
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={push.enable}
+            disabled={push.busy}
+            className={cx(
+              PRESS,
+              'w-full cursor-pointer rounded-full border-none bg-stone-900 p-3.5 text-sm font-bold text-white disabled:opacity-50 dark:bg-stone-100 dark:text-stone-900',
+            )}
+          >
+            {t('notificationsEnable')}
+          </button>
+        )}
+      </div>
+
+      <button
+        onClick={handleSignOut}
+        className={cx(
+          'w-full cursor-pointer rounded-full border border-red-500/25 bg-red-500/10 p-3.5 text-base font-bold text-red-600 dark:text-red-400',
+          PRESS,
+        )}
+      >
+        {tc('signOut')}
+      </button>
     </>
   );
 }

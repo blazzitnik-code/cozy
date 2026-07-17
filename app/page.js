@@ -1,17 +1,17 @@
 'use client';
 import { useAuth, useHousehold } from '@/lib/hooks';
 import AppShell from '@/components/AppShell';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { rpcErrorKey } from '@/lib/intl';
 import { cx } from '@/lib/utils';
-import { Screen, Loader, Input, Label, Btn, Wordmark, CODE_INPUT, PRESS } from '@/components/ui';
+import { Screen, ScreenEnter, Loader, Input, Label, Btn, Wordmark, CODE_INPUT, PRESS, PRESS_SM } from '@/components/ui';
 
 export default function Home() {
   // Root-namespace t: `error` state may hold a message key (Errors.rpc.* /
   // Auth.invalidCode) or a raw DB message — t.has() picks the right rendering.
   const t = useTranslations();
-  const { user, loading: authLoading, signInWithGoogle, signOut } = useAuth();
+  const { user, loading: authLoading, signInWithGoogle, signInWithPassword, signOut } = useAuth();
   const { household, members, loading: hhLoading, createHousehold, joinHousehold } = useHousehold(user);
   const [hhMode, setHhMode] = useState(null); // 'create' | 'join'
   const [hhName, setHhName] = useState('');
@@ -19,6 +19,18 @@ export default function Home() {
   const [joinCode, setJoinCode] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [devOpen, setDevOpen] = useState(false);
+  const [devEmail, setDevEmail] = useState('');
+  const [devPassword, setDevPassword] = useState('');
+
+  // Suppresses the hhMode pane's own entrance while the household screen
+  // itself is entering (login → household: outer + pane mount together and
+  // the rise would compound); pane switches (chooser ↔ create/join) replay it.
+  const hhScreenReady = useRef(false);
+  const showHhScreen = !authLoading && !!user && !hhLoading && !household;
+  useEffect(() => {
+    hhScreenReady.current = showHhScreen;
+  }, [showHhScreen]);
 
   // Loading
   if (authLoading || (user && hhLoading)) return <Loader />;
@@ -27,7 +39,7 @@ export default function Home() {
   if (!user) {
     return (
       <Screen center>
-        <div className="w-full px-8 text-center">
+        <ScreenEnter className="w-full px-8 text-center">
           <div className="mb-4 text-7xl">🏠</div>
           <div className="mb-2">
             <Wordmark className="text-5xl" />
@@ -62,7 +74,61 @@ export default function Home() {
             </svg>
             {t('Auth.signInGoogle')}
           </button>
-        </div>
+
+          {/* Dev-only password login for LAN-device testing — Google OAuth can't
+              round-trip to the private-IP local stack (see CLAUDE.md). */}
+          {process.env.NODE_ENV === 'development' &&
+            (!devOpen ? (
+              <button
+                onClick={() => setDevOpen(true)}
+                className={cx(
+                  'mt-3 rounded-full border-none bg-transparent p-3 text-sm text-stone-400 dark:text-stone-500',
+                  PRESS_SM,
+                )}
+              >
+                {t('Auth.devLogin')}
+              </button>
+            ) : (
+              <form
+                className="mt-5 text-left"
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  setSubmitting(true);
+                  setError('');
+                  try {
+                    await signInWithPassword(devEmail.trim(), devPassword);
+                  } catch {
+                    setError('Auth.devLoginError');
+                  }
+                  setSubmitting(false);
+                }}
+              >
+                <Input
+                  type="email"
+                  value={devEmail}
+                  onChange={(e) => setDevEmail(e.target.value)}
+                  placeholder={t('Auth.devEmailPh')}
+                  autoComplete="email"
+                  className="mb-3"
+                />
+                <Input
+                  type="password"
+                  value={devPassword}
+                  onChange={(e) => setDevPassword(e.target.value)}
+                  placeholder={t('Auth.devPasswordPh')}
+                  autoComplete="current-password"
+                  className="mb-4"
+                />
+                {error && (
+                  <div className="mb-3 text-center text-sm font-semibold text-red-600 dark:text-red-400">
+                    {t.has(error) ? t(error) : error}
+                  </div>
+                )}
+                {/* Btn renders a <button>, which defaults to type="submit" inside a form */}
+                <Btn disabled={submitting || !devEmail || !devPassword}>{t('Auth.devLogin')}</Btn>
+              </form>
+            ))}
+        </ScreenEnter>
       </Screen>
     );
   }
@@ -71,7 +137,7 @@ export default function Home() {
   if (!household) {
     return (
       <Screen center>
-        <div className="w-full px-6">
+        <ScreenEnter className="w-full px-6">
           <div className="mb-8 text-center">
             <div className="mb-3 text-5xl">👋</div>
             <h1 className="mb-1 font-serif text-3xl font-semibold tracking-tight">
@@ -87,7 +153,7 @@ export default function Home() {
           )}
 
           {!hhMode && (
-            <div className="flex flex-col gap-3">
+            <ScreenEnter className="flex flex-col gap-3" initial={hhScreenReady.current ? undefined : false}>
               <button
                 onClick={() => {
                   setHhMode('create');
@@ -118,15 +184,18 @@ export default function Home() {
               </button>
               <button
                 onClick={signOut}
-                className="mt-2 cursor-pointer border-none bg-transparent p-3 text-sm text-stone-400 dark:text-stone-500"
+                className={cx(
+                  'mt-2 rounded-full border-none bg-transparent p-3 text-sm text-stone-400 dark:text-stone-500',
+                  PRESS_SM,
+                )}
               >
                 {t('Common.signOut')}
               </button>
-            </div>
+            </ScreenEnter>
           )}
 
           {hhMode === 'create' && (
-            <div>
+            <ScreenEnter initial={hhScreenReady.current ? undefined : false}>
               <Label>{t('Auth.yourName')}</Label>
               <Input
                 value={displayName}
@@ -161,15 +230,18 @@ export default function Home() {
                   setHhMode(null);
                   setError('');
                 }}
-                className="mt-2 w-full cursor-pointer border-none bg-transparent p-3 text-sm text-stone-400 dark:text-stone-500"
+                className={cx(
+                  'mt-2 w-full rounded-full border-none bg-transparent p-3 text-sm text-stone-400 dark:text-stone-500',
+                  PRESS_SM,
+                )}
               >
                 {t('Common.back')}
               </button>
-            </div>
+            </ScreenEnter>
           )}
 
           {hhMode === 'join' && (
-            <div>
+            <ScreenEnter initial={hhScreenReady.current ? undefined : false}>
               <Label>{t('Auth.yourName')}</Label>
               <Input
                 value={displayName}
@@ -193,7 +265,9 @@ export default function Home() {
                   try {
                     await joinHousehold(joinCode, displayName || t('Common.user'));
                   } catch (e) {
-                    setError('Auth.invalidCode');
+                    // Map known RPC messages like the create path — a network/
+                    // server failure must not read as "invalid code".
+                    setError(rpcErrorKey(e.message) ?? e.message);
                   }
                   setSubmitting(false);
                 }}
@@ -206,13 +280,16 @@ export default function Home() {
                   setHhMode(null);
                   setError('');
                 }}
-                className="mt-2 w-full cursor-pointer border-none bg-transparent p-3 text-sm text-stone-400 dark:text-stone-500"
+                className={cx(
+                  'mt-2 w-full rounded-full border-none bg-transparent p-3 text-sm text-stone-400 dark:text-stone-500',
+                  PRESS_SM,
+                )}
               >
                 {t('Common.back')}
               </button>
-            </div>
+            </ScreenEnter>
           )}
-        </div>
+        </ScreenEnter>
       </Screen>
     );
   }

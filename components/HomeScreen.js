@@ -1,16 +1,14 @@
 'use client';
-import { useTodoItems } from '@/lib/hooks';
 import { useTranslations, useFormatter } from 'next-intl';
 import { Settings } from 'lucide-react';
 import { getSt, cx, dueTone, DUE_BAR, DUE_BADGE, PERSON } from '@/lib/utils';
 import { eventTitle } from '@/lib/intl';
-import { Screen, PageBody, Card, SectionHeader, IconButton, Wordmark, ROW_FLAT } from './ui';
+import { Screen, PageBody, Card, SectionHeader, IconButton, TickNum, Wordmark, ROW_FLAT, ROW_PRESS } from './ui';
 import HomeModule from './HomeModule';
 
 // ─── TODO HOME CARD (used in Home screen preview) ───
-function TodoListHomeCard({ list, householdId, onNavigate }) {
+function TodoListHomeCard({ list, items, onNavigate }) {
   const format = useFormatter();
-  const { items } = useTodoItems(householdId, list.id);
   const done = items.filter((i) => i.checked).length;
   const total = items.length;
   const pct = total > 0 ? (done / total) * 100 : 0;
@@ -19,7 +17,7 @@ function TodoListHomeCard({ list, householdId, onNavigate }) {
   const isPast = daysLeft !== null && daysLeft < 0;
   const tone = dueTone(daysLeft);
   return (
-    <Card onClick={onNavigate} className="mb-2 flex cursor-pointer items-center gap-2.5 rounded-xl px-3.5 py-3">
+    <Card onClick={onNavigate} className="mb-2 flex items-center gap-2.5 rounded-xl px-3.5 py-3">
       <span className="shrink-0 text-xl">{list.emoji}</span>
       <div className="min-w-0 flex-1">
         <div className={cx('text-sm font-bold text-stone-900 dark:text-stone-100', total > 0 && 'mb-1')}>
@@ -50,12 +48,15 @@ function TodoListHomeCard({ list, householdId, onNavigate }) {
 
 export default function HomeScreen({
   user,
-  householdId,
   items,
   shopItems,
   todoLists,
+  todoItemsByList,
   todayCalEvents,
   calConnected,
+  homeSettings,
+  homeSettingsLoading,
+  saveHomeSettings,
   navigate,
   onOpenSettings,
 }) {
@@ -85,11 +86,12 @@ export default function HomeScreen({
 
         {/* Quick stats */}
         <div className="mb-5 grid grid-cols-2 gap-2.5">
-          <Card onClick={() => navigate('freezer')} className="cursor-pointer rounded-3xl p-5">
+          <Card onClick={() => navigate('freezer')} className="rounded-3xl p-5">
             <div className="mb-2 text-3xl">❄️</div>
-            <div className="font-serif text-4xl font-semibold tracking-tight text-stone-900 dark:text-stone-100">
-              {items.length}
-            </div>
+            <TickNum
+              value={items.length}
+              className="font-serif text-4xl font-semibold tracking-tight text-stone-900 dark:text-stone-100"
+            />
             <div className="text-xs font-semibold text-stone-500 dark:text-stone-400">{t('inFreezer')}</div>
             {(expiredC > 0 || warningC > 0) && (
               <div
@@ -102,11 +104,12 @@ export default function HomeScreen({
               </div>
             )}
           </Card>
-          <Card onClick={() => navigate('shopping')} className="cursor-pointer rounded-3xl p-5">
+          <Card onClick={() => navigate('shopping')} className="rounded-3xl p-5">
             <div className="mb-2 text-3xl">🛒</div>
-            <div className="font-serif text-4xl font-semibold tracking-tight text-stone-900 dark:text-stone-100">
-              {toBuyC}
-            </div>
+            <TickNum
+              value={toBuyC}
+              className="font-serif text-4xl font-semibold tracking-tight text-stone-900 dark:text-stone-100"
+            />
             <div className="text-xs font-semibold text-stone-500 dark:text-stone-400">{t('toBuy')}</div>
             {toBuyC === 0 && (
               <div className="mt-1.5 text-xs font-bold text-green-600 dark:text-green-400">{t('allBought')}</div>
@@ -119,7 +122,7 @@ export default function HomeScreen({
           <div className="mb-5">
             <SectionHeader>{t('today')}</SectionHeader>
             <Card className="px-3.5 py-1">
-              {todayCalEvents
+              {[...todayCalEvents]
                 .sort((a, b) => (a.start_time || '').localeCompare(b.start_time || ''))
                 .map((ev) => {
                   const person = ev.user_id === user.id ? 'me' : 'partner';
@@ -127,7 +130,7 @@ export default function HomeScreen({
                     <div
                       key={ev.id}
                       onClick={() => navigate('calendar')}
-                      className={cx(ROW_FLAT, 'cursor-pointer gap-2.5 py-2.5')}
+                      className={cx(ROW_FLAT, ROW_PRESS, 'gap-2.5 py-2.5')}
                     >
                       <div className={cx('h-9 w-0.75 shrink-0 rounded-xs', PERSON[person].dot)} />
                       <div className="min-w-0 flex-1">
@@ -165,7 +168,7 @@ export default function HomeScreen({
               <TodoListHomeCard
                 key={list.id}
                 list={list}
-                householdId={householdId}
+                items={todoItemsByList[list.id] || []}
                 onNavigate={() => navigate('todo')}
               />
             ))}
@@ -173,7 +176,7 @@ export default function HomeScreen({
         )}
 
         {/* Home module: traffic, shortcuts, bus, bikes */}
-        <HomeModule user={user} householdId={householdId} />
+        <HomeModule settings={homeSettings} loading={homeSettingsLoading} saveSettings={saveHomeSettings} />
 
         {/* Coming soon modules */}
         <SectionHeader>{t('comingSoon')}</SectionHeader>

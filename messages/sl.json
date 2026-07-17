@@ -15,7 +15,10 @@
     "delete": "Izbriši",
     "filterCategories": "Filtriraj po kategorijah",
     "manageStores": "Uredi trgovine",
-    "removeMember": "Odstrani člana"
+    "removeMember": "Odstrani člana",
+    "prevWeek": "Prejšnji teden",
+    "nextWeek": "Naslednji teden",
+    "favourite": "Priljubljeno"
   },
   "NotFound": {
     "title": "Stran ne obstaja",
@@ -35,7 +38,8 @@
     "noResults": "Ni zadetkov",
     "optional": "opcijsko",
     "user": "Uporabnik",
-    "signOut": "Odjava"
+    "signOut": "Odjava",
+    "done": "Končano"
   },
   "Auth": {
     "tagline": "Domača aplikacija za gospodinjstvo",
@@ -57,7 +61,11 @@
     "joinCodePlaceholder": "npr. A4F2BC",
     "creating": "Ustvarjam...",
     "joining": "Pridružujem...",
-    "invalidCode": "Neveljavna koda. Preveri in poskusi znova."
+    "invalidCode": "Neveljavna koda. Preveri in poskusi znova.",
+    "devLogin": "Dev prijava",
+    "devEmailPh": "e-pošta",
+    "devPasswordPh": "geslo",
+    "devLoginError": "Prijava ni uspela. Preveri e-pošto in geslo."
   },
   "Nav": {
     "home": "Dom",
@@ -181,11 +189,9 @@
     "boughtBtn": "🛒 Kupljeno",
     "boughtSection": "✓ Kupljeno",
     "empty": "Seznam je prazen — dodaj prvi izdelek!",
-    "favourite": "⭐ Priljubljen",
-    "favouriteOff": "☆ Priljubljen",
     "qtyPlaceholder": "npr. 1kg, 3×, 500ml...",
     "store": "Trgovina",
-    "removeFromList": "🗑 Odstrani s seznama",
+    "removeFromList": "Odstrani s seznama",
     "stores": "Trgovine",
     "deleteStoreConfirm": "Izbriši trgovino {name}?",
     "newStoreBtn": "+ Nova trgovina",
@@ -214,6 +220,7 @@
     "connectBtn": "Poveži Google Koledar",
     "you": "Ti",
     "partner": "Partner",
+    "allDay": "Ves dan",
     "partnerNotConnected": "Partner še ni povezal svojega koledarja",
     "important": "⭐ Pomemben",
     "markImportant": "☆ Označi kot pomemben",
@@ -239,7 +246,7 @@
     "overdueWord": "zamujeno",
     "dueLabel": "rok: {date}",
     "daysLeft": "še {days, plural, one {# dan} two {# dneva} few {# dni} other {# dni}}",
-    "finish": "📦 Zaključi",
+    "finish": "Zaključi",
     "restoreList": "↩ Obnovi listo",
     "addItemPlaceholder": "Dodaj opravilo...",
     "open": "Odprto ({count})",
@@ -311,6 +318,7 @@
       "cannotRemoveOwner": "Lastnika ni mogoče odstraniti",
       "wrongUserCreate": "Ne moreš ustvariti gospodinjstva za drugega uporabnika",
       "wrongUserJoin": "Ne moreš pridružiti drugega uporabnika"
-    }
+    },
+    "calendarSync": "Sinhronizacija koledarja ne dela — preveri Google nastavitve."
   }
 }

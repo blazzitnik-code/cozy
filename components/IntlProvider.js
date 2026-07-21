@@ -20,6 +20,8 @@ const FORMATS = {
     monthYear: { month: 'long', year: 'numeric' },
     monthShortYY: { month: 'short', year: '2-digit' },
     weekdayFull: { weekday: 'long', day: 'numeric', month: 'long' },
+    weekdayShort: { weekday: 'short' },
+    dayNum: { day: 'numeric' },
     time: { hour: '2-digit', minute: '2-digit' },
   },
 };

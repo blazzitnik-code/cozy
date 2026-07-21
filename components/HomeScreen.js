@@ -1,9 +1,9 @@
 'use client';
 import { useState } from 'react';
 import { useTranslations, useFormatter } from 'next-intl';
-import { Settings, ChevronRight } from 'lucide-react';
+import { Settings } from 'lucide-react';
 import { getSt, cx, dueTone, DUE_BAR, DUE_BADGE, weatherInfo, relativeDay } from '@/lib/utils';
-import { eventTitle } from '@/lib/intl';
+import { expandEvents, EVENT_TYPES } from '@/lib/calendar';
 import {
   Screen,
   PageBody,
@@ -65,46 +65,33 @@ function WeatherCard({ weather }) {
 }
 
 // ─── UP-NEXT (calendar) CARD ───
-// Real next event today when the calendar is connected; otherwise a connect
-// prompt. Structure is ready to swap in richer data once Koledarko grows.
-function UpNextCard({ todayCalEvents, calConnected, loading, navigate }) {
+// Next timed manual event today (recurrences expanded). Renders nothing when
+// there's no upcoming event — Google sync is phase 2.
+function UpNextCard({ calEvents, members, navigate }) {
   const t = useTranslations('HomeScreen');
-  const tCal = useTranslations('Calendar');
   const format = useFormatter();
-  const fmt = (d) => format.dateTime(new Date(d), 'time');
-
-  // Wait until the connection state is known — rendering the connect prompt
-  // first and then swapping to an event (or nothing) is a layout shift.
-  if (loading) return null;
-
-  if (!calConnected) {
-    return (
-      <Card
-        onClick={() => navigate('calendar')}
-        className="mb-2.5 flex items-center gap-3 rounded-2xl border-orange-500/20 bg-orange-500/5 px-4 py-3.5"
-      >
-        <span className="text-2xl">📅</span>
-        <div className="min-w-0 flex-1">
-          <div className="text-sm font-bold text-stone-900 dark:text-stone-100">{t('connectCalendar')}</div>
-          <div className="text-xs text-stone-500 dark:text-stone-400">{t('connectCalendarHint')}</div>
-        </div>
-        <ChevronRight className="size-4 shrink-0 text-orange-600 dark:text-orange-400" />
-      </Card>
-    );
-  }
-
-  const now = Date.now();
-  const upcoming = [...todayCalEvents]
-    .filter((ev) => ev.start_time && !ev.is_all_day && new Date(ev.start_time).getTime() > now)
+  const fmt = (tm) => (tm ? format.dateTime(new Date('1970-01-01T' + tm), 'time') : '');
+  const now = new Date();
+  const nowMs = now.getTime();
+  // Absolute ms of an "HH:MM[:SS]" time on today's date.
+  const toMs = (tm) => {
+    const d = new Date(now);
+    const [hh, mm, ss] = tm.split(':');
+    d.setHours(+hh, +mm, +(ss || 0), 0);
+    return d.getTime();
+  };
+  const upcoming = expandEvents(calEvents, now, now)
+    .filter((ev) => !ev.all_day && ev.start_time && toMs(ev.start_time) > nowMs)
     .sort((a, b) => a.start_time.localeCompare(b.start_time));
   if (upcoming.length === 0) return null;
 
   const next = upcoming[0];
   const after = upcoming[1];
-  const msTo = new Date(next.start_time).getTime() - now;
+  const msTo = toMs(next.start_time) - nowMs;
   const h = Math.floor(msTo / 3600000);
   const m = Math.round((msTo % 3600000) / 60000);
   const badge = h > 0 ? t('inHours', { h, m }) : t('inMinutes', { m });
+  const personName = (uid) => (uid ? members.find((mm) => mm.user_id === uid)?.display_name : null);
 
   return (
     <Card onClick={() => navigate('calendar')} className="mb-2.5 rounded-2xl border-orange-500/20 bg-orange-500/5 p-4">
@@ -116,15 +103,18 @@ function UpNextCard({ todayCalEvents, calConnected, loading, navigate }) {
           {badge}
         </span>
       </div>
-      <div className="text-base font-bold text-stone-900 dark:text-stone-100">{eventTitle(next.title, tCal)}</div>
+      <div className="text-base font-bold text-stone-900 dark:text-stone-100">
+        {EVENT_TYPES[next.event_type]?.emoji || '📌'} {next.title}
+      </div>
       <div className="text-xs text-stone-500 dark:text-stone-400">
         {fmt(next.start_time)}
         {next.end_time ? ` – ${fmt(next.end_time)}` : ''}
+        {personName(next.assigned_to) ? ` · ${personName(next.assigned_to)}` : ''}
       </div>
       {after && (
         <div className="mt-2 flex items-center justify-between border-t border-dotted border-stone-300 pt-2 dark:border-stone-700">
           <span className="min-w-0 truncate text-xs text-stone-500 dark:text-stone-400">
-            {fmt(after.start_time)} · {eventTitle(after.title, tCal)}
+            {fmt(after.start_time)} · {after.title}
           </span>
           <span className="shrink-0 pl-2 text-xs font-semibold text-orange-600 dark:text-orange-400">
             {t('viewAll')}
@@ -357,9 +347,7 @@ export default function HomeScreen({
   todoLists,
   todoListsLoading,
   todoItemsByList,
-  todayCalEvents,
-  calConnected,
-  calConnLoading,
+  calEvents,
   homeSettings,
   homeSettingsLoading,
   saveHomeSettings,
@@ -400,12 +388,7 @@ export default function HomeScreen({
         <WeatherCard weather={weather} />
 
         {/* Up next (calendar) */}
-        <UpNextCard
-          todayCalEvents={todayCalEvents}
-          calConnected={calConnected}
-          loading={calConnLoading}
-          navigate={navigate}
-        />
+        <UpNextCard calEvents={calEvents} members={members} navigate={navigate} />
 
         {/* Home module: consolidated "Domov" ETA card */}
         <HomeModule settings={homeSettings} loading={homeSettingsLoading} saveSettings={saveHomeSettings} />

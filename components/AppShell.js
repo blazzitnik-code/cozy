@@ -22,7 +22,7 @@ import { useTranslations } from 'next-intl';
 import { useLocaleSwitch } from './IntlProvider';
 import { rpcErrorKey } from '@/lib/intl';
 import { supabase } from '@/lib/supabase';
-import { cx, localDateStr } from '@/lib/utils';
+import { cx, MEMBER_COLORS, memberColorClass } from '@/lib/utils';
 import { X } from 'lucide-react';
 import {
   Modal,
@@ -53,20 +53,6 @@ import CalendarModule from './CalendarModule';
 // Language lives in IntlProvider (next-intl); modules read it via hooks.
 // ═══════════════════════════
 const VALID_TABS = ['home', 'freezer', 'shopping', 'calendar', 'todo'];
-
-// Member accent colours — stored as a token string in household_members.color
-// (class names, not hex, to stay clear of the no-raw-hex audit).
-const MEMBER_COLORS = [
-  { t: 'indigo', c: 'bg-indigo-500' },
-  { t: 'pink', c: 'bg-pink-500' },
-  { t: 'emerald', c: 'bg-emerald-500' },
-  { t: 'amber', c: 'bg-amber-500' },
-  { t: 'sky', c: 'bg-sky-500' },
-  { t: 'violet', c: 'bg-violet-500' },
-  { t: 'rose', c: 'bg-rose-500' },
-  { t: 'teal', c: 'bg-teal-500' },
-];
-const memberColorClass = (token) => MEMBER_COLORS.find((x) => x.t === token)?.c;
 
 export default function AppShell({ user, household, members, signOut }) {
   const householdId = household?.id;
@@ -187,9 +173,7 @@ export default function AppShell({ user, household, members, signOut }) {
   const { locale: pushLocale } = useLocaleSwitch();
   const push = usePushSubscription(householdId, user.id, pushLocale);
 
-  // ─── CALENDAR STATE ───
-  const [calDate, setCalDate] = useState(new Date());
-  const [calLoading, setCalLoading] = useState(false);
+  // ─── CALENDAR STATE (manual Koledarko; Google connect stays in settings for phase 2) ───
   const {
     connections: calConnections,
     myConnection: calConnection,
@@ -197,41 +181,15 @@ export default function AppShell({ user, household, members, signOut }) {
     loading: calConnLoading,
     saveConnection: saveCalConnection,
     removeConnection: removeCalConnection,
-    expireConnection: expireCalConnection,
-    saveEvents: saveCalEvents,
   } = useCalendarConnections(householdId, user.id);
-  const calDateStr = localDateStr(calDate);
-  // "Today" must roll over at midnight — a PWA left open overnight would keep
-  // querying yesterday's events (HomeScreen's header date, recomputed every
-  // render, would move on without it and the two would disagree).
-  const [todayStr, setTodayStr] = useState(() => localDateStr());
-  const homeSyncDone = useRef(false);
-  useEffect(() => {
-    const now = new Date();
-    const nextMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 5);
-    const t = setTimeout(() => {
-      homeSyncDone.current = false; // re-sync Google events for the new day
-      setTodayStr(localDateStr());
-    }, nextMidnight - now);
-    return () => clearTimeout(t);
-  }, [todayStr]);
   const {
-    events: allCalEvents,
-    refetch: refetchCalEvents,
-    updateEvent: updateViewedCalEvent,
-  } = useCalendarEvents(householdId, calDateStr);
-  const { events: todayCalEvents, refetch: refetchTodayCalEvents } = useCalendarEvents(householdId, todayStr);
-  // The detail modal edits events on the *viewed* date — write through that
-  // hook instance (it refetches the viewed lanes) and refresh the today
-  // instance too for HomeScreen's "Today" list.
-  const updateCalEvent = useCallback(
-    async (id, updates) => {
-      await updateViewedCalEvent(id, updates);
-      refetchTodayCalEvents();
-    },
-    [updateViewedCalEvent, refetchTodayCalEvents],
-  );
-  const [myFetchedEvents, setMyFetchedEvents] = useState([]);
+    events: calEvents,
+    loading: calEventsLoading,
+    addEvent: addCalEvent,
+    updateEvent: updateCalEvent,
+    deleteEvent: deleteCalEvent,
+    skipOccurrence: skipCalOccurrence,
+  } = useCalendarEvents(householdId);
 
   // ─── SETTINGS ───
   const [showSettings, setShowSettings] = useState(false);
@@ -256,77 +214,7 @@ export default function AppShell({ user, household, members, signOut }) {
     signOut();
   };
 
-  // ─── CALENDAR LOGIC ───
-  // Responses only apply while the fetched date is still the viewed one:
-  // the once-per-session home sync fetches *today* and out-of-order
-  // responses when flipping dates would clobber the lane otherwise.
-  const calDateStrRef = useRef(calDateStr);
-  calDateStrRef.current = calDateStr;
-
-  // Set on a 403 (config-side failure: disabled Calendar API, missing scope —
-  // reconnecting can't fix it): one toast per session, then stop hammering.
-  const calSyncBroken = useRef(false);
-
-  const fetchCalEvents = useCallback(
-    async (date, token) => {
-      if (!token || calSyncBroken.current) return;
-      setCalLoading(true);
-      try {
-        const dateStr = date instanceof Date ? localDateStr(date) : date;
-        const start = new Date(date);
-        start.setHours(0, 0, 0, 0);
-        const end = new Date(date);
-        end.setHours(23, 59, 59, 999);
-        const res = await fetch(
-          `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${start.toISOString()}&timeMax=${end.toISOString()}&singleEvents=true&orderBy=startTime`,
-          { headers: { Authorization: `Bearer ${token}` } },
-        );
-        if (res.ok) {
-          const data = await res.json();
-          const items = data.items || [];
-          if (dateStr === calDateStrRef.current) setMyFetchedEvents(items); // show immediately, no DB dependency
-          await saveCalEvents(items, dateStr); // save for partner to see
-          refetchCalEvents();
-        } else if (res.status === 401) {
-          // Token revoked/invalid despite a future expires_at — expire the row
-          // so the UI falls back to the connect button.
-          expireCalConnection();
-        } else if (res.status === 403) {
-          calSyncBroken.current = true;
-          console.error('Calendar sync failed:', await res.json().catch(() => res.statusText));
-          notifyError('Errors.calendarSync');
-        } else {
-          console.error('Calendar fetch failed:', res.status, res.statusText);
-        }
-      } catch (e) {
-        console.error('Calendar fetch error:', e);
-      }
-      setCalLoading(false);
-    },
-    [saveCalEvents, expireCalConnection],
-  );
-
-  // Clear the lane only when the viewed date changes — re-entering the tab
-  // keeps the previous events visible while the refetch below runs behind them.
-  useEffect(() => {
-    setMyFetchedEvents([]);
-  }, [calDateStr]);
-
-  useEffect(() => {
-    if (mode === 'calendar' && calConnected && calConnection?.access_token) {
-      fetchCalEvents(calDate, calConnection.access_token);
-    }
-  }, [mode, calDate, calConnected, calConnection?.access_token, fetchCalEvents]);
-
-  // Sync today's events once per session (and again after a midnight
-  // rollover — the timer resets homeSyncDone and bumps todayStr).
-  useEffect(() => {
-    if (calConnected && calConnection?.access_token && !homeSyncDone.current) {
-      homeSyncDone.current = true;
-      fetchCalEvents(new Date(), calConnection.access_token);
-    }
-  }, [calConnected, calConnection?.access_token, fetchCalEvents, todayStr]);
-
+  // ─── CALENDAR LOGIC (Google connect only; event sync is phase 2) ───
   const connectCalendar = useCallback(
     (silent = false) => {
       const init = () => {
@@ -338,7 +226,6 @@ export default function AppShell({ user, household, members, signOut }) {
             const info = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
               headers: { Authorization: `Bearer ${resp.access_token}` },
             }).then((r) => r.json());
-            calSyncBroken.current = false; // fresh grant — give sync another go
             await saveCalConnection({ accessToken: resp.access_token, expiresIn: resp.expires_in, email: info.email });
           },
         });
@@ -425,9 +312,7 @@ export default function AppShell({ user, household, members, signOut }) {
           todoLists={todoLists}
           todoListsLoading={todoListsLoading}
           todoItemsByList={todoItemsByList}
-          todayCalEvents={todayCalEvents}
-          calConnected={calConnected}
-          calConnLoading={calConnLoading}
+          calEvents={calEvents}
           homeSettings={homeSettings}
           homeSettingsLoading={homeSettingsLoading}
           saveHomeSettings={saveHomeSettings}
@@ -444,18 +329,15 @@ export default function AppShell({ user, household, members, signOut }) {
       {mode === 'calendar' && (
         <CalendarModule
           user={user}
-          calDate={calDate}
-          setCalDate={setCalDate}
-          calConnections={calConnections}
-          calConnection={calConnection}
-          calConnected={calConnected}
-          connectCalendar={connectCalendar}
-          calLoading={calLoading}
-          myFetchedEvents={myFetchedEvents}
-          allCalEvents={allCalEvents}
-          updateCalEvent={updateCalEvent}
-          onOpenSettings={openSettings}
+          members={members}
+          events={calEvents}
+          loading={calEventsLoading}
+          addEvent={addCalEvent}
+          updateEvent={updateCalEvent}
+          deleteEvent={deleteCalEvent}
+          skipOccurrence={skipCalOccurrence}
           onGoHome={() => navigate('home')}
+          onOpenSettings={openSettings}
         />
       )}
       {mode === 'todo' && (

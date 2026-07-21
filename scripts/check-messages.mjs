@@ -101,6 +101,11 @@ const DYNAMIC_KEYS = [
     'cistila',
     'drugo',
   ].map((k) => `Shopping.sections.${k}`),
+  // CalendarModule/EventForm: t('types.' + k) and t('recurrence.' + r)
+  ...['sluzba', 'sport', 'dom', 'socialno', 'zdravje', 'sola', 'potovanje', 'opravki', 'other'].map(
+    (k) => `Calendar.types.${k}`,
+  ),
+  ...['once', 'weekly', 'monthly', 'yearly', 'custom'].map((k) => `Calendar.recurrence.${k}`),
   // BottomNav: t(tab.id)
   ...['home', 'freezer', 'shopping', 'calendar', 'todo'].map((k) => `Nav.${k}`),
 ];

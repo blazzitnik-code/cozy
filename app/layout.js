@@ -66,7 +66,9 @@ export default function RootLayout({ children }) {
             __html: `try{var t=localStorage.getItem('zmrzko_theme');if(t)document.documentElement.dataset.theme=t;var l=localStorage.getItem('zmrzko_lang');if(l)document.documentElement.lang=l}catch(e){}`,
           }}
         />
-        <Script src="https://accounts.google.com/gsi/client" strategy="afterInteractive" />
+        {/* Google Identity Services (~96 KiB) is NOT loaded here — it's only
+            needed to connect Google Calendar, so connectCalendar() in AppShell
+            injects it on demand. Login uses Supabase redirect OAuth (no GSI). */}
         <ServiceWorkerRegistrar />
         <IntlProvider>{children}</IntlProvider>
       </body>

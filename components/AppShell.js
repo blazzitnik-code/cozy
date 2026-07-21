@@ -346,8 +346,8 @@ export default function AppShell({ user, household, members, signOut }) {
       if (window.google?.accounts?.oauth2) {
         init();
       } else {
-        // layout.js already loads the GSI script (afterInteractive) — attach
-        // to the existing tag while it loads instead of injecting a duplicate.
+        // GSI is lazy-loaded (not in layout.js) — inject it on first use, or
+        // attach to an in-flight injected tag instead of duplicating it.
         const existing = document.querySelector('script[src*="accounts.google.com/gsi/client"]');
         if (existing) {
           existing.addEventListener('load', init, { once: true });

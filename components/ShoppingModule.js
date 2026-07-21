@@ -2,21 +2,24 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { AnimatePresence, motion, Reorder, useDragControls } from 'motion/react';
 import { useTranslations, useFormatter, useLocale } from 'next-intl';
-import { ChevronDown, GripVertical, History, Pencil, Plus, Settings, Star, Trash2 } from 'lucide-react';
+import { ChevronDown, GripVertical, History, Pencil, Plus, Search, Settings, Star, Trash2, X } from 'lucide-react';
 import { SHOP_SUGG } from '@/lib/constants';
-import { cx } from '@/lib/utils';
+import { cx, localDateStr } from '@/lib/utils';
 import {
   Screen,
   PageBody,
   Btn,
+  Card,
   Modal,
   ConfirmModal,
   ModuleHeader,
   Input,
   Label,
+  Pill,
   IconButton,
   EmptyState,
   BackBtn,
+  ScreenEnter,
   CHIP_ON,
   CHIP_OFF,
   POPOVER,
@@ -31,6 +34,9 @@ import {
 } from './ui';
 
 const STORE_ICONS = ['🟢', '🟣', '🔵', '🟠', '🔴', '🟡', '⚫', '🏪'];
+
+const SEARCH_INP =
+  'w-full box-border h-12 pr-9.5 pl-9.5 bg-white dark:bg-stone-900 border border-stone-300 dark:border-stone-700 rounded-xl text-stone-900 dark:text-stone-100 placeholder:text-stone-400 outline-none font-medium text-base transition-colors focus:border-orange-500';
 
 // Store selector dropdown (single-select) — mirrors the freezer's FreezerDD so
 // both modules pick their "category" the same way. Footer opens the manage
@@ -317,6 +323,10 @@ export default function ShoppingModule({
   const [shopInput, setShopInput] = useState('');
   const [shopSugg, setShopSugg] = useState([]);
   const [showShopArchive, setShowShopArchive] = useState(false);
+  const [archSearch, setArchSearch] = useState('');
+  const [archStoreF, setArchStoreF] = useState([]);
+  const [archView, setArchView] = useState('date'); // 'date' | 'store' | 'item'
+  const [reAddItem, setReAddItem] = useState(null); // archived row to re-add to the list
   const [shopDetail, setShopDetail] = useState(null);
   const [showManageStores, setShowManageStores] = useState(false);
   const [showAddStoreForm, setShowAddStoreForm] = useState(false);
@@ -327,6 +337,11 @@ export default function ShoppingModule({
   const [editingId, setEditingId] = useState(null);
   const [editingName, setEditingName] = useState('');
   const [confirmAction, setConfirmAction] = useState(null); // { message, onConfirm }
+  // Suppresses the archView pane's own entrance while the archive screen enters.
+  const archViewReady = useRef(false);
+  useEffect(() => {
+    archViewReady.current = showShopArchive;
+  }, [showShopArchive]);
 
   // Quick-quantity chip (item detail modal) — rendered per group (counts | measures).
   const QTY_COUNTS = ['1×', '2×', '3×'];
@@ -448,6 +463,20 @@ export default function ShoppingModule({
     setShopSugg([]);
   }
 
+  // "Buy again" from history — re-add an archived item to the active list.
+  async function reAddToList(a) {
+    const maxOrder = shopItems.length > 0 ? Math.max(...shopItems.map((i) => i.sort_order ?? 0)) : 0;
+    await dbShopAdd({
+      name: a.name,
+      qty: a.qty || '',
+      checked: false,
+      store: a.store,
+      favourite: false,
+      category: '',
+      sort_order: maxOrder + 1,
+    });
+  }
+
   function shopToggle(id) {
     const item = shopItems.find((i) => i.id === id);
     if (item) dbShopUpdate(id, { checked: !item.checked });
@@ -508,45 +537,283 @@ export default function ShoppingModule({
 
   // ─── ARCHIVE VIEW ───
   if (showShopArchive) {
-    const byDate = {};
-    shopArchive.forEach((a) => {
-      const d = new Date(a.completed_at);
-      const k = format.dateTime(d, 'fullDate');
-      if (!byDate[k]) byDate[k] = [];
-      byDate[k].push(a);
+    const fa = shopArchive.filter((a) => {
+      if (archSearch && !a.name.toLowerCase().includes(archSearch.toLowerCase())) return false;
+      if (archStoreF.length > 0 && !archStoreF.includes(a.store)) return false;
+      return true;
     });
+    const byDate = {};
+    fa.forEach((a) => {
+      const d = new Date(a.completed_at);
+      const k = localDateStr(d);
+      if (!byDate[k]) byDate[k] = { label: format.dateTime(d, 'fullDate'), items: [] };
+      byDate[k].items.push(a);
+    });
+    const byStore = {};
+    fa.forEach((a) => {
+      (byStore[a.store] ||= []).push(a);
+    });
+    const byItem = {};
+    fa.forEach((a) => {
+      if (!byItem[a.name]) byItem[a.name] = { store: a.store, items: [] };
+      byItem[a.name].items.push(a);
+    });
+    const tot = fa.length;
+    const trips = new Set(fa.map((a) => a.completed_at)).size;
+    const months = new Set(
+      fa.map((a) => {
+        const d = new Date(a.completed_at);
+        return d.getFullYear() + '-' + d.getMonth();
+      }),
+    ).size;
+    const variety = Object.keys(byItem).length;
+    const storeName = (id) => shopStores.find((s) => s.id === id);
+
     return (
       <Screen>
+        {/* RE-ADD (buy again) modal */}
+        <Modal open={!!reAddItem} onClose={() => setReAddItem(null)}>
+          {reAddItem && (
+            <>
+              <h3 className="mb-1 font-serif text-xl font-semibold tracking-tight">{reAddItem.name}</h3>
+              <p className="mb-5 text-sm text-stone-500 dark:text-stone-400">
+                {reAddItem.qty ? reAddItem.qty + ' · ' : ''}
+                {storeName(reAddItem.store)?.icon} {storeName(reAddItem.store)?.name}
+              </p>
+              <Btn
+                onClick={async () => {
+                  await reAddToList(reAddItem);
+                  setReAddItem(null);
+                }}
+              >
+                {t('reAdd')}
+              </Btn>
+            </>
+          )}
+        </Modal>
+
         <PageBody key="shop-archive">
-          <div className="mb-5 flex items-center gap-3 pt-3">
+          <div className="mb-4 flex items-center gap-3 pt-3">
             <BackBtn onClick={() => setShowShopArchive(false)} />
             <h2 className="font-serif text-2xl font-semibold tracking-tight">{t('historyTitle')}</h2>
           </div>
-          {!shopArchiveLoading && shopArchive.length === 0 && <EmptyState icon="🧾">{t('historyEmpty')}</EmptyState>}
-          {Object.entries(byDate).map(([date, ditems]) => (
-            <div key={date} className="mb-4">
-              <h3 className="mb-1 text-sm font-bold text-stone-500 dark:text-stone-400">{date}</h3>
-              {ditems.map((it, i) => {
-                const store = shopStores.find((s) => s.id === it.store);
-                return (
-                  <div
-                    key={it.id + '-' + i}
-                    className="flex items-center justify-between border-b border-dotted border-stone-300 px-0.5 py-2 text-sm text-stone-900 last:border-b-0 dark:border-stone-700 dark:text-stone-100"
+
+          {/* Search */}
+          <div className="relative mb-3">
+            <Search className="absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-stone-400 dark:text-stone-600" />
+            <input
+              value={archSearch}
+              onChange={(e) => setArchSearch(e.target.value)}
+              placeholder={t('searchHistory')}
+              className={SEARCH_INP}
+            />
+            {archSearch && (
+              <motion.button
+                {...POP}
+                aria-label={ta('clearSearch')}
+                onClick={() => setArchSearch('')}
+                className={cx(
+                  'absolute top-1/2 right-3 -translate-y-1/2 border-none bg-transparent text-stone-400 dark:text-stone-500',
+                  PRESS_SM,
+                )}
+              >
+                <X className="size-4" />
+              </motion.button>
+            )}
+          </div>
+
+          {/* Store filter pills */}
+          {shopStores.length > 0 && (
+            <div className="mb-3 flex flex-wrap gap-1.5">
+              <Pill small active={archStoreF.length === 0} onClick={() => setArchStoreF([])}>
+                {tc('all')}
+              </Pill>
+              {shopStores.map((s) => {
+                const cnt = shopArchive.filter((a) => a.store === s.id).length;
+                return cnt ? (
+                  <Pill
+                    key={s.id}
+                    small
+                    active={archStoreF.includes(s.id)}
+                    onClick={() =>
+                      setArchStoreF((prev) => (prev.includes(s.id) ? prev.filter((x) => x !== s.id) : [...prev, s.id]))
+                    }
                   >
-                    <span>
-                      {it.name}
-                      {it.qty ? ' · ' + it.qty : ''}
-                    </span>
-                    {store && (
-                      <span className="text-xs text-stone-400 dark:text-stone-600">
-                        {store.icon} {store.name}
-                      </span>
-                    )}
-                  </div>
-                );
+                    {s.icon} {cnt}
+                  </Pill>
+                ) : null;
               })}
             </div>
-          ))}
+          )}
+
+          {/* Stats row */}
+          <div className="mb-3.5 grid grid-cols-4 gap-1.5">
+            {[
+              [t('total'), tot],
+              [t('trips'), trips],
+              [t('avgPerMonth'), months ? Math.round(tot / months) : 0],
+              [t('variety'), variety],
+            ].map(([l, v]) => (
+              <Card key={l} className="rounded-xl px-2 py-2.5 text-center">
+                <div className="text-[9px] font-semibold tracking-[1px] text-stone-400 uppercase dark:text-stone-500">
+                  {l}
+                </div>
+                <div className="mt-0.5 text-2xl font-extrabold text-stone-900 dark:text-stone-100">{v}</div>
+              </Card>
+            ))}
+          </div>
+
+          {/* View toggle */}
+          <div className="mb-3.5 flex gap-1.5">
+            <Pill small active={archView === 'date'} onClick={() => setArchView('date')}>
+              {t('byDate')}
+            </Pill>
+            <Pill small active={archView === 'store'} onClick={() => setArchView('store')}>
+              {t('byStore')}
+            </Pill>
+            <Pill small active={archView === 'item'} onClick={() => setArchView('item')}>
+              {t('byItem')}
+            </Pill>
+          </div>
+
+          {tot === 0 && <EmptyState icon="🧾">{shopArchiveLoading ? '' : t('historyEmpty')}</EmptyState>}
+
+          <ScreenEnter key={archView} initial={archViewReady.current ? undefined : false}>
+            {/* BY DATE */}
+            {archView === 'date' &&
+              Object.entries(byDate)
+                .sort((a, b) => b[0].localeCompare(a[0]))
+                .map(([k, { label, items: di }]) => (
+                  <div key={k} className="mb-4">
+                    <div className="mb-1.5 flex justify-between">
+                      <h3 className="text-sm font-bold text-stone-500 capitalize dark:text-stone-400">{label}</h3>
+                      <span className="text-xs font-semibold text-stone-400 dark:text-stone-600">{di.length}</span>
+                    </div>
+                    {di.map((it, i) => {
+                      const store = storeName(it.store);
+                      return (
+                        <div
+                          key={it.id + '-' + i}
+                          onClick={() => setReAddItem(it)}
+                          className={cx(
+                            'flex items-center gap-2.5 border-b border-dotted border-stone-300 px-0.5 py-2.25 last:border-b-0 dark:border-stone-700',
+                            ROW_PRESS,
+                          )}
+                        >
+                          <div className="min-w-0 flex-1 text-sm font-semibold text-stone-900 dark:text-stone-100">
+                            {it.name}
+                            {it.qty && (
+                              <span className="ml-2 text-xs text-stone-400 dark:text-stone-500">{it.qty}</span>
+                            )}
+                          </div>
+                          {store && (
+                            <span className="shrink-0 text-xs text-stone-400 dark:text-stone-600">{store.icon}</span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
+
+            {/* BY STORE */}
+            {archView === 'store' &&
+              Object.entries(byStore)
+                .sort((a, b) => b[1].length - a[1].length)
+                .map(([sid, si]) => {
+                  const store = storeName(sid);
+                  return (
+                    <div key={sid} className="mb-4">
+                      <div className="mb-1.5 flex justify-between">
+                        <h3 className="text-sm font-bold text-stone-700 dark:text-stone-300">
+                          {store ? `${store.icon} ${store.name}` : '—'}
+                        </h3>
+                        <span className="text-xs font-semibold text-stone-400 dark:text-stone-600">{si.length}</span>
+                      </div>
+                      <div className="mb-2 h-1.5 overflow-hidden rounded-xs bg-stone-200 dark:bg-stone-800">
+                        <div
+                          className="h-full rounded-xs bg-stone-400 dark:bg-stone-500"
+                          style={{ width: Math.min(100, (si.length / tot) * 300) + '%' }}
+                        />
+                      </div>
+                      {si.slice(0, 5).map((it, i) => (
+                        <div
+                          key={it.id + '-' + i}
+                          onClick={() => setReAddItem(it)}
+                          className={cx(
+                            'flex items-center gap-2.5 border-b border-dotted border-stone-200 px-0.5 py-1.75 last:border-b-0 dark:border-stone-800',
+                            ROW_PRESS,
+                          )}
+                        >
+                          <div className="flex-1 text-sm font-medium text-stone-900 dark:text-stone-100">{it.name}</div>
+                          <div className="text-xs text-stone-400 dark:text-stone-600">{it.qty}</div>
+                          <div className="text-xs text-stone-400 dark:text-stone-600">
+                            {format.dateTime(new Date(it.completed_at), 'dayShort')}
+                          </div>
+                        </div>
+                      ))}
+                      {si.length > 5 && (
+                        <div className="px-3 py-1 text-xs text-stone-400 dark:text-stone-600">
+                          {t('moreCount', { count: si.length - 5 })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+
+            {/* BY ITEM — most bought, monthly bars */}
+            {archView === 'item' &&
+              Object.entries(byItem)
+                .sort((a, b) => b[1].items.length - a[1].items.length)
+                .map(([name, { store: sid, items: ie }]) => {
+                  const store = storeName(sid);
+                  const mb = {};
+                  ie.forEach((e) => {
+                    const d = new Date(e.completed_at);
+                    const k = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+                    if (!mb[k]) mb[k] = { label: format.dateTime(d, 'monthShortYY'), count: 0 };
+                    mb[k].count++;
+                  });
+                  const mx = Math.max(...Object.values(mb).map((m) => m.count));
+                  return (
+                    <div key={name} className="mb-4" onClick={() => setReAddItem(ie[0])}>
+                      <div className={cx('mb-2 flex items-center gap-2 rounded-lg px-0.5', ROW_PRESS)}>
+                        <span className="text-xl">{store?.icon || '🛒'}</span>
+                        <div>
+                          <div className="text-sm font-bold text-stone-900 dark:text-stone-100">{name}</div>
+                          <div className="text-xs font-semibold text-stone-400 dark:text-stone-500">
+                            {t('timesBought', { count: ie.length })}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="mb-1 flex h-12.5 items-end gap-0.75 px-1">
+                        {Object.entries(mb)
+                          .sort((a, b) => a[0].localeCompare(b[0]))
+                          .map(([k, { count }]) => (
+                            <div key={k} className="flex flex-1 flex-col items-center gap-0.5">
+                              <div className="text-[10px] font-bold text-stone-400 dark:text-stone-500">{count}</div>
+                              <div
+                                className="w-full max-w-7 rounded-sm bg-stone-400 opacity-70 dark:bg-stone-500"
+                                style={{ height: Math.max(8, (count / mx) * 36) }}
+                              />
+                            </div>
+                          ))}
+                      </div>
+                      <div className="flex gap-0.75 px-1">
+                        {Object.entries(mb)
+                          .sort((a, b) => a[0].localeCompare(b[0]))
+                          .map(([k, { label }]) => (
+                            <div
+                              key={k}
+                              className="flex-1 text-center text-[9px] font-semibold text-stone-400 dark:text-stone-600"
+                            >
+                              {label}
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  );
+                })}
+          </ScreenEnter>
         </PageBody>
       </Screen>
     );

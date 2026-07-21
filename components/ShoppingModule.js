@@ -615,11 +615,19 @@ export default function ShoppingModule({
       if (archStoreF.length > 0 && !archStoreF.includes(a.store)) return false;
       return true;
     });
+    // An unparseable completed_at yields an Invalid Date; format.dateTime then
+    // throws (RangeError) and takes down the whole archive screen. Guard every
+    // date format so one bad row can't crash the page.
+    const fmtArch = (v, preset) => {
+      const d = new Date(v);
+      return isNaN(d.getTime()) ? '—' : format.dateTime(d, preset);
+    };
     const byDate = {};
     fa.forEach((a) => {
       const d = new Date(a.completed_at);
-      const k = localDateStr(d);
-      if (!byDate[k]) byDate[k] = { label: format.dateTime(d, 'fullDate'), items: [] };
+      const valid = !isNaN(d.getTime());
+      const k = valid ? localDateStr(d) : 'unknown';
+      if (!byDate[k]) byDate[k] = { label: valid ? format.dateTime(d, 'fullDate') : '—', items: [] };
       byDate[k].items.push(a);
     });
     const byStore = {};
@@ -820,7 +828,7 @@ export default function ShoppingModule({
                           <div className="flex-1 text-sm font-medium text-stone-900 dark:text-stone-100">{it.name}</div>
                           <div className="text-xs text-stone-400 dark:text-stone-600">{it.qty}</div>
                           <div className="text-xs text-stone-400 dark:text-stone-600">
-                            {format.dateTime(new Date(it.completed_at), 'dayShort')}
+                            {fmtArch(it.completed_at, 'dayShort')}
                           </div>
                         </div>
                       ))}
@@ -842,11 +850,12 @@ export default function ShoppingModule({
                   const mb = {};
                   ie.forEach((e) => {
                     const d = new Date(e.completed_at);
+                    if (isNaN(d.getTime())) return; // skip unparseable dates
                     const k = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
                     if (!mb[k]) mb[k] = { label: format.dateTime(d, 'monthShortYY'), count: 0 };
                     mb[k].count++;
                   });
-                  const mx = Math.max(...Object.values(mb).map((m) => m.count));
+                  const mx = Math.max(1, ...Object.values(mb).map((m) => m.count));
                   return (
                     <div key={name} className="mb-4" onClick={() => setReAddItem(ie[0])}>
                       <div className={cx('mb-2 flex items-center gap-2 rounded-lg px-0.5', ROW_PRESS)}>

@@ -608,6 +608,30 @@ export default function ShoppingModule({
     (i) => !i.checked,
   ).length;
 
+  // Persist a group's new order after a drag: reassign the group's own
+  // sort_order values (sorted asc) to the new sequence — global cross-group
+  // ordering and other groups stay untouched. Must stay ABOVE the archive
+  // early return — as a hook it has to run on every render (React error 300).
+  const persistGroupOrder = useCallback(
+    async (ordered) => {
+      let slots = ordered.map((i) => i.sort_order ?? 0).sort((a, b) => a - b);
+      // Duplicate/null sort_orders make the reassignment ambiguous and the
+      // global sort unstable — reindex the segment sequentially from its
+      // lowest slot instead (stays in the same range vs. other groups).
+      if (new Set(slots).size !== slots.length) {
+        slots = ordered.map((_, idx) => slots[0] + idx);
+      }
+      await Promise.all(
+        ordered
+          .map((item, idx) =>
+            (item.sort_order ?? 0) !== slots[idx] ? dbShopUpdate(item.id, { sort_order: slots[idx] }) : null,
+          )
+          .filter(Boolean),
+      );
+    },
+    [dbShopUpdate],
+  );
+
   // ─── ARCHIVE VIEW ───
   if (showShopArchive) {
     const fa = shopArchive.filter((a) => {
@@ -900,29 +924,6 @@ export default function ShoppingModule({
       </Screen>
     );
   }
-
-  // Persist a group's new order after a drag: reassign the group's own
-  // sort_order values (sorted asc) to the new sequence — global cross-group
-  // ordering and other groups stay untouched.
-  const persistGroupOrder = useCallback(
-    async (ordered) => {
-      let slots = ordered.map((i) => i.sort_order ?? 0).sort((a, b) => a - b);
-      // Duplicate/null sort_orders make the reassignment ambiguous and the
-      // global sort unstable — reindex the segment sequentially from its
-      // lowest slot instead (stays in the same range vs. other groups).
-      if (new Set(slots).size !== slots.length) {
-        slots = ordered.map((_, idx) => slots[0] + idx);
-      }
-      await Promise.all(
-        ordered
-          .map((item, idx) =>
-            (item.sort_order ?? 0) !== slots[idx] ? dbShopUpdate(item.id, { sort_order: slots[idx] }) : null,
-          )
-          .filter(Boolean),
-      );
-    },
-    [dbShopUpdate],
-  );
 
   // Shared props for the module-scope ShopItemRow.
   const rowProps = {

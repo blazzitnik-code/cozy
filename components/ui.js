@@ -518,7 +518,10 @@ export function Fab({ onClick, children, className, ...rest }) {
       onClick={onClick}
       aria-label={t('add')}
       className={cx(
-        'fixed right-5 bottom-[calc(88px+env(safe-area-inset-bottom))] z-50 flex h-14 w-14 cursor-pointer items-center justify-center rounded-full border-none bg-stone-900 text-white shadow-lg shadow-stone-950/25 dark:bg-stone-100 dark:text-stone-900 dark:shadow-black/40',
+        // Pin to the right edge of the centered 430px column (half = 215px), not
+        // the viewport edge — otherwise it floats far-right on desktop. Clamps to
+        // a 1.25rem inset on ≤430px screens, so mobile is unchanged.
+        'fixed right-[max(1.25rem,calc(50%_-_215px_+_1.25rem))] bottom-[calc(88px+env(safe-area-inset-bottom))] z-50 flex h-14 w-14 cursor-pointer items-center justify-center rounded-full border-none bg-stone-900 text-white shadow-lg shadow-stone-950/25 dark:bg-stone-100 dark:text-stone-900 dark:shadow-black/40',
         PRESS_SM,
         className,
       )}

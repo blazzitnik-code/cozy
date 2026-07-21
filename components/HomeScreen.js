@@ -12,7 +12,6 @@ import {
   IconButton,
   TickNum,
   Wordmark,
-  Avatar,
   Modal,
   ModalActions,
   ROW_PRESS,
@@ -31,22 +30,22 @@ function WeatherCard({ weather }) {
   const min = Math.round(weather.daily?.temperature_2m_min?.[0]);
   const precip = weather.daily?.precipitation_probability_max?.[0];
   return (
-    <Card className="mb-5 flex items-center gap-3 rounded-3xl p-5">
-      <div className="flex-1">
+    <Card className="mb-2.5 flex items-center justify-between rounded-2xl px-3.5 py-3">
+      <div>
         <div className="flex items-baseline gap-2">
-          <span className="font-serif text-4xl font-semibold tracking-tight text-stone-900 dark:text-stone-100">
+          <span className="font-serif text-2xl font-semibold tracking-tight text-stone-900 dark:text-stone-100">
             {temp}°
           </span>
           <span className="text-sm font-semibold text-stone-500 capitalize dark:text-stone-400">{tw(key)}</span>
         </div>
-        <div className="mt-1 text-xs font-semibold text-stone-400 dark:text-stone-500">
+        <div className="mt-0.5 text-xs font-semibold text-stone-400 dark:text-stone-500">
           {precip != null && (
             <span className="text-orange-600 dark:text-orange-400">{tw('precip', { p: precip })} · </span>
           )}
-          ↑ {max}° ↓ {min}°
+          H {max}° · L {min}°
         </div>
       </div>
-      <span className="text-5xl">{emoji}</span>
+      <span className="text-4xl">{emoji}</span>
     </Card>
   );
 }
@@ -64,7 +63,7 @@ function UpNextCard({ todayCalEvents, calConnected, navigate }) {
     return (
       <Card
         onClick={() => navigate('calendar')}
-        className="mb-5 flex items-center gap-3 rounded-2xl border-orange-500/20 bg-orange-500/5 px-4 py-3.5"
+        className="mb-2.5 flex items-center gap-3 rounded-2xl border-orange-500/20 bg-orange-500/5 px-4 py-3.5"
       >
         <span className="text-2xl">📅</span>
         <div className="min-w-0 flex-1">
@@ -90,12 +89,12 @@ function UpNextCard({ todayCalEvents, calConnected, navigate }) {
   const badge = h > 0 ? t('inHours', { h, m }) : t('inMinutes', { m });
 
   return (
-    <Card onClick={() => navigate('calendar')} className="mb-5 rounded-2xl border-orange-500/20 bg-orange-500/5 p-4">
+    <Card onClick={() => navigate('calendar')} className="mb-2.5 rounded-2xl border-orange-500/20 bg-orange-500/5 p-4">
       <div className="mb-1.5 flex items-center justify-between">
         <span className="text-[10px] font-bold tracking-[1px] text-orange-600 uppercase dark:text-orange-400">
           {t('upNext')}
         </span>
-        <span className="rounded-full bg-orange-500/15 px-2 py-0.5 text-[10px] font-bold text-orange-600 dark:text-orange-400">
+        <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-bold text-stone-500 dark:bg-stone-800 dark:text-stone-400">
           {badge}
         </span>
       </div>
@@ -121,14 +120,11 @@ function UpNextCard({ todayCalEvents, calConnected, navigate }) {
 // ─── COMPACT MODULE CARD (freezer / shopping stat) ───
 function ModuleStat({ icon, count, sub, subTone, onClick }) {
   return (
-    <Card onClick={onClick} className="flex items-center gap-3 rounded-2xl px-3.5 py-3">
-      <span className="text-2xl">{icon}</span>
+    <Card onClick={onClick} className="flex items-center gap-2.5 rounded-2xl px-3 py-2.5">
+      <span className="text-xl">{icon}</span>
       <div className="min-w-0">
-        <TickNum
-          value={count}
-          className="font-serif text-2xl font-semibold tracking-tight text-stone-900 dark:text-stone-100"
-        />
-        <div className={cx('truncate text-xs font-semibold', subTone)}>{sub}</div>
+        <TickNum value={count} className="text-lg font-bold text-stone-900 dark:text-stone-100" />
+        <div className={cx('truncate text-[10px] font-semibold', subTone)}>{sub}</div>
       </div>
     </Card>
   );
@@ -181,21 +177,15 @@ const NOTE_INPUT =
 function NoteRow({ note, onClick, last }) {
   const tb = useTranslations('Board');
   const rel = relativeDay(note.created_at);
+  const initial = (note.author_name || '?')[0].toUpperCase();
   return (
     <div
       onClick={onClick}
-      className={cx(
-        'flex items-start gap-2.5 py-2.5',
-        ROW_PRESS,
-        !last && 'border-b border-dotted border-stone-300 dark:border-stone-700',
-      )}
+      className={cx('py-2.5', ROW_PRESS, !last && 'border-b border-dotted border-stone-300 dark:border-stone-700')}
     >
-      <Avatar name={note.author_name} size={24} className="mt-0.5 text-xs" />
-      <div className="min-w-0 flex-1">
-        <div className="text-sm text-stone-900 dark:text-stone-100">{note.text}</div>
-        <div className="mt-0.5 text-[10px] text-stone-400 dark:text-stone-500">
-          {note.author_name} · {tb(rel.key, rel.params)}
-        </div>
+      <div className="text-sm text-stone-900 dark:text-stone-100">{note.text}</div>
+      <div className="mt-0.5 text-[10px] text-stone-400 dark:text-stone-500">
+        {initial} · {tb(rel.key, rel.params)}
       </div>
     </div>
   );
@@ -373,9 +363,9 @@ export default function HomeScreen({
     <Screen>
       <PageBody>
         {/* Header */}
-        <div className="mb-6 flex items-start justify-between pt-3">
+        <div className="mb-3.5 flex items-start justify-between pt-3">
           <div>
-            <Wordmark className="text-4xl" />
+            <Wordmark className="text-4xl text-orange-600 dark:text-orange-400" />
             <div className="mt-0.5 text-xs text-stone-500 capitalize dark:text-stone-400">{today}</div>
           </div>
           <IconButton onClick={onOpenSettings} aria-label={ta('settings')}>
@@ -389,11 +379,11 @@ export default function HomeScreen({
         {/* Up next (calendar) */}
         <UpNextCard todayCalEvents={todayCalEvents} calConnected={calConnected} navigate={navigate} />
 
-        {/* Home module: traffic, shortcuts, bus, bikes */}
+        {/* Home module: consolidated "Domov" ETA card */}
         <HomeModule settings={homeSettings} loading={homeSettingsLoading} saveSettings={saveHomeSettings} />
 
         {/* Compact module stats */}
-        <div className="mb-5 grid grid-cols-2 gap-2.5">
+        <div className="mb-2 grid grid-cols-2 gap-2">
           <ModuleStat
             icon="❄️"
             count={items.length}

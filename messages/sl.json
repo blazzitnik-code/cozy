@@ -309,6 +309,8 @@
     "connectCalendarHint": "Poglej svoje dogodke na domačem zaslonu"
   },
   "HomeModule": {
+    "home": "Domov",
+    "mapsShort": "Maps ›",
     "sectionTitle": "Promet & bližnjice",
     "setupTitle": "Nastavi promet & bližnjice",
     "setupDesc": "Avtobusi, navigacija, bližnjice do aplikacij",

@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslations } from 'next-intl';
-import { Pencil, RotateCw, X } from 'lucide-react';
+import { House, Pencil, RotateCw, X } from 'lucide-react';
 import { cx } from '@/lib/utils';
 import { motion } from 'motion/react';
 import {
@@ -34,7 +34,17 @@ const RM_BTN = cx(
   'flex h-10.5 w-10.5 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-red-500/10 text-red-600 dark:text-red-400',
   PRESS_SM,
 );
-const TILE = 'rounded-xl py-3 px-2 text-center';
+// One cell of the Domov ETA grid (car / bus / walk / bike). Inner tile on a
+// subtle secondary surface, matching the compact mock.
+function EtaTile({ emoji, value, sub, tone }) {
+  return (
+    <div className="rounded-xl bg-stone-50 px-1 py-2 text-center dark:bg-stone-950/60">
+      <div className="text-sm">{emoji}</div>
+      <div className={cx('text-sm leading-tight font-bold', tone || 'text-stone-900 dark:text-stone-100')}>{value}</div>
+      <div className="truncate text-[9px] text-stone-400 dark:text-stone-500">{sub || ' '}</div>
+    </div>
+  );
+}
 
 async function fetchLppStations() {
   try {
@@ -433,7 +443,6 @@ export default function HomeModule({ settings, loading, saveSettings }) {
   const shortcuts = settings?.shortcuts || [];
   const busStops = settings?.bus_stops || [];
   const bikeStations = settings?.bike_stations || [];
-  const gridCols = (n) => (n === 1 ? 'grid-cols-1' : n === 2 ? 'grid-cols-2' : 'grid-cols-3');
 
   // ─── EMPTY STATE ───
   if (!settings?.home_address) {
@@ -450,166 +459,118 @@ export default function HomeModule({ settings, loading, saveSettings }) {
     );
   }
 
-  // ─── MAIN DISPLAY ───
+  // ─── MAIN DISPLAY (consolidated "Domov" card) ───
+  // Car/walk are placeholders ("–") until a Routes API is wired; bus reads the
+  // first configured LPP stop's next arrival, bike the first BicikeLJ station.
+  const firstBus = busStops[0];
+  const busArr = firstBus ? (busData[firstBus.code] || [])[0] : null;
+  const busEtaMin = busArr
+    ? busArr.eta_seconds != null
+      ? Math.round(busArr.eta_seconds / 60)
+      : (busArr.eta_min ?? busArr.eta)
+    : null;
+  const busVal = busEtaMin != null ? t('minutes', { min: busEtaMin }) : '–';
+  const busSub = firstBus ? busArr?.route_name || busArr?.route_id || busArr?.line || firstBus.name : t('noData');
+
+  const firstBike = bikeStations[0];
+  const bike0 = firstBike ? bikeData[firstBike.number] : null;
+  const bikeVal = firstBike ? (bike0?.available_bikes ?? '?') : '–';
+  const bikeTone =
+    firstBike && bike0?.available_bikes === 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400';
+
   return (
-    <div className="mb-5">
-      <div className="mb-2.5 flex items-center justify-between">
-        <SectionHeader className={cx('mb-0', DIM_LABEL)}>{t('sectionTitle')}</SectionHeader>
-        <button
-          aria-label={ta('edit')}
-          onClick={() => setEditing(true)}
-          className={cx('cursor-pointer border-none bg-transparent p-1 text-stone-400 dark:text-stone-500', PRESS_SM)}
-        >
-          <Pencil className="size-4" />
-        </button>
-      </div>
+    <div className="mb-2.5">
+      <Card className="rounded-2xl px-3.5 py-3">
+        {/* Header: House + Domov + Maps + refresh + edit */}
+        <div className="mb-2.5 flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <House className="size-3.5 text-stone-900 dark:text-stone-100" />
+            <span className="text-sm font-bold text-stone-900 dark:text-stone-100">{t('home')}</span>
+          </div>
+          <div className="flex items-center gap-2.5">
+            <a
+              href={mapsTrafficLink(settings.home_address)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={cx('text-[11px] font-semibold text-orange-600 no-underline dark:text-orange-400', PRESS_SM)}
+            >
+              {t('mapsShort')}
+            </a>
+            {firstBus && (
+              <button
+                aria-label={ta('refresh')}
+                onClick={refreshBus}
+                className={cx(
+                  'cursor-pointer border-none bg-transparent p-0.5 text-stone-400 dark:text-stone-500',
+                  PRESS_SM,
+                )}
+              >
+                <RotateCw className={cx('size-3.5', busRefreshing && 'animate-spin motion-reduce:animate-none')} />
+              </button>
+            )}
+            <button
+              aria-label={ta('edit')}
+              onClick={() => setEditing(true)}
+              className={cx(
+                'cursor-pointer border-none bg-transparent p-0.5 text-stone-400 dark:text-stone-500',
+                PRESS_SM,
+              )}
+            >
+              <Pencil className="size-3.5" />
+            </button>
+          </div>
+        </div>
 
-      <div className="flex flex-col gap-2">
-        {/* Traffic → Google Maps */}
-        <a
-          href={mapsTrafficLink(settings.home_address)}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={cx('block no-underline', PRESS)}
-        >
-          <Card className="flex items-center gap-3 rounded-xl px-3.5 py-3">
-            <span className="text-2xl">🚦</span>
-            <div className="flex-1">
-              <div className="text-sm font-bold text-stone-900 dark:text-stone-100">{t('traffic')}</div>
-              <div className="text-xs text-stone-400 dark:text-stone-500">{t('viewInMaps')}</div>
-            </div>
-          </Card>
-        </a>
+        {/* 4-col ETA grid */}
+        <div className="grid grid-cols-4 gap-1.5">
+          <EtaTile emoji="🚗" value="–" />
+          <EtaTile emoji="🚌" value={busVal} sub={busSub} />
+          <EtaTile emoji="🚶" value="–" />
+          <EtaTile emoji="🚲" value={bikeVal} sub={firstBike?.name} tone={firstBike ? bikeTone : undefined} />
+        </div>
 
-        {/* Destinations grid */}
+        {/* Destinations (navigate links) */}
         {destinations.length > 0 && (
-          <div className={cx('grid gap-2', gridCols(destinations.length))}>
+          <div className="mt-1.5 grid grid-cols-2 gap-1.5">
             {destinations.map((dest, i) => (
               <a
                 key={i}
                 href={mapsNavLink(settings.home_address, dest.address)}
                 target="_blank"
                 rel="noopener noreferrer"
-                className={cx('block no-underline', PRESS)}
+                className={cx(
+                  'flex items-center gap-1.5 rounded-xl bg-stone-50 px-2.5 py-2 no-underline dark:bg-stone-950/60',
+                  ROW_PRESS,
+                )}
               >
-                <Card className={TILE}>
-                  <div className="mb-1 text-xl">📍</div>
-                  <div className="overflow-hidden text-xs font-bold text-ellipsis whitespace-nowrap text-stone-900 dark:text-stone-100">
-                    {dest.name}
-                  </div>
-                  <div className="mt-0.5 text-[10px] font-semibold text-orange-600 dark:text-orange-400">
-                    {t('navigate')}
-                  </div>
-                </Card>
+                <span className="text-sm">📍</span>
+                <span className="truncate text-xs font-bold text-stone-900 dark:text-stone-100">{dest.name}</span>
               </a>
             ))}
           </div>
         )}
 
-        {/* Shortcuts grid (always 2 cols except 1 = full width) */}
+        {/* Shortcuts */}
         {shortcuts.length > 0 && (
-          <div className={cx('grid gap-2', shortcuts.length === 1 ? 'grid-cols-1' : 'grid-cols-2')}>
+          <div className="mt-1.5 flex flex-col gap-px border-t border-dotted border-stone-300 pt-1.5 dark:border-stone-700">
             {shortcuts.map((s, i) => (
               <a
                 key={i}
                 href={s.url.startsWith('http') ? s.url : 'https://' + s.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className={cx('block no-underline', PRESS)}
+                className={cx('flex items-center gap-2 rounded-lg px-1.5 py-1.5 no-underline', ROW_PRESS)}
               >
-                <Card className={TILE}>
-                  <div className="mb-1 text-2xl">{s.emoji || '🔗'}</div>
-                  <div className="overflow-hidden text-xs font-bold text-ellipsis whitespace-nowrap text-stone-900 dark:text-stone-100">
-                    {s.name}
-                  </div>
-                </Card>
+                <span className="text-base">{s.emoji || '🔗'}</span>
+                <span className="flex-1 truncate text-xs font-semibold text-stone-700 dark:text-stone-300">
+                  {s.name}
+                </span>
+                <span className="text-[10px] text-stone-400 dark:text-stone-500">↗</span>
               </a>
             ))}
           </div>
         )}
-
-        {/* LPP bus arrivals */}
-        {busStops.map((stop, i) => {
-          const arrivals = busData[stop.code] || [];
-          return (
-            <Card key={i} className="rounded-xl px-3.5 py-3">
-              <div className={cx('flex items-center gap-2', arrivals.length > 0 && 'mb-2')}>
-                <span className="text-lg">🚌</span>
-                <div className="flex-1 text-sm font-bold text-stone-900 dark:text-stone-100">{stop.name}</div>
-                <button
-                  aria-label={ta('refresh')}
-                  onClick={refreshBus}
-                  className={cx(
-                    'cursor-pointer border-none bg-transparent p-1 text-sm text-stone-400 dark:text-stone-500',
-                    PRESS_SM,
-                  )}
-                >
-                  <RotateCw className={cx('size-4', busRefreshing && 'animate-spin motion-reduce:animate-none')} />
-                </button>
-              </div>
-              {arrivals.length === 0 ? (
-                <div className="text-xs text-stone-400 dark:text-stone-500">{t('noData')}</div>
-              ) : (
-                arrivals.slice(0, 3).map((arr, j) => {
-                  const eta = arr.eta_min ?? arr.eta ?? arr.eta_seconds;
-                  const etaMin = arr.eta_seconds != null ? Math.round(arr.eta_seconds / 60) : eta;
-                  return (
-                    <div
-                      key={j}
-                      className={cx(
-                        'flex items-center justify-between py-1 text-sm',
-                        j > 0 && 'border-t border-dotted border-stone-200 dark:border-stone-800',
-                      )}
-                    >
-                      <span className="font-bold text-stone-900 dark:text-stone-100">
-                        {arr.route_name || arr.route_id || arr.line || '—'}
-                      </span>
-                      <span
-                        className={cx(
-                          'font-semibold',
-                          etaMin <= 2 ? 'text-green-600 dark:text-green-400' : 'text-stone-400 dark:text-stone-500',
-                        )}
-                      >
-                        {etaMin <= 0 ? t('arriving') : t('minutes', { min: etaMin })}
-                      </span>
-                    </div>
-                  );
-                })
-              )}
-            </Card>
-          );
-        })}
-
-        {/* BicikeLJ */}
-        {bikeStations.length > 0 && (
-          <div className={cx('grid gap-2', gridCols(bikeStations.length))}>
-            {bikeStations.map((station, i) => {
-              const data = bikeData[station.number];
-              const available = data?.available_bikes ?? '?';
-              const stands = data?.available_bike_stands ?? '?';
-              return (
-                <Card key={i} className={TILE}>
-                  <div className="mb-1 text-lg">🚲</div>
-                  <div className="mb-0.5 overflow-hidden text-xs font-bold text-ellipsis whitespace-nowrap text-stone-900 dark:text-stone-100">
-                    {station.name}
-                  </div>
-                  <div
-                    className={cx(
-                      'text-2xl leading-none font-extrabold',
-                      available === 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400',
-                    )}
-                  >
-                    {available}
-                  </div>
-                  <div className="mt-0.5 text-[10px] text-stone-400 dark:text-stone-500">
-                    {typeof stands === 'number' ? t('stands', { count: stands }) : t('standsUnknown')}
-                  </div>
-                </Card>
-              );
-            })}
-          </div>
-        )}
-      </div>
+      </Card>
 
       <EditModal open={editing} settings={settings} onSave={handleSave} onClose={() => setEditing(false)} />
     </div>

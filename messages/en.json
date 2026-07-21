@@ -309,6 +309,8 @@
     "connectCalendarHint": "See your events on the home screen"
   },
   "HomeModule": {
+    "home": "Home",
+    "mapsShort": "Maps ›",
     "sectionTitle": "Traffic & shortcuts",
     "setupTitle": "Set up traffic & shortcuts",
     "setupDesc": "Buses, navigation, app shortcuts",

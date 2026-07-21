@@ -315,6 +315,7 @@ export default function FreezerModule({
   dbUpdateFreezer,
   dbDeleteFreezer,
   categories,
+  itemsLoading,
   onGoHome,
   onOpenSettings,
 }) {
@@ -980,7 +981,7 @@ export default function FreezerModule({
             </AnimatePresence>
           </div>
 
-          {filtered.length === 0 && (
+          {!itemsLoading && filtered.length === 0 && (
             <EmptyState icon={items.length === 0 ? '❄️' : '🔍'}>
               {items.length === 0 ? t('empty') : tc('noResults')}
             </EmptyState>

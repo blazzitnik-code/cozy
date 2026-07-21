@@ -174,6 +174,7 @@ export default function AppShell({ user, household, members, signOut }) {
   // ─── HOME EXTRAS (board notes + weather) ───
   const {
     notes: boardNotes,
+    loading: boardLoading,
     addNote: dbAddNote,
     updateNote: dbUpdateNote,
     markDone: dbMarkNoteDone,
@@ -374,9 +375,14 @@ export default function AppShell({ user, household, members, signOut }) {
   }, [calConnection?.expires_at, connectCalendar]);
 
   // ─── LOADING GATE (global categories are required for the app to work) ───
+  // Gate only on the global categories (a small, required table — the app is
+  // misconfigured without them, see seed.sql). Per-table fetches (freezer
+  // items, shopping, todos, calendar, board, weather) are NOT blocked here:
+  // Home and the other tabs render immediately and fill in progressively as
+  // each hook resolves, instead of the whole app waiting on one fetch.
   const hasCats = Object.keys(categories).length > 0;
 
-  if (itemsLoading || !hasCats) return <Loader />;
+  if (!hasCats) return <Loader />;
 
   // ─── SHELL CHROME (nav + settings + settings-confirm), rendered once per mode ───
   const chrome = (
@@ -423,6 +429,7 @@ export default function AppShell({ user, household, members, signOut }) {
           homeSettingsLoading={homeSettingsLoading}
           saveHomeSettings={saveHomeSettings}
           boardNotes={boardNotes}
+          boardLoading={boardLoading}
           addNote={dbAddNote}
           updateNote={dbUpdateNote}
           markNoteDone={dbMarkNoteDone}
@@ -492,6 +499,7 @@ export default function AppShell({ user, household, members, signOut }) {
       {mode === 'freezer' && (
         <FreezerModule
           items={items}
+          itemsLoading={itemsLoading}
           dbAddItem={dbAddItem}
           dbUpdateItem={dbUpdateItem}
           dbDeleteItem={dbDeleteItem}

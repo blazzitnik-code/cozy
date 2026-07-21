@@ -191,7 +191,7 @@ function NoteRow({ note, onClick, last }) {
   );
 }
 
-function BoardSection({ notes, addNote, updateNote, markNoteDone, authorName, userId }) {
+function BoardSection({ notes, loading, addNote, updateNote, markNoteDone, authorName, userId }) {
   const tb = useTranslations('Board');
   const tc = useTranslations('Common');
   const [showNew, setShowNew] = useState(false);
@@ -224,7 +224,9 @@ function BoardSection({ notes, addNote, updateNote, markNoteDone, authorName, us
 
       <Card className="px-3.5 py-1">
         {notes.length === 0 ? (
-          <div className="py-4 text-center text-xs text-stone-400 dark:text-stone-500">{tb('empty')}</div>
+          <div className="py-4 text-center text-xs text-stone-400 dark:text-stone-500">
+            {loading ? '' : tb('empty')}
+          </div>
         ) : (
           notes
             .slice(0, 3)
@@ -342,6 +344,7 @@ export default function HomeScreen({
   homeSettingsLoading,
   saveHomeSettings,
   boardNotes,
+  boardLoading,
   addNote,
   updateNote,
   markNoteDone,
@@ -430,6 +433,7 @@ export default function HomeScreen({
         {/* Deska */}
         <BoardSection
           notes={boardNotes}
+          loading={boardLoading}
           addNote={addNote}
           updateNote={updateNote}
           markNoteDone={markNoteDone}

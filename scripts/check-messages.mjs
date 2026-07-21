@@ -48,6 +48,10 @@ const params = {
   store: 'Spar',
   label: 'X',
   date: '1. 1. 2026',
+  p: 40,
+  n: 3,
+  h: 2,
+  m: 15,
 };
 const pluralCounts = [0, 1, 2, 3, 5, 101];
 const getValue = (obj, key) => key.split('.').reduce((o, k) => (o == null ? undefined : o[k]), obj);

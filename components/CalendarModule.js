@@ -34,6 +34,7 @@ export default function CalendarModule({
   allCalEvents,
   updateCalEvent,
   onOpenSettings,
+  onGoHome,
 }) {
   const [calEventDetail, setCalEventDetail] = useState(null);
   // Suppresses the hour grid's own entrance when it mounts together with the
@@ -42,6 +43,7 @@ export default function CalendarModule({
   const t = useTranslations('Calendar');
   const tc = useTranslations('Common');
   const ta = useTranslations('A11y');
+  const tMod = useTranslations('Modules');
   const format = useFormatter();
   const fmtTime = (d) => format.dateTime(new Date(d), 'time');
   // Two-letter day-of-week strip labels (no CLDR equivalent — kept in messages)
@@ -123,14 +125,17 @@ export default function CalendarModule({
   return (
     <Screen>
       <PageBody>
-        {/* Header */}
+        {/* Header — title taps home (consistent across modules) */}
         <div className="mb-4 flex items-center justify-between pt-3">
-          <div>
-            <h1 className="font-serif text-3xl font-semibold tracking-tight">{t('title')}</h1>
+          <button onClick={onGoHome} className={cx('border-none bg-transparent p-0 text-left', PRESS_SM)}>
+            <span className="flex items-center gap-2 font-serif text-3xl font-semibold tracking-tight">
+              {tMod('calendar')}
+              <span className="text-2xl">📅</span>
+            </span>
             <div className="mt-0.5 text-xs text-stone-500 capitalize dark:text-stone-400">
               {format.dateTime(stripCenter, 'monthYear')}
             </div>
-          </div>
+          </button>
           <IconButton onClick={onOpenSettings} aria-label={ta('settings')}>
             <Settings className="size-4.5" />
           </IconButton>

@@ -754,24 +754,32 @@ export function Toaster() {
   );
 }
 
-// ─── LOGO / MODE TOGGLE (freezer ↔ shopping) ───
-export function LogoToggle({ mode, onToggle }) {
-  const t = useTranslations('Nav');
+// ─── MODULE HEADER ───
+// Shared top bar for every module screen: tappable title (+ data emoji) that
+// navigates home, and caller-supplied action buttons (archive, settings) on
+// the right. Replaces the old freezer↔shopping LogoToggle — the title is a
+// home affordance now, consistent across Zmrzko/Trgovko/Koledarko/Listko.
+export function ModuleHeader({ title, emoji, onHome, children }) {
   return (
-    <button onClick={onToggle} className={cx('border-none bg-transparent p-0 text-left', PRESS_SM)}>
-      <span className="font-serif text-3xl font-semibold tracking-tight text-stone-900 dark:text-stone-100">
-        {mode === 'freezer' ? 'ZMRZK' : 'TRGOVK'}
-        <span className="text-2xl">{mode === 'freezer' ? '❄️' : '🛒'}</span>
-      </span>
-      <div className="mt-0.5 text-left text-[10px] text-stone-400 dark:text-stone-600">
-        {mode === 'freezer' ? t('tapForShopping') : t('tapForFreezer')}
-      </div>
-    </button>
+    <div className="mb-6 flex items-center justify-between pt-3">
+      <button
+        onClick={onHome}
+        className={cx('flex items-center gap-2 border-none bg-transparent p-0 text-left', PRESS_SM)}
+      >
+        <span className="font-serif text-3xl font-semibold tracking-tight text-stone-900 dark:text-stone-100">
+          {title}
+        </span>
+        {emoji && <span className="text-2xl">{emoji}</span>}
+      </button>
+      <div className="flex items-center gap-2">{children}</div>
+    </div>
   );
 }
 
 // ─── BOTTOM NAV ───
-// Tab names live in the Nav.* messages (rendered as aria-labels — the bar is icon-only).
+// Hybrid style: inactive tabs are Lucide line icons; the active tab is a glossy
+// orange squircle (gradient + white glass-shine overlay, white icon). Labels
+// live in Nav.* — shown under each icon (8-9px uppercase, active orange).
 const NAV_TABS = [
   { id: 'home', Icon: House },
   { id: 'freezer', Icon: Snowflake },
@@ -780,36 +788,55 @@ const NAV_TABS = [
   { id: 'todo', Icon: ListChecks },
 ];
 
+// Active-tab chip: gradient squircle + glass shine. Deliberate, scoped accent
+// (the one gradient in the app) — stock orange palette, no hardcoded hex.
+function GlossyTab({ Icon }) {
+  return (
+    <motion.span
+      layoutId="nav-chip"
+      transition={SPRING_FAST}
+      className="relative flex size-8.5 items-center justify-center overflow-hidden rounded-[10px] bg-linear-to-b from-orange-400 to-orange-600 shadow-md shadow-orange-600/30"
+    >
+      <span aria-hidden className="absolute inset-x-0 top-0 h-1/2 bg-linear-to-b from-white/55 to-white/5" />
+      <Icon className="relative size-5 text-white" strokeWidth={2.2} />
+    </motion.span>
+  );
+}
+
 export function BottomNav({ mode, onNavigate }) {
   const t = useTranslations('Nav');
   return (
     <div className="fixed bottom-0 left-1/2 z-80 flex w-full max-w-[430px] -translate-x-1/2 border-t border-stone-200 bg-stone-50/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-lg dark:border-white/10 dark:bg-stone-950/95">
-      {NAV_TABS.map((tab) => (
-        <button
-          key={tab.id}
-          onClick={() => onNavigate(tab.id)}
-          aria-label={t(tab.id)}
-          className={cx(
-            'flex flex-1 cursor-pointer flex-col items-center justify-center gap-1 border-none bg-transparent px-1 pt-3 pb-2',
-            PRESS_SM,
-            mode === tab.id ? 'text-stone-900 dark:text-stone-100' : 'text-stone-400 dark:text-stone-600',
-          )}
-        >
-          <tab.Icon className="size-5.5" strokeWidth={mode === tab.id ? 2.2 : 1.8} />
-          {/* Shared-layout dot slides between tabs (BottomNav stays mounted
-              across mode switches — see AppShell's single return) */}
-          {mode === tab.id ? (
-            <motion.span
-              layoutId="nav-dot"
-              transition={SPRING_FAST}
-              aria-hidden
-              className="h-1 w-1 rounded-full bg-orange-500"
-            />
-          ) : (
-            <span aria-hidden className="h-1 w-1" />
-          )}
-        </button>
-      ))}
+      {NAV_TABS.map((tab) => {
+        const active = mode === tab.id;
+        return (
+          <button
+            key={tab.id}
+            onClick={() => onNavigate(tab.id)}
+            aria-label={t(tab.id)}
+            className={cx(
+              'flex flex-1 cursor-pointer flex-col items-center justify-center gap-1 border-none bg-transparent px-1 pt-2.5 pb-2',
+              PRESS_SM,
+            )}
+          >
+            {active ? (
+              <GlossyTab Icon={tab.Icon} />
+            ) : (
+              <span className="flex size-8.5 items-center justify-center">
+                <tab.Icon className="size-5.5 text-stone-400 dark:text-stone-500" strokeWidth={1.8} />
+              </span>
+            )}
+            <span
+              className={cx(
+                'text-[9px] font-bold tracking-[0.5px] uppercase',
+                active ? 'text-orange-600 dark:text-orange-400' : 'text-stone-400 dark:text-stone-500',
+              )}
+            >
+              {t(tab.id)}
+            </span>
+          </button>
+        );
+      })}
     </div>
   );
 }

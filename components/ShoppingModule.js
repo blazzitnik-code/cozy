@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { AnimatePresence, motion, Reorder, useDragControls } from 'motion/react';
 import { useTranslations, useFormatter, useLocale } from 'next-intl';
-import { Ellipsis, GripVertical, Pencil, Plus, Receipt, Settings, Star, Trash2 } from 'lucide-react';
+import { Ellipsis, GripVertical, History, Pencil, Plus, Settings, Star, Trash2 } from 'lucide-react';
 import { SHOP_SUGG } from '@/lib/constants';
 import { cx } from '@/lib/utils';
 import {
@@ -11,7 +11,7 @@ import {
   Btn,
   Modal,
   ConfirmModal,
-  LogoToggle,
+  ModuleHeader,
   Input,
   Label,
   IconButton,
@@ -205,12 +205,13 @@ export default function ShoppingModule({
   dbAddStore,
   dbUpdateStore,
   dbDeleteStore,
-  onToggleMode,
+  onGoHome,
   onOpenSettings,
 }) {
   const t = useTranslations('Shopping');
   const tc = useTranslations('Common');
   const ta = useTranslations('A11y');
+  const tMod = useTranslations('Modules');
   const format = useFormatter();
   const locale = useLocale();
   const shopSuggList = SHOP_SUGG[locale] ?? SHOP_SUGG.sl;
@@ -487,17 +488,14 @@ export default function ShoppingModule({
     <Screen>
       <PageBody key="shop-home">
         {/* Header */}
-        <div className="mb-3.5 flex items-start justify-between pt-3">
-          <LogoToggle mode="shopping" onToggle={onToggleMode} />
-          <div className="flex items-center gap-2">
-            <IconButton onClick={() => setShowShopArchive(true)} aria-label={ta('history')}>
-              <Receipt className="size-4.5" />
-            </IconButton>
-            <IconButton onClick={onOpenSettings} aria-label={ta('settings')}>
-              <Settings className="size-4.5" />
-            </IconButton>
-          </div>
-        </div>
+        <ModuleHeader title={tMod('shopping')} emoji="🛒" onHome={onGoHome}>
+          <IconButton onClick={() => setShowShopArchive(true)} aria-label={ta('history')}>
+            <History className="size-4.5" />
+          </IconButton>
+          <IconButton onClick={onOpenSettings} aria-label={ta('settings')}>
+            <Settings className="size-4.5" />
+          </IconButton>
+        </ModuleHeader>
 
         {/* Store tabs — scrollable row + pinned ··· button */}
         <div className="relative mb-3.5">

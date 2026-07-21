@@ -69,12 +69,39 @@
   },
   "Nav": {
     "home": "Home",
-    "freezer": "Freezer",
-    "shopping": "Shopping",
-    "calendar": "Calendar",
-    "todo": "To-do",
-    "tapForShopping": "Tap for shopping list",
-    "tapForFreezer": "Tap for freezer"
+    "freezer": "Freezy",
+    "shopping": "Shopzy",
+    "calendar": "Calzy",
+    "todo": "Taskzy"
+  },
+  "Modules": {
+    "freezer": "Freezy",
+    "shopping": "Shopzy",
+    "calendar": "Calzy",
+    "todo": "Taskzy"
+  },
+  "Weather": {
+    "clear": "clear",
+    "partlyCloudy": "partly cloudy",
+    "fog": "fog",
+    "rain": "rain",
+    "snow": "snow",
+    "showers": "showers",
+    "storm": "storm",
+    "precip": "☔ {p}%"
+  },
+  "Board": {
+    "title": "📌 Board",
+    "new": "+ New",
+    "more": "More ›",
+    "empty": "No notes yet — add the first!",
+    "placeholder": "Write a note...",
+    "markDone": "Done",
+    "edit": "Edit",
+    "today": "today",
+    "yesterday": "yesterday",
+    "daysAgo": "{n} days ago",
+    "allNotes": "All notes"
   },
   "Settings": {
     "signedInAs": "Signed in as {name}",
@@ -85,6 +112,9 @@
     "members": "Members",
     "owner": "Owner",
     "member": "Member",
+    "editMember": "Edit member",
+    "birthday": "Birthday",
+    "color": "Colour",
     "you": "You",
     "removeMember": "Remove {name} from the household?",
     "memberFallback": "this member",
@@ -266,11 +296,17 @@
     "allBought": "All bought ✓",
     "today": "Today",
     "allDay": "All day",
-    "todos": "To-dos",
+    "todos": "Taskzy",
     "comingSoon": "Coming soon",
     "soon": "Soon",
     "mealPlan": "Meal plan",
-    "mealPlanDesc": "Weekly meal plan & recipes"
+    "mealPlanDesc": "Weekly meal plan & recipes",
+    "upNext": "UP NEXT",
+    "viewAll": "All ›",
+    "inHours": "in {h}h {m}m",
+    "inMinutes": "in {m}m",
+    "connectCalendar": "Connect calendar",
+    "connectCalendarHint": "See your events on the home screen"
   },
   "HomeModule": {
     "sectionTitle": "Traffic & shortcuts",

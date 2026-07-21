@@ -70,11 +70,38 @@
   "Nav": {
     "home": "Dom",
     "freezer": "Zmrzko",
-    "shopping": "Nakupi",
-    "calendar": "Koledar",
-    "todo": "Opravila",
-    "tapForShopping": "Tapni za nakupovalni seznam",
-    "tapForFreezer": "Tapni za zamrzovalnik"
+    "shopping": "Trgovko",
+    "calendar": "Koledarko",
+    "todo": "Listko"
+  },
+  "Modules": {
+    "freezer": "Zmrzko",
+    "shopping": "Trgovko",
+    "calendar": "Koledarko",
+    "todo": "Listko"
+  },
+  "Weather": {
+    "clear": "jasno",
+    "partlyCloudy": "delno oblačno",
+    "fog": "megla",
+    "rain": "dež",
+    "snow": "sneg",
+    "showers": "plohe",
+    "storm": "nevihta",
+    "precip": "☔ {p}%"
+  },
+  "Board": {
+    "title": "📌 Deska",
+    "new": "+ Nova",
+    "more": "Več ›",
+    "empty": "Ni notic — dodaj prvo!",
+    "placeholder": "Napiši notico...",
+    "markDone": "Opravljeno",
+    "edit": "Uredi",
+    "today": "danes",
+    "yesterday": "včeraj",
+    "daysAgo": "pred {n} dnevi",
+    "allNotes": "Vse notice"
   },
   "Settings": {
     "signedInAs": "Prijavljen kot {name}",
@@ -85,6 +112,9 @@
     "members": "Člani",
     "owner": "Lastnik",
     "member": "Član",
+    "editMember": "Uredi člana",
+    "birthday": "Rojstni dan",
+    "color": "Barva",
     "you": "Ti",
     "removeMember": "Odstrani {name} iz gospodinjstva?",
     "memberFallback": "člana",
@@ -266,11 +296,17 @@
     "allBought": "Vse kupljeno ✓",
     "today": "Danes",
     "allDay": "Ves dan",
-    "todos": "Opravila",
+    "todos": "Listko",
     "comingSoon": "Prihaja kmalu",
     "soon": "Kmalu",
     "mealPlan": "Jedilnik",
-    "mealPlanDesc": "Tedenski jedilnik & recepti"
+    "mealPlanDesc": "Tedenski jedilnik & recepti",
+    "upNext": "SLEDI",
+    "viewAll": "Vse ›",
+    "inHours": "čez {h}h {m}m",
+    "inMinutes": "čez {m}m",
+    "connectCalendar": "Poveži koledar",
+    "connectCalendarHint": "Poglej svoje dogodke na domačem zaslonu"
   },
   "HomeModule": {
     "sectionTitle": "Promet & bližnjice",

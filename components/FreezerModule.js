@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useTranslations, useFormatter, useLocale } from 'next-intl';
-import { Archive, ChevronDown, Minus, Plus, Search, Settings, SlidersHorizontal, Trash2, X } from 'lucide-react';
+import { ChevronDown, History, Minus, Plus, Search, Settings, SlidersHorizontal, Trash2, X } from 'lucide-react';
 import { useCatLabel, useExpiryText } from '@/lib/intl';
 import { normalizujNiz } from '@/lib/hooks';
 import { CATS, SUGG, FICONS, QO } from '@/lib/constants';
@@ -18,7 +18,7 @@ import {
   ConfirmModal,
   ModalActions,
   SwipeCard,
-  LogoToggle,
+  ModuleHeader,
   Input,
   Label,
   IconButton,
@@ -32,8 +32,6 @@ import {
   LIST_ROW,
   SPRING_FAST,
   POP,
-  CHIP_IN,
-  COLLAPSE,
   PRESS,
   PRESS_SM,
   ROW_PRESS,
@@ -290,12 +288,13 @@ export default function FreezerModule({
   freezers,
   dbAddFreezer,
   categories,
-  onToggleMode,
+  onGoHome,
   onOpenSettings,
 }) {
   const t = useTranslations('Freezer');
   const tc = useTranslations('Common');
   const ta = useTranslations('A11y');
+  const tMod = useTranslations('Modules');
   const locale = useLocale();
   const format = useFormatter();
   const catLabel = useCatLabel();
@@ -307,7 +306,6 @@ export default function FreezerModule({
   const [screen, setScreen] = useState('home');
   const [search, setSearch] = useState('');
   const [filterCat, setFilterCat] = useState([]);
-  const [filterStatus, setFilterStatus] = useState(null);
   const [showCatFilter, setShowCatFilter] = useState(false);
   const [selFrzs, setSelFrzs] = useState([]);
   const [showDetail, setShowDetail] = useState(null);
@@ -376,13 +374,9 @@ export default function FreezerModule({
   // ─── FREEZER LOGIC ───
   const allF = selFrzs.length === 0;
   const vis = allF ? items : items.filter((i) => selFrzs.includes(i.freezer));
-  const expC = vis.filter((i) => getSt(i) === 'expired').length;
-  const warnC = vis.filter((i) => getSt(i) === 'warning').length;
   const filtered = vis
     .filter((i) => {
       if (filterCat.length > 0 && !filterCat.includes(i.cat)) return false;
-      if (filterStatus === 'expired' && getSt(i) !== 'expired') return false;
-      if (filterStatus === 'warning' && getSt(i) !== 'warning') return false;
       if (
         search &&
         !normalizujNiz(i.name).includes(normalizujNiz(search)) &&
@@ -775,77 +769,22 @@ export default function FreezerModule({
     return (
       <Screen>
         <PageBody key="frz-home">
-          <div className="mb-3.5 flex items-start justify-between pt-3">
-            <LogoToggle mode="freezer" onToggle={onToggleMode} />
-            <div className="flex items-center gap-2">
-              <FreezerDD freezers={freezers} selected={selFrzs} onChange={setSelFrzs} onAdd={dbAddFreezer} />
-              <IconButton
-                aria-label={ta('archive')}
-                onClick={() => {
-                  setShowArchive(true);
-                  setArchSearch('');
-                  setArchCatF([]);
-                }}
-              >
-                <Archive className="size-4.5" />
-              </IconButton>
-              <IconButton onClick={onOpenSettings} aria-label={ta('settings')}>
-                <Settings className="size-4.5" />
-              </IconButton>
-            </div>
-          </div>
-
-          <AnimatePresence initial={false}>
-            {(expC > 0 || warnC > 0) && (
-              <motion.div key="statusChips" {...COLLAPSE} className="overflow-hidden">
-                <div className="mb-3 flex flex-wrap gap-1.5">
-                  {expC > 0 && (
-                    <motion.button
-                      {...CHIP_IN}
-                      onClick={() => setFilterStatus(filterStatus === 'expired' ? null : 'expired')}
-                      className={cx(
-                        'rounded-full border px-3 py-1.5 text-xs font-bold text-red-600 dark:text-red-400',
-                        PRESS_SM,
-                        filterStatus === 'expired'
-                          ? 'border-red-500/60 bg-red-500/25'
-                          : 'border-red-500/25 bg-red-500/12',
-                      )}
-                    >
-                      {t('expiredCount', { count: expC })}
-                    </motion.button>
-                  )}
-                  {warnC > 0 && (
-                    <motion.button
-                      {...CHIP_IN}
-                      onClick={() => setFilterStatus(filterStatus === 'warning' ? null : 'warning')}
-                      className={cx(
-                        'rounded-full border px-3 py-1.5 text-xs font-bold text-amber-600 dark:text-amber-400',
-                        PRESS_SM,
-                        filterStatus === 'warning'
-                          ? 'border-amber-500/50 bg-amber-500/20'
-                          : 'border-amber-500/20 bg-amber-500/10',
-                      )}
-                    >
-                      {t('soonCount', { count: warnC })}
-                    </motion.button>
-                  )}
-                  {filterStatus && (
-                    <motion.button
-                      {...CHIP_IN}
-                      aria-label={ta('clearFilter')}
-                      onClick={() => setFilterStatus(null)}
-                      className={cx(
-                        'rounded-full border border-stone-300 bg-transparent px-3 py-1.5 text-xs font-semibold text-stone-500 dark:border-stone-700 dark:text-stone-400',
-                        PRESS_SM,
-                      )}
-                    >
-                      <X className="size-3.5" />
-                    </motion.button>
-                  )}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          <ModuleHeader title={tMod('freezer')} emoji="❄️" onHome={onGoHome}>
+            <FreezerDD freezers={freezers} selected={selFrzs} onChange={setSelFrzs} onAdd={dbAddFreezer} />
+            <IconButton
+              aria-label={ta('archive')}
+              onClick={() => {
+                setShowArchive(true);
+                setArchSearch('');
+                setArchCatF([]);
+              }}
+            >
+              <History className="size-4.5" />
+            </IconButton>
+            <IconButton onClick={onOpenSettings} aria-label={ta('settings')}>
+              <Settings className="size-4.5" />
+            </IconButton>
+          </ModuleHeader>
 
           <div className={cx('flex gap-2', showCatFilter ? 'mb-2' : 'mb-3')}>
             <div className="relative flex-1">

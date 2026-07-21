@@ -2,7 +2,7 @@
 import { useState, useRef } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useTranslations, useFormatter } from 'next-intl';
-import { Archive, Check, Pencil, Plus, X } from 'lucide-react';
+import { Check, History, Pencil, Plus, Settings, X } from 'lucide-react';
 import { cx, dueTone, localDateFromStr, DUE_TEXT, DUE_BAR, DUE_BADGE } from '@/lib/utils';
 import {
   Screen,
@@ -15,6 +15,7 @@ import {
   SectionHeader,
   BackBtn,
   ModalActions,
+  ModuleHeader,
   IconButton,
   EmptyState,
   POPOVER,
@@ -47,9 +48,12 @@ export default function TodoApp({
   updateItem,
   deleteItem,
   toggleItem,
+  onOpenSettings,
+  onGoHome,
 }) {
   const t = useTranslations('Todo');
   const ta = useTranslations('A11y');
+  const tMod = useTranslations('Modules');
   const format = useFormatter();
 
   const [screen, setScreen] = useState('home'); // 'home' | 'list' | 'archive' | 'archivedList'
@@ -202,12 +206,14 @@ export default function TodoApp({
   return (
     <Screen>
       <PageBody key="todo-home">
-        <div className="mb-6 flex items-center justify-between">
-          <h1 className="font-serif text-3xl font-semibold tracking-tight">{t('title')}</h1>
+        <ModuleHeader title={tMod('todo')} emoji="✅" onHome={onGoHome}>
           <IconButton onClick={() => setScreen('archive')} aria-label={ta('archive')}>
-            <Archive className="size-4.5" />
+            <History className="size-4.5" />
           </IconButton>
-        </div>
+          <IconButton onClick={onOpenSettings} aria-label={ta('settings')}>
+            <Settings className="size-4.5" />
+          </IconButton>
+        </ModuleHeader>
 
         {lists.length === 0 ? (
           // Cold start only: while the first fetch runs, render nothing so

@@ -15,6 +15,8 @@ import {
   useTodoItems,
   useHomeSettings,
   usePushSubscription,
+  useBoardNotes,
+  useWeather,
 } from '@/lib/hooks';
 import { useTranslations } from 'next-intl';
 import { useLocaleSwitch } from './IntlProvider';
@@ -22,7 +24,21 @@ import { rpcErrorKey } from '@/lib/intl';
 import { supabase } from '@/lib/supabase';
 import { cx, localDateStr } from '@/lib/utils';
 import { X } from 'lucide-react';
-import { Modal, ConfirmModal, BottomNav, Toaster, Loader, Segmented, Avatar, PRESS, PRESS_SM, ROW_FLAT } from './ui';
+import {
+  Modal,
+  ConfirmModal,
+  BottomNav,
+  Toaster,
+  Loader,
+  Segmented,
+  Avatar,
+  Input,
+  Label,
+  ModalActions,
+  PRESS,
+  PRESS_SM,
+  ROW_FLAT,
+} from './ui';
 import { notifyError } from '@/lib/notify';
 import TodoApp from './TodoApp';
 import HomeScreen from './HomeScreen';
@@ -37,6 +53,20 @@ import CalendarModule from './CalendarModule';
 // Language lives in IntlProvider (next-intl); modules read it via hooks.
 // ═══════════════════════════
 const VALID_TABS = ['home', 'freezer', 'shopping', 'calendar', 'todo'];
+
+// Member accent colours — stored as a token string in household_members.color
+// (class names, not hex, to stay clear of the no-raw-hex audit).
+const MEMBER_COLORS = [
+  { t: 'indigo', c: 'bg-indigo-500' },
+  { t: 'pink', c: 'bg-pink-500' },
+  { t: 'emerald', c: 'bg-emerald-500' },
+  { t: 'amber', c: 'bg-amber-500' },
+  { t: 'sky', c: 'bg-sky-500' },
+  { t: 'violet', c: 'bg-violet-500' },
+  { t: 'rose', c: 'bg-rose-500' },
+  { t: 'teal', c: 'bg-teal-500' },
+];
+const memberColorClass = (token) => MEMBER_COLORS.find((x) => x.t === token)?.c;
 
 export default function AppShell({ user, household, members, signOut }) {
   const householdId = household?.id;
@@ -135,6 +165,15 @@ export default function AppShell({ user, household, members, signOut }) {
     loading: homeSettingsLoading,
     saveSettings: saveHomeSettings,
   } = useHomeSettings(householdId, user.id);
+
+  // ─── HOME EXTRAS (board notes + weather) ───
+  const {
+    notes: boardNotes,
+    addNote: dbAddNote,
+    updateNote: dbUpdateNote,
+    markDone: dbMarkNoteDone,
+  } = useBoardNotes(householdId);
+  const weather = useWeather(); // Ljubljana default; coords hardcoded for now
 
   // ─── WEB PUSH ───
   // locale is needed here (not just in SettingsModal) because the
@@ -368,6 +407,7 @@ export default function AppShell({ user, household, members, signOut }) {
       {mode === 'home' && (
         <HomeScreen
           user={user}
+          members={members}
           items={items}
           shopItems={shopItems}
           todoLists={todoLists}
@@ -377,6 +417,11 @@ export default function AppShell({ user, household, members, signOut }) {
           homeSettings={homeSettings}
           homeSettingsLoading={homeSettingsLoading}
           saveHomeSettings={saveHomeSettings}
+          boardNotes={boardNotes}
+          addNote={dbAddNote}
+          updateNote={dbUpdateNote}
+          markNoteDone={dbMarkNoteDone}
+          weather={weather}
           navigate={navigate}
           onOpenSettings={openSettings}
         />
@@ -395,6 +440,7 @@ export default function AppShell({ user, household, members, signOut }) {
           allCalEvents={allCalEvents}
           updateCalEvent={updateCalEvent}
           onOpenSettings={openSettings}
+          onGoHome={() => navigate('home')}
         />
       )}
       {mode === 'todo' && (
@@ -414,6 +460,8 @@ export default function AppShell({ user, household, members, signOut }) {
           updateItem={dbUpdateTodoItem}
           deleteItem={dbDeleteTodoItem}
           toggleItem={dbToggleTodoItem}
+          onOpenSettings={openSettings}
+          onGoHome={() => navigate('home')}
         />
       )}
       {mode === 'shopping' && (
@@ -432,7 +480,7 @@ export default function AppShell({ user, household, members, signOut }) {
           dbAddStore={dbAddStore}
           dbUpdateStore={dbUpdateStore}
           dbDeleteStore={dbDeleteStore}
-          onToggleMode={() => setMode('freezer')}
+          onGoHome={() => navigate('home')}
           onOpenSettings={openSettings}
         />
       )}
@@ -450,7 +498,7 @@ export default function AppShell({ user, household, members, signOut }) {
           freezers={freezers}
           dbAddFreezer={dbAddFreezer}
           categories={categories}
-          onToggleMode={() => setMode('shopping')}
+          onGoHome={() => navigate('home')}
           onOpenSettings={openSettings}
         />
       )}
@@ -482,6 +530,28 @@ function SettingsBody({
   const tc = useTranslations('Common');
   const ta = useTranslations('A11y');
   const { locale, switchLocale } = useLocaleSwitch();
+
+  // Member profile (birthday + colour). members is a prop that doesn't refetch
+  // here, so saved values are mirrored into a local overlay for instant feedback.
+  const [editMember, setEditMember] = useState(null);
+  const [mBirthday, setMBirthday] = useState('');
+  const [mColor, setMColor] = useState('');
+  const [overrides, setOverrides] = useState({});
+  const openMember = (m) => {
+    const o = overrides[m.id] || {};
+    setEditMember(m);
+    setMBirthday(o.birthday ?? m.birthday ?? '');
+    setMColor(o.color ?? m.color ?? '');
+  };
+  const saveMember = async () => {
+    const patch = { birthday: mBirthday || null, color: mColor || null };
+    setOverrides((prev) => ({ ...prev, [editMember.id]: patch }));
+    setEditMember(null);
+    const { error } = await supabase.from('household_members').update(patch).eq('id', editMember.id);
+    if (error) notifyError('Errors.settingsSaveFailed');
+  };
+  const memberColor = (m) => overrides[m.id]?.color ?? m.color;
+
   return (
     <>
       <div className="mb-5 text-center">
@@ -532,15 +602,31 @@ function SettingsBody({
         </div>
         {members.map((m) => (
           <div key={m.id} className={ROW_FLAT}>
-            <Avatar name={m.display_name} />
-            <div className="flex-1">
-              <div className="text-sm font-semibold text-stone-900 dark:text-stone-100">
-                {m.display_name || tc('user')}
+            <button
+              onClick={() => openMember(m)}
+              aria-label={t('editMember')}
+              className={cx('flex flex-1 items-center gap-3 border-none bg-transparent p-0 text-left', PRESS_SM)}
+            >
+              <div className="relative">
+                <Avatar name={m.display_name} />
+                {memberColor(m) && (
+                  <span
+                    className={cx(
+                      'absolute -right-0.5 -bottom-0.5 size-3 rounded-full border-2 border-white dark:border-stone-900',
+                      memberColorClass(memberColor(m)),
+                    )}
+                  />
+                )}
               </div>
-              <div className="text-xs text-stone-400 dark:text-stone-500">
-                {m.role === 'owner' ? t('owner') : t('member')}
+              <div>
+                <div className="text-sm font-semibold text-stone-900 dark:text-stone-100">
+                  {m.display_name || tc('user')}
+                </div>
+                <div className="text-xs text-stone-400 dark:text-stone-500">
+                  {m.role === 'owner' ? t('owner') : t('member')}
+                </div>
               </div>
-            </div>
+            </button>
             {m.user_id === user.id ? (
               <span className="text-xs font-semibold text-orange-600 dark:text-orange-400">{t('you')}</span>
             ) : (
@@ -568,6 +654,41 @@ function SettingsBody({
           </div>
         ))}
       </div>
+
+      {/* Member profile editor */}
+      <Modal open={!!editMember} onClose={() => setEditMember(null)}>
+        {editMember && (
+          <>
+            <h3 className="mb-4 font-serif text-xl font-semibold tracking-tight text-stone-900 dark:text-stone-100">
+              {editMember.display_name || tc('user')}
+            </h3>
+            <Label>{t('birthday')}</Label>
+            <Input
+              type="date"
+              value={mBirthday || ''}
+              onChange={(e) => setMBirthday(e.target.value)}
+              className="mb-4"
+            />
+            <Label>{t('color')}</Label>
+            <div className="mb-5 flex flex-wrap gap-2">
+              {MEMBER_COLORS.map((mc) => (
+                <button
+                  key={mc.t}
+                  aria-label={mc.t}
+                  onClick={() => setMColor(mc.t)}
+                  className={cx(
+                    'size-8 cursor-pointer rounded-full border-2',
+                    mc.c,
+                    mColor === mc.t ? 'border-stone-900 dark:border-stone-100' : 'border-transparent',
+                    PRESS_SM,
+                  )}
+                />
+              ))}
+            </div>
+            <ModalActions onSave={saveMember} onCancel={() => setEditMember(null)} />
+          </>
+        )}
+      </Modal>
 
       {/* Google Calendar */}
       <div className="mb-5">

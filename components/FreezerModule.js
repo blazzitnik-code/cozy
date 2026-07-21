@@ -2,7 +2,18 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useTranslations, useFormatter, useLocale } from 'next-intl';
-import { ChevronDown, History, Minus, Plus, Search, Settings, SlidersHorizontal, Trash2, X } from 'lucide-react';
+import {
+  ChevronDown,
+  History,
+  Minus,
+  Pencil,
+  Plus,
+  Search,
+  Settings,
+  SlidersHorizontal,
+  Trash2,
+  X,
+} from 'lucide-react';
 import { useCatLabel, useExpiryText } from '@/lib/intl';
 import { normalizujNiz } from '@/lib/hooks';
 import { CATS, SUGG, FICONS, QO } from '@/lib/constants';
@@ -55,7 +66,7 @@ const STEPPER_PLUS = cx(
 );
 
 // ─── FREEZER DROPDOWN ───
-function FreezerDD({ freezers, selected, onChange, onAdd }) {
+function FreezerDD({ freezers, selected, onChange, onAdd, onManage }) {
   const t = useTranslations('Freezer');
   const tc = useTranslations('Common');
   const [open, setOpen] = useState(false);
@@ -162,18 +173,32 @@ function FreezerDD({ freezers, selected, onChange, onAdd }) {
               </button>
             );
           })}
-          {/* ADD NEW FREEZER */}
+          {/* ADD NEW FREEZER + MANAGE */}
           <div className="mt-1.5 border-t border-stone-200 pt-1.5 dark:border-white/10">
             {!showAdd ? (
-              <button
-                onClick={() => setShowAdd(true)}
-                className={cx(
-                  'flex w-full items-center gap-2 rounded-xl border-none bg-transparent px-3 py-2.5 text-left text-sm font-semibold text-orange-600 dark:text-orange-400',
-                  ROW_PRESS,
-                )}
-              >
-                {t('newFreezer')}
-              </button>
+              <>
+                <button
+                  onClick={() => setShowAdd(true)}
+                  className={cx(
+                    'flex w-full items-center gap-2 rounded-xl border-none bg-transparent px-3 py-2.5 text-left text-sm font-semibold text-orange-600 dark:text-orange-400',
+                    ROW_PRESS,
+                  )}
+                >
+                  {t('newFreezer')}
+                </button>
+                <button
+                  onClick={() => {
+                    onManage();
+                    setOpen(false);
+                  }}
+                  className={cx(
+                    'flex w-full items-center gap-2 rounded-xl border-none bg-transparent px-3 py-2.5 text-left text-sm font-semibold text-stone-500 dark:text-stone-400',
+                    ROW_PRESS,
+                  )}
+                >
+                  <Pencil className="size-4" /> {t('manageBtn')}
+                </button>
+              </>
             ) : (
               <div className="flex flex-col gap-2 px-1.5 py-2">
                 <div className="flex flex-wrap gap-1">
@@ -287,6 +312,8 @@ export default function FreezerModule({
   dbUnarchiveItem,
   freezers,
   dbAddFreezer,
+  dbUpdateFreezer,
+  dbDeleteFreezer,
   categories,
   onGoHome,
   onOpenSettings,
@@ -346,6 +373,8 @@ export default function FreezerModule({
   const [suggestions, setSuggestions] = useState([]);
   const inputRef = useRef(null);
   const [confirmAction, setConfirmAction] = useState(null); // { message, onConfirm }
+  const [manageFreezers, setManageFreezers] = useState(false);
+  const [editingFreezer, setEditingFreezer] = useState(null); // { id, name, icon }
 
   // Quick-quantity chip (add flow STEP 1) — rendered per QO group (counts | measures).
   const qtyChip = (q) => (
@@ -770,7 +799,13 @@ export default function FreezerModule({
       <Screen>
         <PageBody key="frz-home">
           <ModuleHeader title={tMod('freezer')} emoji="❄️" onHome={onGoHome}>
-            <FreezerDD freezers={freezers} selected={selFrzs} onChange={setSelFrzs} onAdd={dbAddFreezer} />
+            <FreezerDD
+              freezers={freezers}
+              selected={selFrzs}
+              onChange={setSelFrzs}
+              onAdd={dbAddFreezer}
+              onManage={() => setManageFreezers(true)}
+            />
             <IconButton
               aria-label={ta('archive')}
               onClick={() => {
@@ -1238,6 +1273,106 @@ export default function FreezerModule({
               );
             })()}
         </Modal>
+
+        {/* Manage freezers modal — edit / delete (add lives in the dropdown) */}
+        <Modal
+          open={manageFreezers}
+          onClose={() => {
+            setManageFreezers(false);
+            setEditingFreezer(null);
+          }}
+        >
+          <h3 className="mb-4 text-center font-serif text-xl font-semibold tracking-tight">{t('manageTitle')}</h3>
+          {freezers.map((f) => {
+            const isEditing = editingFreezer?.id === f.id;
+            return (
+              <div key={f.id} className="mb-2">
+                {isEditing ? (
+                  <div className="rounded-xl border border-stone-200 bg-stone-50 px-3.5 py-3 dark:border-white/10 dark:bg-stone-950/60">
+                    <div className="mb-2.5 flex flex-wrap gap-1.5">
+                      {FICONS.map((ic) => (
+                        <button
+                          key={ic}
+                          onClick={() => setEditingFreezer((e) => ({ ...e, icon: ic }))}
+                          className={cx(
+                            'flex size-10 cursor-pointer items-center justify-center rounded-lg border-2 text-xl',
+                            PRESS_SM,
+                            editingFreezer.icon === ic
+                              ? 'border-stone-900 bg-stone-100 dark:border-stone-100 dark:bg-stone-800'
+                              : 'border-stone-200 bg-white dark:border-stone-700 dark:bg-stone-900',
+                          )}
+                        >
+                          {ic}
+                        </button>
+                      ))}
+                    </div>
+                    <Input
+                      autoFocus
+                      value={editingFreezer.name}
+                      onChange={(e) => setEditingFreezer((es) => ({ ...es, name: e.target.value }))}
+                      className="mb-2.5"
+                    />
+                    <div className="flex gap-2">
+                      <Btn
+                        onClick={async () => {
+                          await dbUpdateFreezer(editingFreezer.id, {
+                            name: editingFreezer.name,
+                            icon: editingFreezer.icon,
+                          });
+                          setEditingFreezer(null);
+                        }}
+                        disabled={!editingFreezer.name}
+                      >
+                        {tc('save')}
+                      </Btn>
+                      <Btn v="ghost" onClick={() => setEditingFreezer(null)}>
+                        {tc('cancel')}
+                      </Btn>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-12 flex-1 items-center gap-2.5 rounded-xl border border-stone-200 bg-white px-3.5 dark:border-stone-700 dark:bg-stone-900">
+                      <span className="text-xl">{f.icon}</span>
+                      <span className="text-sm font-bold text-stone-700 dark:text-stone-300">{f.name}</span>
+                    </div>
+                    <button
+                      aria-label={ta('edit')}
+                      onClick={() => setEditingFreezer({ id: f.id, name: f.name, icon: f.icon })}
+                      className={cx(
+                        'flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-stone-200 bg-white text-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400',
+                        PRESS_SM,
+                      )}
+                    >
+                      <Pencil className="size-4" />
+                    </button>
+                    {freezers.length > 1 && (
+                      <button
+                        aria-label={ta('delete')}
+                        onClick={() =>
+                          setConfirmAction({
+                            message: t('deleteFreezerConfirm', { name: f.name }),
+                            onConfirm: async () => {
+                              await dbDeleteFreezer(f.id);
+                              setSelFrzs((prev) => prev.filter((x) => x !== f.id));
+                            },
+                          })
+                        }
+                        className={cx(
+                          'flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border-none bg-red-500/10 text-red-600 dark:text-red-400',
+                          PRESS_SM,
+                        )}
+                      >
+                        <Trash2 className="size-4" />
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </Modal>
+
         <ConfirmModal action={confirmAction} onClose={() => setConfirmAction(null)} />
       </Screen>
     );

@@ -122,7 +122,12 @@ export default function AppShell({ user, household, members, signOut }) {
     deleteArchived: dbDeleteArchived,
     unarchiveItem: dbUnarchiveItem,
   } = useArchived(householdId);
-  const { freezers, addFreezer: dbAddFreezer } = useFreezers(householdId);
+  const {
+    freezers,
+    addFreezer: dbAddFreezer,
+    updateFreezer: dbUpdateFreezer,
+    deleteFreezer: dbDeleteFreezer,
+  } = useFreezers(householdId);
   const { categories } = useCategories(householdId);
   const {
     items: shopItems,
@@ -497,6 +502,8 @@ export default function AppShell({ user, household, members, signOut }) {
           dbUnarchiveItem={dbUnarchiveItem}
           freezers={freezers}
           dbAddFreezer={dbAddFreezer}
+          dbUpdateFreezer={dbUpdateFreezer}
+          dbDeleteFreezer={dbDeleteFreezer}
           categories={categories}
           onGoHome={() => navigate('home')}
           onOpenSettings={openSettings}

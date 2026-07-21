@@ -155,6 +155,9 @@
   },
   "Freezer": {
     "newFreezer": "+ New freezer",
+    "manageBtn": "Manage freezers",
+    "manageTitle": "Freezers",
+    "deleteFreezerConfirm": "Delete freezer {name}?",
     "freezerNamePlaceholder": "Freezer name...",
     "selectedCount": "{count} selected",
     "empty": "The freezer is empty!",
@@ -223,6 +226,7 @@
     "store": "Store",
     "removeFromList": "Remove from list",
     "stores": "Stores",
+    "manageBtn": "Manage stores",
     "deleteStoreConfirm": "Delete store {name}?",
     "newStoreBtn": "+ New store",
     "newStore": "New store",

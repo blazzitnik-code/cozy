@@ -155,6 +155,9 @@
   },
   "Freezer": {
     "newFreezer": "+ Nov zamrzovalnik",
+    "manageBtn": "Uredi zamrzovalnike",
+    "manageTitle": "Zamrzovalniki",
+    "deleteFreezerConfirm": "Izbriši zamrzovalnik {name}?",
     "freezerNamePlaceholder": "Ime zamrzovalnika...",
     "selectedCount": "{count, plural, one {# izbran} two {# izbrana} few {# izbrani} other {# izbranih}}",
     "empty": "Zamrzovalnik je prazen!",
@@ -223,6 +226,7 @@
     "store": "Trgovina",
     "removeFromList": "Odstrani s seznama",
     "stores": "Trgovine",
+    "manageBtn": "Uredi trgovine",
     "deleteStoreConfirm": "Izbriši trgovino {name}?",
     "newStoreBtn": "+ Nova trgovina",
     "newStore": "Nova trgovina",

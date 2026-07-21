@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { AnimatePresence, motion, Reorder, useDragControls } from 'motion/react';
 import { useTranslations, useFormatter, useLocale } from 'next-intl';
-import { Ellipsis, GripVertical, History, Pencil, Plus, Settings, Star, Trash2 } from 'lucide-react';
+import { ChevronDown, GripVertical, History, Pencil, Plus, Settings, Star, Trash2 } from 'lucide-react';
 import { SHOP_SUGG } from '@/lib/constants';
 import { cx } from '@/lib/utils';
 import {
@@ -31,6 +31,101 @@ import {
 } from './ui';
 
 const STORE_ICONS = ['🟢', '🟣', '🔵', '🟠', '🔴', '🟡', '⚫', '🏪'];
+
+// Store selector dropdown (single-select) — mirrors the freezer's FreezerDD so
+// both modules pick their "category" the same way. Footer opens the manage
+// modal (add / edit / delete). `count(id)` returns the unchecked-item count.
+function StoreDD({ stores, activeStore, allCount, count, onSelect, onManage }) {
+  const t = useTranslations('Shopping');
+  const tc = useTranslations('Common');
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    const h = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+  const active = activeStore === 'all' ? null : stores.find((s) => s.id === activeStore);
+  const lbl = active ? `${active.icon} ${active.name}` : tc('all');
+  const row = (on) =>
+    cx(
+      'flex w-full cursor-pointer items-center gap-2.5 rounded-xl border-none px-3 py-2.5 text-left text-sm font-semibold',
+      ROW_PRESS,
+      on
+        ? 'bg-stone-100 text-stone-900 dark:bg-stone-800 dark:text-stone-100'
+        : 'bg-transparent text-stone-500 dark:text-stone-400',
+    );
+  const badge = (n) => <span className="ml-auto text-xs font-normal text-stone-400 dark:text-stone-500">{n}</span>;
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen(!open)}
+        className={cx(
+          'flex cursor-pointer items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-bold text-stone-900 dark:text-stone-100',
+          PRESS_SM,
+          open
+            ? 'border-stone-900 bg-white dark:border-stone-100 dark:bg-stone-900'
+            : 'border-stone-200 bg-white dark:border-stone-700 dark:bg-stone-900',
+        )}
+      >
+        <span>{lbl}</span>
+        <ChevronDown
+          className={cx(
+            'size-3.5 text-stone-400 transition-transform duration-200 dark:text-stone-500',
+            open && 'rotate-180',
+          )}
+        />
+      </button>
+      {open && (
+        <motion.div
+          {...POPOVER_POP}
+          className={cx(
+            POPOVER,
+            'absolute top-[calc(100%+6px)] right-0 z-60 min-w-55 origin-top-right rounded-2xl p-1.5',
+          )}
+        >
+          <button
+            onClick={() => {
+              onSelect('all');
+              setOpen(false);
+            }}
+            className={row(activeStore === 'all')}
+          >
+            {tc('all')} {badge(allCount)}
+          </button>
+          {stores.map((s) => (
+            <button
+              key={s.id}
+              onClick={() => {
+                onSelect(s.id);
+                setOpen(false);
+              }}
+              className={row(activeStore === s.id)}
+            >
+              <span className="text-base">{s.icon}</span> {s.name} {badge(count(s.id))}
+            </button>
+          ))}
+          <div className="mt-1.5 border-t border-stone-200 pt-1.5 dark:border-white/10">
+            <button
+              onClick={() => {
+                onManage();
+                setOpen(false);
+              }}
+              className={cx(
+                'flex w-full items-center gap-2 rounded-xl border-none bg-transparent px-3 py-2.5 text-left text-sm font-semibold text-stone-500 dark:text-stone-400',
+                ROW_PRESS,
+              )}
+            >
+              <Pencil className="size-4" /> {t('manageBtn')}
+            </button>
+          </div>
+        </motion.div>
+      )}
+    </div>
+  );
+}
 
 // Module scope on purpose: defined inside ShoppingModule its identity would
 // change every render, remounting all rows (and killing their transitions).
@@ -489,6 +584,17 @@ export default function ShoppingModule({
       <PageBody key="shop-home">
         {/* Header */}
         <ModuleHeader title={tMod('shopping')} emoji="🛒" onHome={onGoHome}>
+          <StoreDD
+            stores={shopStores}
+            activeStore={activeStore}
+            allCount={shopItems.filter((i) => !i.checked).length}
+            count={(id) => shopItems.filter((i) => i.store === id && !i.checked).length}
+            onSelect={(id) => {
+              setActiveStore(id);
+              if (id !== 'all') setLastStore(id);
+            }}
+            onManage={() => setShowManageStores(true)}
+          />
           <IconButton onClick={() => setShowShopArchive(true)} aria-label={ta('history')}>
             <History className="size-4.5" />
           </IconButton>
@@ -496,51 +602,6 @@ export default function ShoppingModule({
             <Settings className="size-4.5" />
           </IconButton>
         </ModuleHeader>
-
-        {/* Store tabs — scrollable row + pinned ··· button */}
-        <div className="relative mb-3.5">
-          <div className="flex [scrollbar-width:none] gap-1.5 overflow-x-auto pr-11 [-webkit-overflow-scrolling:touch] [&::-webkit-scrollbar]:hidden">
-            <button
-              onClick={() => setActiveStore('all')}
-              className={cx(
-                'shrink-0 cursor-pointer rounded-full border px-3.5 py-2 text-sm font-bold',
-                PRESS_SM,
-                activeStore === 'all' ? CHIP_ON : CHIP_OFF,
-              )}
-            >
-              {t('allCount', { count: shopItems.filter((i) => !i.checked).length })}
-            </button>
-            {shopStores.map((s) => {
-              const cnt = shopItems.filter((i) => i.store === s.id && !i.checked).length;
-              return (
-                <button
-                  key={s.id}
-                  onClick={() => {
-                    setActiveStore(s.id);
-                    setLastStore(s.id);
-                  }}
-                  className={cx(
-                    'shrink-0 cursor-pointer rounded-full border px-3.5 py-2 text-sm font-bold',
-                    PRESS_SM,
-                    activeStore === s.id ? CHIP_ON : CHIP_OFF,
-                  )}
-                >
-                  {s.icon} {s.name} ({cnt})
-                </button>
-              );
-            })}
-          </div>
-          <button
-            aria-label={ta('manageStores')}
-            onClick={() => setShowManageStores(true)}
-            className={cx(
-              'absolute inset-y-0 right-0 flex w-9.5 items-center justify-end border-none bg-linear-to-l from-stone-100 from-60% to-transparent pr-1 text-stone-400 dark:from-stone-950 dark:text-stone-500',
-              PRESS_SM,
-            )}
-          >
-            <Ellipsis className="size-5" />
-          </button>
-        </div>
 
         {/* Input - always visible */}
         <div className="relative mb-3.5">

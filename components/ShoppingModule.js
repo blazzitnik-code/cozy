@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react';
 import { AnimatePresence, motion, Reorder, useDragControls } from 'motion/react';
 import { useTranslations, useFormatter, useLocale } from 'next-intl';
 import { ChevronDown, GripVertical, History, Pencil, Plus, Search, Settings, Star, Trash2, X } from 'lucide-react';
-import { SHOP_SUGG, SHOP_CATS } from '@/lib/constants';
+import { SHOP_SUGG } from '@/lib/constants';
 import { cx, localDateStr } from '@/lib/utils';
 import {
   Screen,
@@ -133,11 +133,10 @@ function StoreDD({ stores, activeStore, allCount, count, onSelect, onManage }) {
   );
 }
 
-// Category selector for the add-input: `value` is a category key (from
-// SHOP_CATS) or null = auto-detect. The pill shows only the emoji to stay
-// compact next to the input; the dropdown lists the full labels.
-function CategoryDD({ value, onSelect }) {
-  const t = useTranslations('Shopping');
+// Store selector for the add-input: picks which store new items go to,
+// independent of the store the list is filtered to. The pill shows just the
+// store icon to stay compact; the dropdown lists icon + name.
+function AddStoreDD({ stores, value, onSelect }) {
   const ta = useTranslations('A11y');
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -148,11 +147,10 @@ function CategoryDD({ value, onSelect }) {
     document.addEventListener('mousedown', h);
     return () => document.removeEventListener('mousedown', h);
   }, []);
-  // Labels are "emoji Text"; the pill shows just the emoji (✨ when auto).
-  const emoji = value ? t('sections.' + value).split(' ')[0] : '✨';
+  const active = stores.find((s) => s.id === value);
   const row = (on) =>
     cx(
-      'flex w-full cursor-pointer items-center gap-2 rounded-xl border-none px-3 py-2.5 text-left text-sm font-semibold',
+      'flex w-full cursor-pointer items-center gap-2.5 rounded-xl border-none px-3 py-2.5 text-left text-sm font-semibold',
       ROW_PRESS,
       on
         ? 'bg-stone-100 text-stone-900 dark:bg-stone-800 dark:text-stone-100'
@@ -162,7 +160,7 @@ function CategoryDD({ value, onSelect }) {
     <div ref={ref} className="relative shrink-0">
       <button
         onClick={() => setOpen(!open)}
-        aria-label={ta('category')}
+        aria-label={ta('store')}
         className={cx(
           'flex h-12 cursor-pointer items-center gap-1 rounded-xl border px-3 text-base',
           PRESS_SM,
@@ -171,7 +169,7 @@ function CategoryDD({ value, onSelect }) {
             : 'border-stone-200 bg-white dark:border-stone-700 dark:bg-stone-900',
         )}
       >
-        <span>{emoji}</span>
+        <span>{active?.icon ?? '🛒'}</span>
         <ChevronDown
           className={cx(
             'size-3.5 text-stone-400 transition-transform duration-200 dark:text-stone-500',
@@ -187,25 +185,16 @@ function CategoryDD({ value, onSelect }) {
             'absolute top-[calc(100%+6px)] left-0 z-60 max-h-80 min-w-52 origin-top-left overflow-y-auto rounded-2xl p-1.5',
           )}
         >
-          <button
-            onClick={() => {
-              onSelect(null);
-              setOpen(false);
-            }}
-            className={row(!value)}
-          >
-            <span className="text-base">✨</span> {t('autoCategory')}
-          </button>
-          {SHOP_CATS.map((c) => (
+          {stores.map((s) => (
             <button
-              key={c.key}
+              key={s.id}
               onClick={() => {
-                onSelect(c.key);
+                onSelect(s.id);
                 setOpen(false);
               }}
-              className={row(value === c.key)}
+              className={row(value === s.id)}
             >
-              {t('sections.' + c.key)}
+              <span className="text-base">{s.icon}</span> {s.name}
             </button>
           ))}
         </motion.div>
@@ -404,10 +393,9 @@ export default function ShoppingModule({
 
   // ─── SHOPPING UI STATE ───
   const [activeStore, setActiveStore] = useState('all');
-  const [lastStore, setLastStore] = useState('mercator');
+  const [addStore, setAddStore] = useState('mercator'); // which store new items go to (set by the add-input pill)
   const [shopInput, setShopInput] = useState('');
   const [shopSugg, setShopSugg] = useState([]);
-  const [addCat, setAddCat] = useState(null); // manual category for new items; null = auto-detect
   const [showShopArchive, setShowShopArchive] = useState(false);
   const [archSearch, setArchSearch] = useState('');
   const [archStoreF, setArchStoreF] = useState([]);
@@ -507,12 +495,6 @@ export default function ShoppingModule({
     return { key: 'drugo', order: 99 };
   };
 
-  // A manually-chosen category (stored on the item) wins over name detection;
-  // otherwise fall back to detectCategory. Order comes from the shared list.
-  const catOrder = (key) => SHOP_CATS.find((c) => c.key === key)?.order ?? 99;
-  const itemCategory = (item) =>
-    item.category ? { key: item.category, order: catOrder(item.category) } : detectCategory(item.name);
-
   const sortedShop = useMemo(() => {
     const unchecked = shopVisible.filter((i) => !i.checked);
     const checked = shopVisible.filter((i) => i.checked);
@@ -527,7 +509,7 @@ export default function ShoppingModule({
     const checked = sortedShop.filter((i) => i.checked);
     const groups = {};
     unchecked.forEach((item) => {
-      const cat = itemCategory(item);
+      const cat = detectCategory(item.name);
       if (!groups[cat.key]) groups[cat.key] = { key: cat.key, order: cat.order, items: [] };
       groups[cat.key].items.push(item);
     });
@@ -536,7 +518,7 @@ export default function ShoppingModule({
 
   async function shopAddItem(name) {
     if (!name.trim()) return;
-    const targetStore = activeStore === 'all' ? lastStore : activeStore;
+    const targetStore = addStore;
     const existing = shopItems.find(
       (i) => i.name.toLowerCase() === name.toLowerCase() && !i.checked && i.store === targetStore,
     );
@@ -548,7 +530,7 @@ export default function ShoppingModule({
       checked: false,
       store: targetStore,
       favourite: false,
-      category: addCat ?? '', // manual pick; '' keeps name-based auto-detection
+      category: '',
       sort_order: maxOrder + 1,
     });
     setShopInput('');
@@ -952,7 +934,7 @@ export default function ShoppingModule({
             count={(id) => shopItems.filter((i) => i.store === id && !i.checked).length}
             onSelect={(id) => {
               setActiveStore(id);
-              if (id !== 'all') setLastStore(id);
+              if (id !== 'all') setAddStore(id);
             }}
             onManage={() => setShowManageStores(true)}
           />
@@ -966,7 +948,7 @@ export default function ShoppingModule({
 
         {/* Input - always visible */}
         <div className="mb-3.5 flex items-start gap-2">
-          <CategoryDD value={addCat} onSelect={setAddCat} />
+          <AddStoreDD stores={shopStores} value={addStore} onSelect={setAddStore} />
           <div className="relative flex-1">
             <Input
               ref={shopInputRef}
@@ -1260,7 +1242,7 @@ export default function ShoppingModule({
                   <button
                     onClick={() => {
                       setActiveStore(s.id);
-                      setLastStore(s.id);
+                      setAddStore(s.id);
                       setShowManageStores(false);
                       setShowAddStoreForm(false);
                     }}

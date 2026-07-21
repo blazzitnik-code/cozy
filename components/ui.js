@@ -603,6 +603,14 @@ export function Badge({ children, className, style }) {
 // portal DOM order = JSX order — render ConfirmModal after any Modal it covers.
 export function Modal({ open, children, onClose }) {
   const dragControls = useDragControls();
+  // Esc closes the sheet (matches backdrop tap / drag-down). Only listens while
+  // open, so a stacked ConfirmModal-over-sheet is the rare case where both close.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e) => e.key === 'Escape' && onClose?.();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, onClose]);
   if (typeof document === 'undefined') return null; // always-mounted portal: no document during SSR
   return createPortal(
     <AnimatePresence>

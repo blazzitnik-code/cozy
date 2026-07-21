@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react';
 import { AnimatePresence, motion, Reorder, useDragControls } from 'motion/react';
 import { useTranslations, useFormatter, useLocale } from 'next-intl';
 import { ChevronDown, GripVertical, History, Pencil, Plus, Search, Settings, Star, Trash2, X } from 'lucide-react';
-import { SHOP_SUGG } from '@/lib/constants';
+import { SHOP_SUGG, SHOP_CATS } from '@/lib/constants';
 import { cx, localDateStr } from '@/lib/utils';
 import {
   Screen,
@@ -127,6 +127,87 @@ function StoreDD({ stores, activeStore, allCount, count, onSelect, onManage }) {
               <Pencil className="size-4" /> {t('manageBtn')}
             </button>
           </div>
+        </motion.div>
+      )}
+    </div>
+  );
+}
+
+// Category selector for the add-input: `value` is a category key (from
+// SHOP_CATS) or null = auto-detect. The pill shows only the emoji to stay
+// compact next to the input; the dropdown lists the full labels.
+function CategoryDD({ value, onSelect }) {
+  const t = useTranslations('Shopping');
+  const ta = useTranslations('A11y');
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    const h = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+  // Labels are "emoji Text"; the pill shows just the emoji (✨ when auto).
+  const emoji = value ? t('sections.' + value).split(' ')[0] : '✨';
+  const row = (on) =>
+    cx(
+      'flex w-full cursor-pointer items-center gap-2 rounded-xl border-none px-3 py-2.5 text-left text-sm font-semibold',
+      ROW_PRESS,
+      on
+        ? 'bg-stone-100 text-stone-900 dark:bg-stone-800 dark:text-stone-100'
+        : 'bg-transparent text-stone-500 dark:text-stone-400',
+    );
+  return (
+    <div ref={ref} className="relative shrink-0">
+      <button
+        onClick={() => setOpen(!open)}
+        aria-label={ta('category')}
+        className={cx(
+          'flex h-12 cursor-pointer items-center gap-1 rounded-xl border px-3 text-base',
+          PRESS_SM,
+          open
+            ? 'border-stone-900 bg-white dark:border-stone-100 dark:bg-stone-900'
+            : 'border-stone-200 bg-white dark:border-stone-700 dark:bg-stone-900',
+        )}
+      >
+        <span>{emoji}</span>
+        <ChevronDown
+          className={cx(
+            'size-3.5 text-stone-400 transition-transform duration-200 dark:text-stone-500',
+            open && 'rotate-180',
+          )}
+        />
+      </button>
+      {open && (
+        <motion.div
+          {...POPOVER_POP}
+          className={cx(
+            POPOVER,
+            'absolute top-[calc(100%+6px)] left-0 z-60 max-h-80 min-w-52 origin-top-left overflow-y-auto rounded-2xl p-1.5',
+          )}
+        >
+          <button
+            onClick={() => {
+              onSelect(null);
+              setOpen(false);
+            }}
+            className={row(!value)}
+          >
+            <span className="text-base">✨</span> {t('autoCategory')}
+          </button>
+          {SHOP_CATS.map((c) => (
+            <button
+              key={c.key}
+              onClick={() => {
+                onSelect(c.key);
+                setOpen(false);
+              }}
+              className={row(value === c.key)}
+            >
+              {t('sections.' + c.key)}
+            </button>
+          ))}
         </motion.div>
       )}
     </div>
@@ -326,6 +407,7 @@ export default function ShoppingModule({
   const [lastStore, setLastStore] = useState('mercator');
   const [shopInput, setShopInput] = useState('');
   const [shopSugg, setShopSugg] = useState([]);
+  const [addCat, setAddCat] = useState(null); // manual category for new items; null = auto-detect
   const [showShopArchive, setShowShopArchive] = useState(false);
   const [archSearch, setArchSearch] = useState('');
   const [archStoreF, setArchStoreF] = useState([]);
@@ -425,6 +507,12 @@ export default function ShoppingModule({
     return { key: 'drugo', order: 99 };
   };
 
+  // A manually-chosen category (stored on the item) wins over name detection;
+  // otherwise fall back to detectCategory. Order comes from the shared list.
+  const catOrder = (key) => SHOP_CATS.find((c) => c.key === key)?.order ?? 99;
+  const itemCategory = (item) =>
+    item.category ? { key: item.category, order: catOrder(item.category) } : detectCategory(item.name);
+
   const sortedShop = useMemo(() => {
     const unchecked = shopVisible.filter((i) => !i.checked);
     const checked = shopVisible.filter((i) => i.checked);
@@ -439,7 +527,7 @@ export default function ShoppingModule({
     const checked = sortedShop.filter((i) => i.checked);
     const groups = {};
     unchecked.forEach((item) => {
-      const cat = detectCategory(item.name);
+      const cat = itemCategory(item);
       if (!groups[cat.key]) groups[cat.key] = { key: cat.key, order: cat.order, items: [] };
       groups[cat.key].items.push(item);
     });
@@ -460,7 +548,7 @@ export default function ShoppingModule({
       checked: false,
       store: targetStore,
       favourite: false,
-      category: '',
+      category: addCat ?? '', // manual pick; '' keeps name-based auto-detection
       sort_order: maxOrder + 1,
     });
     setShopInput('');
@@ -877,53 +965,56 @@ export default function ShoppingModule({
         </ModuleHeader>
 
         {/* Input - always visible */}
-        <div className="relative mb-3.5">
-          <Input
-            ref={shopInputRef}
-            value={shopInput}
-            onChange={(e) => shopInputChange(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') shopAddItem(shopInput);
-            }}
-            placeholder={
-              activeStore === 'all'
-                ? t('addPlaceholder')
-                : t('addToPlaceholder', { store: shopStores.find((s) => s.id === activeStore)?.name })
-            }
-            className="pr-12.5"
-          />
-          {shopInput && (
-            <motion.button
-              {...POP}
-              aria-label={ta('add')}
-              onClick={() => shopAddItem(shopInput)}
-              className={cx(
-                'absolute top-1/2 right-2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border-none bg-stone-900 text-white dark:bg-stone-100 dark:text-stone-900',
-                PRESS_SM,
-              )}
-            >
-              <Plus className="size-5" />
-            </motion.button>
-          )}
-          {shopSugg.length > 0 && shopInput && (
-            <motion.div
-              {...POPOVER_POP}
-              className={cx(POPOVER, 'absolute inset-x-0 top-[calc(100%+4px)] z-10 origin-top')}
-            >
-              {shopSugg.map((s, i) => (
-                <button
-                  key={i}
-                  onMouseDown={() => shopAddItem(s)}
-                  className={cx(
-                    'flex w-full items-center gap-2 rounded-lg border-none bg-transparent px-3.5 py-3 text-left text-base font-medium text-stone-900 dark:text-stone-100',
-                    ROW_PRESS,
-                  )}
-                >
-                  <span className="font-semibold text-orange-600 dark:text-orange-400">+</span> {s}
-                </button>
-              ))}
-            </motion.div>
-          )}
+        <div className="mb-3.5 flex items-start gap-2">
+          <CategoryDD value={addCat} onSelect={setAddCat} />
+          <div className="relative flex-1">
+            <Input
+              ref={shopInputRef}
+              value={shopInput}
+              onChange={(e) => shopInputChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') shopAddItem(shopInput);
+              }}
+              placeholder={
+                activeStore === 'all'
+                  ? t('addPlaceholder')
+                  : t('addToPlaceholder', { store: shopStores.find((s) => s.id === activeStore)?.name })
+              }
+              className="pr-12.5"
+            />
+            {shopInput && (
+              <motion.button
+                {...POP}
+                aria-label={ta('add')}
+                onClick={() => shopAddItem(shopInput)}
+                className={cx(
+                  'absolute top-1/2 right-2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border-none bg-stone-900 text-white dark:bg-stone-100 dark:text-stone-900',
+                  PRESS_SM,
+                )}
+              >
+                <Plus className="size-5" />
+              </motion.button>
+            )}
+            {shopSugg.length > 0 && shopInput && (
+              <motion.div
+                {...POPOVER_POP}
+                className={cx(POPOVER, 'absolute inset-x-0 top-[calc(100%+4px)] z-10 origin-top')}
+              >
+                {shopSugg.map((s, i) => (
+                  <button
+                    key={i}
+                    onMouseDown={() => shopAddItem(s)}
+                    className={cx(
+                      'flex w-full items-center gap-2 rounded-lg border-none bg-transparent px-3.5 py-3 text-left text-base font-medium text-stone-900 dark:text-stone-100',
+                      ROW_PRESS,
+                    )}
+                  >
+                    <span className="font-semibold text-orange-600 dark:text-orange-400">+</span> {s}
+                  </button>
+                ))}
+              </motion.div>
+            )}
+          </div>
         </div>
 
         {/* Count + "Bought" button */}

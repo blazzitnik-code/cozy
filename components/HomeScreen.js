@@ -355,6 +355,7 @@ export default function HomeScreen({
   items,
   shopItems,
   todoLists,
+  todoListsLoading,
   todoItemsByList,
   todayCalEvents,
   calConnected,
@@ -439,18 +440,29 @@ export default function HomeScreen({
           />
         </div>
 
-        {/* Listko preview */}
-        {todoLists.length > 0 && (
+        {/* Listko preview. Reserve card-height placeholders while the lists load
+            so the sections below (board, meal plan) don't get shoved down when
+            the data arrives — the preview caps at 3, matching the skeleton. */}
+        {(todoListsLoading || todoLists.length > 0) && (
           <div className="mb-5">
             <SectionHeader>{t('todos')}</SectionHeader>
-            {todoLists.slice(0, 3).map((list) => (
-              <TodoListHomeCard
-                key={list.id}
-                list={list}
-                items={todoItemsByList[list.id] || []}
-                onNavigate={() => navigate('todo')}
-              />
-            ))}
+            {todoListsLoading
+              ? [0, 1, 2].map((i) => (
+                  <div
+                    key={i}
+                    className="mb-2 h-[54px] rounded-xl border border-stone-200/70 bg-white dark:border-white/10 dark:bg-stone-900"
+                  />
+                ))
+              : todoLists
+                  .slice(0, 3)
+                  .map((list) => (
+                    <TodoListHomeCard
+                      key={list.id}
+                      list={list}
+                      items={todoItemsByList[list.id] || []}
+                      onNavigate={() => navigate('todo')}
+                    />
+                  ))}
           </div>
         )}
 

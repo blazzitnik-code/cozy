@@ -423,6 +423,7 @@ export default function AppShell({ user, household, members, signOut }) {
           items={items}
           shopItems={shopItems}
           todoLists={todoLists}
+          todoListsLoading={todoListsLoading}
           todoItemsByList={todoItemsByList}
           todayCalEvents={todayCalEvents}
           calConnected={calConnected}

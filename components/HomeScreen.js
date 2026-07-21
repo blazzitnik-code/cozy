@@ -21,31 +21,45 @@ import {
 import HomeModule from './HomeModule';
 
 // ─── WEATHER CARD (Open-Meteo) ───
+// Always occupies the same height (skeleton while the API resolves) so the
+// cards below it never shift when the data lands — CLS stays flat.
 function WeatherCard({ weather }) {
   const tw = useTranslations('Weather');
-  if (!weather?.current) return null;
-  const { emoji, key } = weatherInfo(weather.current.weather_code);
-  const temp = Math.round(weather.current.temperature_2m);
-  const max = Math.round(weather.daily?.temperature_2m_max?.[0]);
-  const min = Math.round(weather.daily?.temperature_2m_min?.[0]);
-  const precip = weather.daily?.precipitation_probability_max?.[0];
+  const ready = weather?.current;
   return (
-    <Card className="mb-2.5 flex items-center justify-between rounded-2xl px-3.5 py-3">
-      <div>
-        <div className="flex items-baseline gap-2">
-          <span className="font-serif text-2xl font-semibold tracking-tight text-stone-900 dark:text-stone-100">
-            {temp}°
-          </span>
-          <span className="text-sm font-semibold text-stone-500 capitalize dark:text-stone-400">{tw(key)}</span>
-        </div>
-        <div className="mt-0.5 text-xs font-semibold text-stone-400 dark:text-stone-500">
-          {precip != null && (
-            <span className="text-orange-600 dark:text-orange-400">{tw('precip', { p: precip })} · </span>
-          )}
-          H {max}° · L {min}°
-        </div>
-      </div>
-      <span className="text-4xl">{emoji}</span>
+    <Card className="mb-2.5 flex h-[72px] items-center justify-between rounded-2xl px-3.5">
+      {ready ? (
+        <>
+          <div>
+            <div className="flex items-baseline gap-2">
+              <span className="font-serif text-2xl font-semibold tracking-tight text-stone-900 dark:text-stone-100">
+                {Math.round(weather.current.temperature_2m)}°
+              </span>
+              <span className="text-sm font-semibold text-stone-500 capitalize dark:text-stone-400">
+                {tw(weatherInfo(weather.current.weather_code).key)}
+              </span>
+            </div>
+            <div className="mt-0.5 text-xs font-semibold text-stone-400 dark:text-stone-500">
+              {weather.daily?.precipitation_probability_max?.[0] != null && (
+                <span className="text-orange-600 dark:text-orange-400">
+                  {tw('precip', { p: weather.daily.precipitation_probability_max[0] })} ·{' '}
+                </span>
+              )}
+              H {Math.round(weather.daily?.temperature_2m_max?.[0])}° · L{' '}
+              {Math.round(weather.daily?.temperature_2m_min?.[0])}°
+            </div>
+          </div>
+          <span className="text-4xl">{weatherInfo(weather.current.weather_code).emoji}</span>
+        </>
+      ) : (
+        <>
+          <div>
+            <div className="mb-1.5 h-6 w-24 rounded-md bg-stone-200 dark:bg-stone-800" />
+            <div className="h-3 w-32 rounded bg-stone-200 dark:bg-stone-800" />
+          </div>
+          <div className="size-9 rounded-full bg-stone-200 dark:bg-stone-800" />
+        </>
+      )}
     </Card>
   );
 }
@@ -53,11 +67,15 @@ function WeatherCard({ weather }) {
 // ─── UP-NEXT (calendar) CARD ───
 // Real next event today when the calendar is connected; otherwise a connect
 // prompt. Structure is ready to swap in richer data once Koledarko grows.
-function UpNextCard({ todayCalEvents, calConnected, navigate }) {
+function UpNextCard({ todayCalEvents, calConnected, loading, navigate }) {
   const t = useTranslations('HomeScreen');
   const tCal = useTranslations('Calendar');
   const format = useFormatter();
   const fmt = (d) => format.dateTime(new Date(d), 'time');
+
+  // Wait until the connection state is known — rendering the connect prompt
+  // first and then swapping to an event (or nothing) is a layout shift.
+  if (loading) return null;
 
   if (!calConnected) {
     return (
@@ -340,6 +358,7 @@ export default function HomeScreen({
   todoItemsByList,
   todayCalEvents,
   calConnected,
+  calConnLoading,
   homeSettings,
   homeSettingsLoading,
   saveHomeSettings,
@@ -380,7 +399,12 @@ export default function HomeScreen({
         <WeatherCard weather={weather} />
 
         {/* Up next (calendar) */}
-        <UpNextCard todayCalEvents={todayCalEvents} calConnected={calConnected} navigate={navigate} />
+        <UpNextCard
+          todayCalEvents={todayCalEvents}
+          calConnected={calConnected}
+          loading={calConnLoading}
+          navigate={navigate}
+        />
 
         {/* Home module: consolidated "Domov" ETA card */}
         <HomeModule settings={homeSettings} loading={homeSettingsLoading} saveSettings={saveHomeSettings} />

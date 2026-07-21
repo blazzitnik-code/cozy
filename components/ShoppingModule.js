@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react';
 import { AnimatePresence, motion, Reorder, useDragControls } from 'motion/react';
 import { useTranslations, useFormatter, useLocale } from 'next-intl';
 import { ChevronDown, GripVertical, History, Pencil, Plus, Search, Settings, Star, Trash2, X } from 'lucide-react';
@@ -138,7 +138,8 @@ function StoreDD({ stores, activeStore, allCount, count, onSelect, onManage }) {
 // `ref` reaches the DOM node — required by AnimatePresence mode="popLayout".
 // Reorderable rows render as Reorder.Item (inside a group's Reorder.Group,
 // dragged by the ⠿ handle only); bought-section rows stay plain motion.div.
-function ShopItemRow({
+// memo'd: parent passes stable handlers so untouched rows skip re-render on toggle.
+const ShopItemRow = memo(function ShopItemRow({
   item,
   store,
   activeStore,
@@ -176,7 +177,7 @@ function ShopItemRow({
       <button
         onClick={(e) => {
           e.stopPropagation();
-          onToggle(item.id);
+          onToggle(item);
         }}
         className={cx(
           'flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-lg border-2 text-sm text-white transition-colors duration-150',
@@ -238,7 +239,7 @@ function ShopItemRow({
       {inner}
     </Reorder.Item>
   );
-}
+});
 
 // One Reorder.Group per category group. Items can never move between groups
 // (the group is derived from the item name via detectCategory), so per-group
@@ -268,6 +269,13 @@ function ShopGroup({ items, shopStores, onPersist, rowProps }) {
     } else if (pending.current && propSeq.split(',').sort().join() === localSeq.split(',').sort().join()) return;
     adopt(items);
   }, [items]);
+  // Stable so memo'd ShopItemRows skip re-render when a sibling toggles.
+  const onRowDragStart = useCallback(() => (dragging.current = true), []);
+  const onRowDragEnd = useCallback(() => {
+    dragging.current = false;
+    pending.current = true;
+    onPersist(orderRef.current);
+  }, [onPersist]);
   return (
     <Reorder.Group as="div" axis="y" values={order} onReorder={adopt} className="relative flex flex-col">
       <AnimatePresence initial={false} mode="popLayout">
@@ -277,12 +285,8 @@ function ShopGroup({ items, shopStores, onPersist, rowProps }) {
             item={item}
             reorderable
             store={shopStores.find((s) => s.id === item.store)}
-            onRowDragStart={() => (dragging.current = true)}
-            onRowDragEnd={() => {
-              dragging.current = false;
-              pending.current = true;
-              onPersist(orderRef.current);
-            }}
+            onRowDragStart={onRowDragStart}
+            onRowDragEnd={onRowDragEnd}
             {...rowProps}
           />
         ))}
@@ -477,10 +481,9 @@ export default function ShoppingModule({
     });
   }
 
-  function shopToggle(id) {
-    const item = shopItems.find((i) => i.id === id);
-    if (item) dbShopUpdate(id, { checked: !item.checked });
-  }
+  // Receives the row's item (not just id) so it stays stable across shopItems
+  // changes — otherwise every toggle would re-render all memo'd rows.
+  const shopToggle = useCallback((item) => dbShopUpdate(item.id, { checked: !item.checked }), [dbShopUpdate]);
 
   function shopToggleFav(id) {
     const item = shopItems.find((i) => i.id === id);
@@ -822,22 +825,25 @@ export default function ShoppingModule({
   // Persist a group's new order after a drag: reassign the group's own
   // sort_order values (sorted asc) to the new sequence — global cross-group
   // ordering and other groups stay untouched.
-  async function persistGroupOrder(ordered) {
-    let slots = ordered.map((i) => i.sort_order ?? 0).sort((a, b) => a - b);
-    // Duplicate/null sort_orders make the reassignment ambiguous and the
-    // global sort unstable — reindex the segment sequentially from its
-    // lowest slot instead (stays in the same range vs. other groups).
-    if (new Set(slots).size !== slots.length) {
-      slots = ordered.map((_, idx) => slots[0] + idx);
-    }
-    await Promise.all(
-      ordered
-        .map((item, idx) =>
-          (item.sort_order ?? 0) !== slots[idx] ? dbShopUpdate(item.id, { sort_order: slots[idx] }) : null,
-        )
-        .filter(Boolean),
-    );
-  }
+  const persistGroupOrder = useCallback(
+    async (ordered) => {
+      let slots = ordered.map((i) => i.sort_order ?? 0).sort((a, b) => a - b);
+      // Duplicate/null sort_orders make the reassignment ambiguous and the
+      // global sort unstable — reindex the segment sequentially from its
+      // lowest slot instead (stays in the same range vs. other groups).
+      if (new Set(slots).size !== slots.length) {
+        slots = ordered.map((_, idx) => slots[0] + idx);
+      }
+      await Promise.all(
+        ordered
+          .map((item, idx) =>
+            (item.sort_order ?? 0) !== slots[idx] ? dbShopUpdate(item.id, { sort_order: slots[idx] }) : null,
+          )
+          .filter(Boolean),
+      );
+    },
+    [dbShopUpdate],
+  );
 
   // Shared props for the module-scope ShopItemRow.
   const rowProps = {

@@ -194,6 +194,7 @@ export default function AppShell({ user, household, members, signOut }) {
     connections: calConnections,
     myConnection: calConnection,
     isConnected: calConnected,
+    loading: calConnLoading,
     saveConnection: saveCalConnection,
     removeConnection: removeCalConnection,
     expireConnection: expireCalConnection,
@@ -425,6 +426,7 @@ export default function AppShell({ user, household, members, signOut }) {
           todoItemsByList={todoItemsByList}
           todayCalEvents={todayCalEvents}
           calConnected={calConnected}
+          calConnLoading={calConnLoading}
           homeSettings={homeSettings}
           homeSettingsLoading={homeSettingsLoading}
           saveHomeSettings={saveHomeSettings}

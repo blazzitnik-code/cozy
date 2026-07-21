@@ -1,5 +1,5 @@
 'use client';
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback, memo } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useTranslations, useFormatter } from 'next-intl';
 import { Check, History, Pencil, Plus, Settings, X } from 'lucide-react';
@@ -377,6 +377,16 @@ function TodoListScreen({
   const doneItems = items.filter((i) => i.checked).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
   const getMember = (userId) => members.find((m) => m.user_id === userId);
 
+  // Stable handlers so memo'd TodoItemRows skip re-render when siblings change.
+  const openItemDetail = useCallback((it) => setItemDetail({ ...it }), []);
+  const assignMember = useCallback(
+    (id, userId) => {
+      updateItem(id, { assigned_to: userId });
+      setAssignPicker(null);
+    },
+    [updateItem],
+  );
+
   return (
     <Screen onClick={() => assignPicker && setAssignPicker(null)}>
       <PageBody key={`todo-list-${list.id}`}>
@@ -489,17 +499,11 @@ function TodoListScreen({
                     member={getMember(item.assigned_to)}
                     members={members}
                     showPicker={assignPicker === item.id}
-                    onToggle={() => toggleItem(item.id)}
-                    onDelete={() => deleteItem(item.id)}
-                    onTap={() => setItemDetail({ ...item })}
-                    onPickerOpen={(e) => {
-                      e.stopPropagation();
-                      setAssignPicker(item.id);
-                    }}
-                    onAssign={(userId) => {
-                      updateItem(item.id, { assigned_to: userId });
-                      setAssignPicker(null);
-                    }}
+                    onToggle={toggleItem}
+                    onDelete={deleteItem}
+                    onTap={openItemDetail}
+                    onPickerOpen={setAssignPicker}
+                    onAssign={assignMember}
                   />
                 ))}
               </AnimatePresence>
@@ -521,17 +525,11 @@ function TodoListScreen({
                     member={getMember(item.assigned_to)}
                     members={members}
                     showPicker={assignPicker === item.id}
-                    onToggle={() => toggleItem(item.id)}
-                    onDelete={() => deleteItem(item.id)}
-                    onTap={() => setItemDetail({ ...item })}
-                    onPickerOpen={(e) => {
-                      e.stopPropagation();
-                      setAssignPicker(item.id);
-                    }}
-                    onAssign={(userId) => {
-                      updateItem(item.id, { assigned_to: userId });
-                      setAssignPicker(null);
-                    }}
+                    onToggle={toggleItem}
+                    onDelete={deleteItem}
+                    onTap={openItemDetail}
+                    onPickerOpen={setAssignPicker}
+                    onAssign={assignMember}
                   />
                 ))}
               </AnimatePresence>
@@ -633,7 +631,8 @@ function TodoListScreen({
 
 // ─── ITEM ROW ───
 // `ref` reaches the DOM node — required by AnimatePresence mode="popLayout".
-function TodoItemRow({
+// memo'd: parent passes stable handlers so untouched rows skip re-render on toggle.
+const TodoItemRow = memo(function TodoItemRow({
   item,
   isLast,
   member,
@@ -659,7 +658,7 @@ function TodoItemRow({
       )}
     >
       <button
-        onClick={onToggle}
+        onClick={() => onToggle(item.id)}
         className={cx(
           'flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-md border-2 text-sm text-white transition-colors duration-150',
           PRESS_SM,
@@ -669,7 +668,7 @@ function TodoItemRow({
         {item.checked && <motion.span {...POP}>✓</motion.span>}
       </button>
 
-      <div onClick={onTap} className="min-w-0 flex-1 cursor-pointer">
+      <div onClick={() => onTap(item)} className="min-w-0 flex-1 cursor-pointer">
         <div
           className={cx(
             'text-base font-medium',
@@ -688,7 +687,10 @@ function TodoItemRow({
       {/* Assign picker */}
       <div className="relative shrink-0">
         <button
-          onClick={onPickerOpen}
+          onClick={(e) => {
+            e.stopPropagation();
+            onPickerOpen(item.id);
+          }}
           className={cx(
             'flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border-none text-xs font-bold',
             PRESS_SM,
@@ -706,7 +708,7 @@ function TodoItemRow({
             className={cx(POPOVER, 'absolute top-8.5 right-0 z-20 min-w-37.5 origin-top-right p-1.5')}
           >
             <div
-              onClick={() => onAssign(null)}
+              onClick={() => onAssign(item.id, null)}
               className={cx('rounded-lg px-2.5 py-2 text-sm text-stone-400 dark:text-stone-500', ROW_PRESS)}
             >
               {t('nobody')}
@@ -714,7 +716,7 @@ function TodoItemRow({
             {members.map((m) => (
               <div
                 key={m.user_id || m.id}
-                onClick={() => onAssign(m.user_id)}
+                onClick={() => onAssign(item.id, m.user_id)}
                 className={cx(
                   'rounded-lg px-2.5 py-2 text-sm font-medium text-stone-900 dark:text-stone-100',
                   ROW_PRESS,
@@ -729,7 +731,7 @@ function TodoItemRow({
 
       <button
         aria-label={ta('delete')}
-        onClick={onDelete}
+        onClick={() => onDelete(item.id)}
         className={cx(
           'flex h-6 w-6 shrink-0 items-center justify-center rounded-md border-none bg-transparent text-stone-400 dark:text-stone-600',
           PRESS_SM,
@@ -739,4 +741,4 @@ function TodoItemRow({
       </button>
     </motion.div>
   );
-}
+});

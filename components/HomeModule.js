@@ -437,7 +437,12 @@ export default function HomeModule({ settings, loading, saveSettings }) {
     setEditing(false);
   };
 
-  if (loading) return null;
+  // Reserve the Domov card's height while settings load so the sections below
+  // don't shift down when it appears (CLS).
+  if (loading)
+    return (
+      <div className="mb-2.5 h-[124px] rounded-2xl border border-stone-200/70 bg-white dark:border-white/10 dark:bg-stone-900" />
+    );
 
   const destinations = settings?.destinations || [];
   const shortcuts = settings?.shortcuts || [];

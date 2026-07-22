@@ -103,7 +103,12 @@
     "today": "danes",
     "yesterday": "včeraj",
     "daysAgo": "pred {n} dnevi",
-    "allNotes": "Vse notice"
+    "allNotes": "Vse notice",
+    "dateLabel": "Datum (izbirno)",
+    "archive": "Arhiv",
+    "archiveTitle": "Arhiv deske",
+    "noArchived": "Arhiv je prazen",
+    "restore": "Obnovi"
   },
   "Settings": {
     "signedInAs": "Prijavljen kot {name}",

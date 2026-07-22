@@ -1,8 +1,8 @@
 'use client';
 import { useState } from 'react';
 import { useTranslations, useFormatter } from 'next-intl';
-import { Settings } from 'lucide-react';
-import { getSt, cx, dueTone, DUE_BAR, DUE_BADGE, weatherInfo, relativeDay } from '@/lib/utils';
+import { Settings, History, RotateCcw, Trash2 } from 'lucide-react';
+import { getSt, cx, dueTone, DUE_BAR, DUE_BADGE, weatherInfo, relativeDay, localDateFromStr } from '@/lib/utils';
 import { expandEvents, EVENT_TYPES } from '@/lib/calendar';
 import {
   Screen,
@@ -14,6 +14,9 @@ import {
   Wordmark,
   Modal,
   ModalActions,
+  Input,
+  Label,
+  EmptyState,
   ROW_PRESS,
   PRESS,
   PRESS_SM,
@@ -184,50 +187,99 @@ const NOTE_INPUT =
 
 function NoteRow({ note, onClick, last }) {
   const tb = useTranslations('Board');
+  const format = useFormatter();
   const rel = relativeDay(note.created_at);
   const initial = (note.author_name || '?')[0].toUpperCase();
+  const eventDate = note.event_date ? localDateFromStr(note.event_date) : null;
   return (
     <div
       onClick={onClick}
-      className={cx('py-2.5', ROW_PRESS, !last && 'border-b border-dotted border-stone-300 dark:border-stone-700')}
+      className={cx(
+        'flex items-center gap-3 py-2.5',
+        ROW_PRESS,
+        !last && 'border-b border-dotted border-stone-300 dark:border-stone-700',
+      )}
     >
-      <div className="text-sm text-stone-900 dark:text-stone-100">{note.text}</div>
-      <div className="mt-0.5 text-[10px] text-stone-400 dark:text-stone-500">
-        {initial} · {tb(rel.key, rel.params)}
+      <div className="min-w-0 flex-1">
+        <div className="text-sm text-stone-900 dark:text-stone-100">{note.text}</div>
+        <div className="mt-0.5 text-[10px] text-stone-400 dark:text-stone-500">
+          {initial} · {tb(rel.key, rel.params)}
+        </div>
       </div>
+      {eventDate && (
+        <div className="shrink-0 text-center leading-none">
+          <div className="text-xl font-extrabold text-orange-600 dark:text-orange-400">
+            {format.dateTime(eventDate, 'dayNum')}
+          </div>
+          <div className="mt-0.5 text-[9px] font-bold tracking-wide text-stone-400 uppercase dark:text-stone-500">
+            {format.dateTime(eventDate, 'monthShort')}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function BoardSection({ notes, loading, addNote, updateNote, markNoteDone, authorName, userId }) {
+function BoardSection({
+  notes,
+  archived,
+  loading,
+  addNote,
+  updateNote,
+  markNoteDone,
+  unarchiveNote,
+  deleteNote,
+  authorName,
+  userId,
+}) {
   const tb = useTranslations('Board');
   const tc = useTranslations('Common');
+  const format = useFormatter();
   const [showNew, setShowNew] = useState(false);
   const [showAll, setShowAll] = useState(false);
+  const [showArchive, setShowArchive] = useState(false);
   const [activeNote, setActiveNote] = useState(null);
   const [draft, setDraft] = useState('');
+  const [draftDate, setDraftDate] = useState('');
 
+  const openNew = () => {
+    setDraft('');
+    setDraftDate('');
+    setShowNew(true);
+  };
   const openNote = (note) => {
     setActiveNote(note);
     setDraft(note.text);
+    setDraftDate(note.event_date || '');
   };
 
   return (
     <div className="mb-5">
       <div className="mb-2.5 flex items-center justify-between">
         <SectionHeader className="mb-0">{tb('title')}</SectionHeader>
-        <button
-          onClick={() => {
-            setDraft('');
-            setShowNew(true);
-          }}
-          className={cx(
-            'cursor-pointer rounded-full border-none bg-stone-900 px-2.5 py-1 text-xs font-bold text-white dark:bg-stone-100 dark:text-stone-900',
-            PRESS_SM,
+        <div className="flex items-center gap-1.5">
+          {archived.length > 0 && (
+            <button
+              onClick={() => setShowArchive(true)}
+              className={cx(
+                'flex cursor-pointer items-center gap-1 rounded-full border border-stone-300 bg-transparent px-2.5 py-1 text-xs font-bold text-stone-500 dark:border-stone-700 dark:text-stone-400',
+                PRESS_SM,
+              )}
+            >
+              <History className="size-3" />
+              {tb('archive')}
+            </button>
           )}
-        >
-          {tb('new')}
-        </button>
+          <button
+            onClick={openNew}
+            className={cx(
+              'cursor-pointer rounded-full border-none bg-stone-900 px-2.5 py-1 text-xs font-bold text-white dark:bg-stone-100 dark:text-stone-900',
+              PRESS_SM,
+            )}
+          >
+            {tb('new')}
+          </button>
+        </div>
       </div>
 
       <Card className="px-3.5 py-1">
@@ -270,12 +322,14 @@ function BoardSection({ notes, loading, addNote, updateNote, markNoteDone, autho
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           placeholder={tb('placeholder')}
-          className={cx(NOTE_INPUT, 'mb-4')}
+          className={cx(NOTE_INPUT, 'mb-3')}
         />
+        <Label>{tb('dateLabel')}</Label>
+        <Input type="date" value={draftDate} onChange={(e) => setDraftDate(e.target.value)} className="mb-4" />
         <ModalActions
           disabled={!draft.trim()}
           onSave={() => {
-            addNote(draft.trim(), userId, authorName);
+            addNote(draft.trim(), userId, authorName, draftDate || null);
             setShowNew(false);
           }}
           onCancel={() => setShowNew(false)}
@@ -290,13 +344,15 @@ function BoardSection({ notes, loading, addNote, updateNote, markNoteDone, autho
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               placeholder={tb('placeholder')}
-              className={cx(NOTE_INPUT, 'mb-4')}
+              className={cx(NOTE_INPUT, 'mb-3')}
             />
+            <Label>{tb('dateLabel')}</Label>
+            <Input type="date" value={draftDate} onChange={(e) => setDraftDate(e.target.value)} className="mb-4" />
             <ModalActions
               saveLabel={tc('save')}
               disabled={!draft.trim()}
               onSave={() => {
-                if (draft.trim() !== activeNote.text) updateNote(activeNote.id, draft.trim());
+                updateNote(activeNote.id, { text: draft.trim(), event_date: draftDate || null });
                 setActiveNote(null);
               }}
               onCancel={() => setActiveNote(null)}
@@ -335,6 +391,55 @@ function BoardSection({ notes, loading, addNote, updateNote, markNoteDone, autho
           />
         ))}
       </Modal>
+
+      {/* Archive */}
+      <Modal open={showArchive} onClose={() => setShowArchive(false)}>
+        <h3 className="mb-3 font-serif text-xl font-semibold tracking-tight text-stone-900 dark:text-stone-100">
+          {tb('archiveTitle')}
+        </h3>
+        {archived.length === 0 ? (
+          <EmptyState icon="🗂️">{tb('noArchived')}</EmptyState>
+        ) : (
+          archived.map((note, i, arr) => (
+            <div
+              key={note.id}
+              className={cx(
+                'flex items-center gap-2 py-2.5',
+                i < arr.length - 1 && 'border-b border-dotted border-stone-300 dark:border-stone-700',
+              )}
+            >
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm text-stone-500 line-through dark:text-stone-400">{note.text}</div>
+                {note.event_date && (
+                  <div className="mt-0.5 text-[10px] text-stone-400 dark:text-stone-500">
+                    {format.dateTime(localDateFromStr(note.event_date), 'dayShort')}
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={() => unarchiveNote(note.id)}
+                aria-label={tb('restore')}
+                className={cx(
+                  'flex size-9 shrink-0 items-center justify-center rounded-full text-stone-500 dark:text-stone-400',
+                  PRESS_SM,
+                )}
+              >
+                <RotateCcw className="size-4" />
+              </button>
+              <button
+                onClick={() => deleteNote(note.id)}
+                aria-label={tc('delete')}
+                className={cx(
+                  'flex size-9 shrink-0 items-center justify-center rounded-full text-red-600 dark:text-red-400',
+                  PRESS_SM,
+                )}
+              >
+                <Trash2 className="size-4" />
+              </button>
+            </div>
+          ))
+        )}
+      </Modal>
     </div>
   );
 }
@@ -352,10 +457,13 @@ export default function HomeScreen({
   homeSettingsLoading,
   saveHomeSettings,
   boardNotes,
+  boardArchived,
   boardLoading,
   addNote,
   updateNote,
   markNoteDone,
+  unarchiveNote,
+  deleteNote,
   weather,
   navigate,
   onOpenSettings,
@@ -452,10 +560,13 @@ export default function HomeScreen({
         {/* Deska */}
         <BoardSection
           notes={boardNotes}
+          archived={boardArchived}
           loading={boardLoading}
           addNote={addNote}
           updateNote={updateNote}
           markNoteDone={markNoteDone}
+          unarchiveNote={unarchiveNote}
+          deleteNote={deleteNote}
           authorName={authorName}
           userId={user.id}
         />

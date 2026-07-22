@@ -103,7 +103,12 @@
     "today": "today",
     "yesterday": "yesterday",
     "daysAgo": "{n} days ago",
-    "allNotes": "All notes"
+    "allNotes": "All notes",
+    "dateLabel": "Date (optional)",
+    "archive": "Archive",
+    "archiveTitle": "Board archive",
+    "noArchived": "Archive is empty",
+    "restore": "Restore"
   },
   "Settings": {
     "signedInAs": "Signed in as {name}",

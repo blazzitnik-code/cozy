@@ -160,10 +160,13 @@ export default function AppShell({ user, household, members, signOut }) {
   // ─── HOME EXTRAS (board notes + weather) ───
   const {
     notes: boardNotes,
+    archived: boardArchived,
     loading: boardLoading,
     addNote: dbAddNote,
     updateNote: dbUpdateNote,
     markDone: dbMarkNoteDone,
+    unarchiveNote: dbUnarchiveNote,
+    deleteNote: dbDeleteNote,
   } = useBoardNotes(householdId);
   const weather = useWeather(); // Ljubljana default; coords hardcoded for now
 
@@ -317,10 +320,13 @@ export default function AppShell({ user, household, members, signOut }) {
           homeSettingsLoading={homeSettingsLoading}
           saveHomeSettings={saveHomeSettings}
           boardNotes={boardNotes}
+          boardArchived={boardArchived}
           boardLoading={boardLoading}
           addNote={dbAddNote}
           updateNote={dbUpdateNote}
           markNoteDone={dbMarkNoteDone}
+          unarchiveNote={dbUnarchiveNote}
+          deleteNote={dbDeleteNote}
           weather={weather}
           navigate={navigate}
           onOpenSettings={openSettings}

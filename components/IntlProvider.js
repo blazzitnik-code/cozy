@@ -22,6 +22,7 @@ const FORMATS = {
     weekdayFull: { weekday: 'long', day: 'numeric', month: 'long' },
     weekdayShort: { weekday: 'short' },
     dayNum: { day: 'numeric' },
+    monthShort: { month: 'short' },
     time: { hour: '2-digit', minute: '2-digit' },
   },
 };

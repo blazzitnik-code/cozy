@@ -46,6 +46,7 @@ const params = {
   code: '600012',
   number: 42,
   store: 'Spar',
+  amount: '5 €',
   label: 'X',
   date: '1. 1. 2026',
   p: 40,

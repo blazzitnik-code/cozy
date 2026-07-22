@@ -25,6 +25,10 @@ const FORMATS = {
     monthShort: { month: 'short' },
     time: { hour: '2-digit', minute: '2-digit' },
   },
+  number: {
+    eur: { style: 'currency', currency: 'EUR' },
+    eurWhole: { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 },
+  },
 };
 
 const LocaleContext = createContext(null);

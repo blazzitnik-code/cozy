@@ -2,9 +2,24 @@
 import { useState, useEffect, useRef, useMemo, useCallback, memo } from 'react';
 import { AnimatePresence, motion, Reorder, useDragControls } from 'motion/react';
 import { useTranslations, useFormatter, useLocale } from 'next-intl';
-import { ChevronDown, GripVertical, History, Pencil, Plus, Search, Settings, Star, Trash2, X } from 'lucide-react';
+import {
+  Check,
+  ChevronDown,
+  Clock,
+  GripVertical,
+  History,
+  Pencil,
+  Plus,
+  Repeat,
+  Search,
+  Settings,
+  Star,
+  Trash2,
+  X,
+} from 'lucide-react';
 import { SHOP_SUGG } from '@/lib/constants';
-import { cx, localDateStr } from '@/lib/utils';
+import { cx } from '@/lib/utils';
+import { analyzeShoppingSuggestions, analyzeShoppingHistory } from '@/lib/shopping';
 import {
   Screen,
   PageBody,
@@ -15,11 +30,10 @@ import {
   ModuleHeader,
   Input,
   Label,
-  Pill,
   IconButton,
   EmptyState,
+  SectionHeader,
   BackBtn,
-  ScreenEnter,
   CHIP_ON,
   CHIP_OFF,
   POPOVER,
@@ -27,6 +41,7 @@ import {
   POP,
   LIST_ROW,
   CHIP_IN,
+  COLLAPSE,
   PRESS,
   PRESS_SM,
   ROW_PRESS,
@@ -398,8 +413,6 @@ export default function ShoppingModule({
   const [shopSugg, setShopSugg] = useState([]);
   const [showShopArchive, setShowShopArchive] = useState(false);
   const [archSearch, setArchSearch] = useState('');
-  const [archStoreF, setArchStoreF] = useState([]);
-  const [archView, setArchView] = useState('date'); // 'date' | 'store' | 'item'
   const [reAddItem, setReAddItem] = useState(null); // archived row to re-add to the list
   const [shopDetail, setShopDetail] = useState(null);
   const [showManageStores, setShowManageStores] = useState(false);
@@ -411,11 +424,25 @@ export default function ShoppingModule({
   const [editingId, setEditingId] = useState(null);
   const [editingName, setEditingName] = useState('');
   const [confirmAction, setConfirmAction] = useState(null); // { message, onConfirm }
-  // Suppresses the archView pane's own entrance while the archive screen enters.
-  const archViewReady = useRef(false);
+  const [suggOpen, setSuggOpen] = useState(true); // smart-suggestions section (persisted)
+  const [addedSugg, setAddedSugg] = useState(() => new Set()); // suggestion chips tapped this session
+  const [checkout, setCheckout] = useState(null); // { items } — open checkout modal on "bought"
+  const [checkoutStore, setCheckoutStore] = useState('');
+  const [checkoutAmount, setCheckoutAmount] = useState('');
+  const [openGroup, setOpenGroup] = useState(null); // expanded purchase in the analysis list
   useEffect(() => {
-    archViewReady.current = showShopArchive;
-  }, [showShopArchive]);
+    const v = localStorage.getItem('cozy_shop_sugg_open');
+    if (v != null) setSuggOpen(v === '1');
+  }, []);
+  const toggleSugg = () =>
+    setSuggOpen((o) => {
+      localStorage.setItem('cozy_shop_sugg_open', o ? '0' : '1');
+      return !o;
+    });
+
+  // Smart suggestions derived from the purchase archive (frequent + likely-due).
+  const suggestions = useMemo(() => analyzeShoppingSuggestions(shopArchive), [shopArchive]);
+  const hasSugg = suggestions.due.length > 0 || suggestions.frequent.length > 0;
 
   // Quick-quantity chip (item detail modal) — rendered per group (counts | measures).
   const QTY_COUNTS = ['1×', '2×', '3×'];
@@ -436,6 +463,31 @@ export default function ShoppingModule({
       {q}
     </button>
   );
+
+  // Suggestion chip — tap adds to the list (via shopAddItem) and marks itself
+  // done for this session (the source archive doesn't change, so track locally).
+  const suggChip = (name, sub, key) => {
+    const added = addedSugg.has(name);
+    return (
+      <button
+        key={key}
+        disabled={added}
+        onClick={() => {
+          shopAddItem(name);
+          setAddedSugg((p) => new Set(p).add(name));
+        }}
+        className={cx(
+          'flex shrink-0 items-center gap-1 rounded-full border px-3 py-1.5 text-sm font-semibold',
+          PRESS_SM,
+          added ? 'border-green-600/30 bg-green-600/10 text-green-700 dark:text-green-400' : CHIP_OFF,
+        )}
+      >
+        {added ? <Check className="size-3.5" /> : <Plus className="size-3.5 text-orange-600 dark:text-orange-400" />}
+        <span>{name}</span>
+        {sub && !added && <span className="text-xs font-normal text-stone-400 dark:text-stone-500">{sub}</span>}
+      </button>
+    );
+  };
 
   // All known shopping names for autocomplete
   const shopKnown = useMemo(() => {
@@ -574,10 +626,30 @@ export default function ShoppingModule({
     setEditingId(null);
   }
 
-  async function shopClearChecked() {
+  // "Bought" opens the checkout modal instead of archiving straight away, so the
+  // user can optionally note the store + amount for this purchase.
+  function shopClearChecked() {
     const targetItems = activeStore === 'all' ? shopItems : shopItems.filter((i) => i.store === activeStore);
     const checked = targetItems.filter((i) => i.checked);
-    if (checked.length > 0) await dbShopArchiveChecked(checked);
+    if (checked.length === 0) return;
+    setCheckoutStore('');
+    setCheckoutAmount('');
+    setCheckout({ items: checked });
+  }
+
+  // Accepts "17,60" or "17.60"; empty/invalid → null.
+  const parseAmount = (s) => {
+    const n = parseFloat(String(s).replace(',', '.'));
+    return isNaN(n) ? null : n;
+  };
+
+  // Optimistic: close the sheet immediately, archive in the background.
+  // save=true carries the store/amount; save=false (Skip) archives without them.
+  function finalizeCheckout(save) {
+    const items = checkout?.items || [];
+    const meta = save ? { storeNote: checkoutStore, amount: parseAmount(checkoutAmount) } : {};
+    setCheckout(null);
+    if (items.length > 0) dbShopArchiveChecked(items, meta);
   }
 
   function shopInputChange(val) {
@@ -632,47 +704,18 @@ export default function ShoppingModule({
     [dbShopUpdate],
   );
 
-  // ─── ARCHIVE VIEW ───
+  // ─── ANALYSIS VIEW (replaces the old purchase history) ───
   if (showShopArchive) {
-    const fa = shopArchive.filter((a) => {
-      if (archSearch && !a.name.toLowerCase().includes(archSearch.toLowerCase())) return false;
-      if (archStoreF.length > 0 && !archStoreF.includes(a.store)) return false;
-      return true;
-    });
-    // An unparseable completed_at yields an Invalid Date; format.dateTime then
-    // throws (RangeError) and takes down the whole archive screen. Guard every
-    // date format so one bad row can't crash the page.
-    const fmtArch = (v, preset) => {
-      const d = new Date(v);
-      return isNaN(d.getTime()) ? '—' : format.dateTime(d, preset);
-    };
-    const byDate = {};
-    fa.forEach((a) => {
-      const d = new Date(a.completed_at);
-      const valid = !isNaN(d.getTime());
-      const k = valid ? localDateStr(d) : 'unknown';
-      if (!byDate[k]) byDate[k] = { label: valid ? format.dateTime(d, 'fullDate') : '—', items: [] };
-      byDate[k].items.push(a);
-    });
-    const byStore = {};
-    fa.forEach((a) => {
-      (byStore[a.store] ||= []).push(a);
-    });
-    const byItem = {};
-    fa.forEach((a) => {
-      if (!byItem[a.name]) byItem[a.name] = { store: a.store, items: [] };
-      byItem[a.name].items.push(a);
-    });
-    const tot = fa.length;
-    const trips = new Set(fa.map((a) => a.completed_at)).size;
-    const months = new Set(
-      fa.map((a) => {
-        const d = new Date(a.completed_at);
-        return d.getFullYear() + '-' + d.getMonth();
-      }),
-    ).size;
-    const variety = Object.keys(byItem).length;
+    const q = archSearch.trim().toLowerCase();
+    const analysis = analyzeShoppingHistory(shopArchive);
     const storeName = (id) => shopStores.find((s) => s.id === id);
+    const eur = (v) => format.number(v, 'eur');
+    // Guard unparseable dates (a bad completed_at would otherwise crash format).
+    const fmtDate = (d) => (d && !isNaN(d.getTime()) ? format.dateTime(d, 'dayShort') : '—');
+    const groups = q
+      ? analysis.groups.filter((g) => g.items.some((it) => it.name.toLowerCase().includes(q)))
+      : analysis.groups;
+    const maxStore = analysis.storeList.length ? analysis.storeList[0].amount : 0;
 
     return (
       <Screen>
@@ -700,11 +743,11 @@ export default function ShoppingModule({
         <PageBody key="shop-archive">
           <div className="mb-4 flex items-center gap-3 pt-3">
             <BackBtn onClick={() => setShowShopArchive(false)} />
-            <h2 className="font-serif text-2xl font-semibold tracking-tight">{t('historyTitle')}</h2>
+            <h2 className="font-serif text-2xl font-semibold tracking-tight">{t('analysisTitle')}</h2>
           </div>
 
           {/* Search */}
-          <div className="relative mb-3">
+          <div className="relative mb-4">
             <Search className="absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-stone-400 dark:text-stone-600" />
             <input
               value={archSearch}
@@ -727,199 +770,171 @@ export default function ShoppingModule({
             )}
           </div>
 
-          {/* Store filter pills */}
-          {shopStores.length > 0 && (
-            <div className="mb-3 flex flex-wrap gap-1.5">
-              <Pill small active={archStoreF.length === 0} onClick={() => setArchStoreF([])}>
-                {tc('all')}
-              </Pill>
-              {shopStores.map((s) => {
-                const cnt = shopArchive.filter((a) => a.store === s.id).length;
-                return cnt ? (
-                  <Pill
-                    key={s.id}
-                    small
-                    active={archStoreF.includes(s.id)}
-                    onClick={() =>
-                      setArchStoreF((prev) => (prev.includes(s.id) ? prev.filter((x) => x !== s.id) : [...prev, s.id]))
-                    }
-                  >
-                    {s.icon} {cnt}
-                  </Pill>
-                ) : null;
-              })}
-            </div>
+          {analysis.groups.length === 0 && (
+            <EmptyState icon="🧾">{shopArchiveLoading ? '' : t('historyEmpty')}</EmptyState>
           )}
 
-          {/* Stats row */}
-          <div className="mb-3.5 grid grid-cols-4 gap-1.5">
-            {[
-              [t('total'), tot],
-              [t('trips'), trips],
-              [t('avgPerMonth'), months ? Math.round(tot / months) : 0],
-              [t('variety'), variety],
-            ].map(([l, v]) => (
-              <Card key={l} className="rounded-xl px-2 py-2.5 text-center">
-                <div className="text-[9px] font-semibold tracking-[1px] text-stone-400 uppercase dark:text-stone-500">
-                  {l}
-                </div>
-                <div className="mt-0.5 text-2xl font-extrabold text-stone-900 dark:text-stone-100">{v}</div>
-              </Card>
-            ))}
-          </div>
-
-          {/* View toggle */}
-          <div className="mb-3.5 flex gap-1.5">
-            <Pill small active={archView === 'date'} onClick={() => setArchView('date')}>
-              {t('byDate')}
-            </Pill>
-            <Pill small active={archView === 'store'} onClick={() => setArchView('store')}>
-              {t('byStore')}
-            </Pill>
-            <Pill small active={archView === 'item'} onClick={() => setArchView('item')}>
-              {t('byItem')}
-            </Pill>
-          </div>
-
-          {tot === 0 && <EmptyState icon="🧾">{shopArchiveLoading ? '' : t('historyEmpty')}</EmptyState>}
-
-          <ScreenEnter key={archView} initial={archViewReady.current ? undefined : false}>
-            {/* BY DATE */}
-            {archView === 'date' &&
-              Object.entries(byDate)
-                .sort((a, b) => b[0].localeCompare(a[0]))
-                .map(([k, { label, items: di }]) => (
-                  <div key={k} className="mb-4">
-                    <div className="mb-1.5 flex justify-between">
-                      <h3 className="text-sm font-bold text-stone-500 capitalize dark:text-stone-400">{label}</h3>
-                      <span className="text-xs font-semibold text-stone-400 dark:text-stone-600">{di.length}</span>
-                    </div>
-                    {di.map((it, i) => {
-                      const store = storeName(it.store);
-                      return (
-                        <div
-                          key={it.id + '-' + i}
-                          onClick={() => setReAddItem(it)}
-                          className={cx(
-                            'flex items-center gap-2.5 border-b border-dotted border-stone-300 px-0.5 py-2.25 last:border-b-0 dark:border-stone-700',
-                            ROW_PRESS,
-                          )}
-                        >
-                          <div className="min-w-0 flex-1 text-sm font-semibold text-stone-900 dark:text-stone-100">
-                            {it.name}
-                            {it.qty && (
-                              <span className="ml-2 text-xs text-stone-400 dark:text-stone-500">{it.qty}</span>
-                            )}
-                          </div>
-                          {store && (
-                            <span className="shrink-0 text-xs text-stone-400 dark:text-stone-600">{store.icon}</span>
-                          )}
-                        </div>
-                      );
-                    })}
+          {/* Summary — hidden while searching to focus results */}
+          {!q && analysis.groups.length > 0 && (
+            <>
+              <div className="mb-2 grid grid-cols-2 gap-2">
+                <Card className="rounded-xl px-3.5 py-3">
+                  <div className="text-[10px] font-semibold tracking-[1px] text-stone-400 uppercase dark:text-stone-500">
+                    {t('thisMonth')}
                   </div>
-                ))}
+                  <div className="mt-0.5 text-2xl font-extrabold text-stone-900 dark:text-stone-100">
+                    {analysis.hasAmounts ? format.number(analysis.monthTotal, 'eurWhole') : '—'}
+                  </div>
+                </Card>
+                <Card className="rounded-xl px-3.5 py-3">
+                  <div className="text-[10px] font-semibold tracking-[1px] text-stone-400 uppercase dark:text-stone-500">
+                    {t('purchases')}
+                  </div>
+                  <div className="mt-0.5 text-2xl font-extrabold text-stone-900 dark:text-stone-100">
+                    {analysis.monthCount}
+                  </div>
+                </Card>
+              </div>
+              {analysis.monthCount > 0 && (
+                <p className="mb-4 px-0.5 text-xs text-stone-400 dark:text-stone-500">
+                  {t('avgLine', {
+                    amount: analysis.hasAmounts ? eur(analysis.avgBasket) : '—',
+                    n: analysis.avgItems,
+                  })}
+                </p>
+              )}
 
-            {/* BY STORE */}
-            {archView === 'store' &&
-              Object.entries(byStore)
-                .sort((a, b) => b[1].length - a[1].length)
-                .map(([sid, si]) => {
-                  const store = storeName(sid);
-                  return (
-                    <div key={sid} className="mb-4">
-                      <div className="mb-1.5 flex justify-between">
-                        <h3 className="text-sm font-bold text-stone-700 dark:text-stone-300">
-                          {store ? `${store.icon} ${store.name}` : '—'}
-                        </h3>
-                        <span className="text-xs font-semibold text-stone-400 dark:text-stone-600">{si.length}</span>
+              {analysis.storeList.length > 0 && (
+                <div className="mb-4">
+                  <SectionHeader>{t('byStore')}</SectionHeader>
+                  {analysis.storeList.map(({ store, amount }) => (
+                    <div key={store || 'other'} className="mb-2">
+                      <div className="mb-1 flex items-baseline justify-between">
+                        <span className="text-sm font-semibold text-stone-700 dark:text-stone-300">
+                          {store || t('other')}
+                        </span>
+                        <span className="text-sm font-bold text-stone-900 dark:text-stone-100">{eur(amount)}</span>
                       </div>
-                      <div className="mb-2 h-1.5 overflow-hidden rounded-xs bg-stone-200 dark:bg-stone-800">
+                      <div className="h-1.5 overflow-hidden rounded-xs bg-stone-200 dark:bg-stone-800">
                         <div
                           className="h-full rounded-xs bg-stone-400 dark:bg-stone-500"
-                          style={{ width: Math.min(100, (si.length / tot) * 300) + '%' }}
+                          style={{ width: (maxStore ? (amount / maxStore) * 100 : 0) + '%' }}
                         />
                       </div>
-                      {si.slice(0, 5).map((it, i) => (
-                        <div
-                          key={it.id + '-' + i}
-                          onClick={() => setReAddItem(it)}
-                          className={cx(
-                            'flex items-center gap-2.5 border-b border-dotted border-stone-200 px-0.5 py-1.75 last:border-b-0 dark:border-stone-800',
-                            ROW_PRESS,
-                          )}
-                        >
-                          <div className="flex-1 text-sm font-medium text-stone-900 dark:text-stone-100">{it.name}</div>
-                          <div className="text-xs text-stone-400 dark:text-stone-600">{it.qty}</div>
-                          <div className="text-xs text-stone-400 dark:text-stone-600">
-                            {fmtArch(it.completed_at, 'dayShort')}
-                          </div>
-                        </div>
-                      ))}
-                      {si.length > 5 && (
-                        <div className="px-3 py-1 text-xs text-stone-400 dark:text-stone-600">
-                          {t('moreCount', { count: si.length - 5 })}
-                        </div>
-                      )}
                     </div>
-                  );
-                })}
+                  ))}
+                </div>
+              )}
 
-            {/* BY ITEM — most bought, monthly bars */}
-            {archView === 'item' &&
-              Object.entries(byItem)
-                .sort((a, b) => b[1].items.length - a[1].items.length)
-                .map(([name, { store: sid, items: ie }]) => {
-                  const store = storeName(sid);
-                  const mb = {};
-                  ie.forEach((e) => {
-                    const d = new Date(e.completed_at);
-                    if (isNaN(d.getTime())) return; // skip unparseable dates
-                    const k = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
-                    if (!mb[k]) mb[k] = { label: format.dateTime(d, 'monthShortYY'), count: 0 };
-                    mb[k].count++;
-                  });
-                  const mx = Math.max(1, ...Object.values(mb).map((m) => m.count));
+              {analysis.topItems.length > 0 && (
+                <div className="mb-4">
+                  <SectionHeader>{t('mostBought')}</SectionHeader>
+                  {analysis.topItems.map(({ name, count }) => (
+                    <div
+                      key={name}
+                      className="flex items-center justify-between border-b border-dotted border-stone-200 py-1.75 last:border-b-0 dark:border-stone-800"
+                    >
+                      <span className="min-w-0 truncate text-sm text-stone-900 dark:text-stone-100">{name}</span>
+                      <span className="shrink-0 pl-2 text-xs font-semibold text-stone-400 dark:text-stone-500">
+                        {t('timesBought', { count })}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Purchases — grouped by checkout, newest first; tap to expand */}
+          {groups.length > 0 && (
+            <div>
+              <SectionHeader>{t('purchaseList')}</SectionHeader>
+              <div className="flex flex-col">
+                {groups.map((g) => {
+                  const solo = g.id.startsWith('solo-');
+                  // Legacy rows (no purchase_group) render as a single flat item.
+                  if (solo) {
+                    const it = g.items[0];
+                    return (
+                      <div
+                        key={g.id}
+                        onClick={() => setReAddItem(it)}
+                        className={cx(
+                          'flex items-center gap-2.5 border-b border-dotted border-stone-300 px-0.5 py-2.5 last:border-b-0 dark:border-stone-700',
+                          ROW_PRESS,
+                        )}
+                      >
+                        <div className="min-w-0 flex-1 text-sm font-semibold text-stone-900 dark:text-stone-100">
+                          {it.name}
+                          {it.qty && <span className="ml-2 text-xs text-stone-400 dark:text-stone-500">{it.qty}</span>}
+                        </div>
+                        <span className="shrink-0 text-xs text-stone-400 dark:text-stone-600">{fmtDate(g.date)}</span>
+                      </div>
+                    );
+                  }
+                  const open = openGroup === g.id;
                   return (
-                    <div key={name} className="mb-4" onClick={() => setReAddItem(ie[0])}>
-                      <div className={cx('mb-2 flex items-center gap-2 rounded-lg px-0.5', ROW_PRESS)}>
-                        <span className="text-xl">{store?.icon || '🛒'}</span>
-                        <div>
-                          <div className="text-sm font-bold text-stone-900 dark:text-stone-100">{name}</div>
-                          <div className="text-xs font-semibold text-stone-400 dark:text-stone-500">
-                            {t('timesBought', { count: ie.length })}
+                    <div
+                      key={g.id}
+                      className="border-b border-dotted border-stone-300 last:border-b-0 dark:border-stone-700"
+                    >
+                      <button
+                        onClick={() => setOpenGroup(open ? null : g.id)}
+                        className={cx('flex w-full items-center gap-2.5 px-0.5 py-2.5 text-left', PRESS_SM)}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-sm font-bold text-stone-900 dark:text-stone-100">
+                            {g.store || t('other')}
+                          </div>
+                          <div className="text-xs text-stone-400 dark:text-stone-500">
+                            {fmtDate(g.date)} · {t('itemCount', { n: g.items.length })}
                           </div>
                         </div>
-                      </div>
-                      <div className="mb-1 flex h-12.5 items-end gap-0.75 px-1">
-                        {Object.entries(mb)
-                          .sort((a, b) => a[0].localeCompare(b[0]))
-                          .map(([k, { count }]) => (
-                            <div key={k} className="flex flex-1 flex-col items-center gap-0.5">
-                              <div className="text-[10px] font-bold text-stone-400 dark:text-stone-500">{count}</div>
-                              <div
-                                className="w-full max-w-7 rounded-sm bg-stone-400 opacity-70 dark:bg-stone-500"
-                                style={{ height: Math.max(8, (count / mx) * 36) }}
-                              />
+                        {g.amount != null && (
+                          <span className="shrink-0 text-sm font-bold text-stone-900 dark:text-stone-100">
+                            {eur(g.amount)}
+                          </span>
+                        )}
+                        <ChevronDown
+                          className={cx(
+                            'size-4 shrink-0 text-stone-400 transition-transform duration-200 dark:text-stone-500',
+                            open && 'rotate-180',
+                          )}
+                        />
+                      </button>
+                      <AnimatePresence initial={false}>
+                        {open && (
+                          <motion.div {...COLLAPSE} className="overflow-hidden">
+                            <div className="pb-2 pl-2">
+                              {g.items.map((it, i) => (
+                                <div
+                                  key={it.id + '-' + i}
+                                  onClick={() => setReAddItem(it)}
+                                  className={cx(
+                                    'flex items-center gap-2 border-b border-dotted border-stone-200 py-1.75 last:border-b-0 dark:border-stone-800',
+                                    ROW_PRESS,
+                                  )}
+                                >
+                                  <span className="min-w-0 flex-1 truncate text-sm text-stone-700 dark:text-stone-300">
+                                    {it.name}
+                                  </span>
+                                  {it.qty && (
+                                    <span className="shrink-0 text-xs text-stone-400 dark:text-stone-600">
+                                      {it.qty}
+                                    </span>
+                                  )}
+                                </div>
+                              ))}
                             </div>
-                          ))}
-                      </div>
-                      <div className="flex gap-0.75 px-1">
-                        {Object.entries(mb)
-                          .sort((a, b) => a[0].localeCompare(b[0]))
-                          .map(([k, { label }]) => (
-                            <div
-                              key={k}
-                              className="flex-1 text-center text-[9px] font-semibold text-stone-400 dark:text-stone-600"
-                            >
-                              {label}
-                            </div>
-                          ))}
-                      </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
                   );
                 })}
-          </ScreenEnter>
+              </div>
+            </div>
+          )}
         </PageBody>
       </Screen>
     );
@@ -1008,6 +1023,54 @@ export default function ShoppingModule({
             )}
           </div>
         </div>
+
+        {/* Smart suggestions — collapsible, derived from purchase archive */}
+        {hasSugg && (
+          <div className="mb-3">
+            <button
+              onClick={toggleSugg}
+              className={cx('mb-2 flex items-center gap-1.5 border-none bg-transparent px-0.5', PRESS_SM)}
+            >
+              <span className="text-xs font-bold tracking-[1px] text-stone-400 uppercase dark:text-stone-600">
+                {t('suggestions')}
+              </span>
+              <ChevronDown
+                className={cx(
+                  'size-3.5 text-stone-400 transition-transform duration-200 dark:text-stone-500',
+                  suggOpen && 'rotate-180',
+                )}
+              />
+            </button>
+            <AnimatePresence initial={false}>
+              {suggOpen && (
+                <motion.div {...COLLAPSE} className="overflow-hidden">
+                  {suggestions.due.length > 0 && (
+                    <div className="mb-2">
+                      <div className="mb-1.5 flex items-center gap-1 text-[11px] font-semibold text-stone-500 dark:text-stone-400">
+                        <Clock className="size-3" /> {t('mightNeed')}
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {suggestions.due.map((s) =>
+                          suggChip(s.name, t('daysAgoShort', { n: s.daysSince }), 'due-' + s.name),
+                        )}
+                      </div>
+                    </div>
+                  )}
+                  {suggestions.frequent.length > 0 && (
+                    <div className="mb-1">
+                      <div className="mb-1.5 flex items-center gap-1 text-[11px] font-semibold text-stone-500 dark:text-stone-400">
+                        <Repeat className="size-3" /> {t('buyOften')}
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {suggestions.frequent.map((s) => suggChip(s.name, null, 'freq-' + s.name))}
+                      </div>
+                    </div>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        )}
 
         {/* Count + "Bought" button */}
         <div className="mb-3 flex items-center justify-between">
@@ -1373,6 +1436,54 @@ export default function ShoppingModule({
             </div>
           )}
         </div>
+      </Modal>
+
+      {/* Checkout modal — optional store + amount for this purchase */}
+      <Modal open={!!checkout} onClose={() => setCheckout(null)}>
+        {checkout && (
+          <>
+            <div className="mb-5 text-center">
+              <div className="mb-2 text-5xl">🛒</div>
+              <h3 className="mb-1 font-serif text-xl font-semibold tracking-tight">{t('purchaseDone')}</h3>
+              <p className="text-sm text-stone-500 dark:text-stone-400">
+                {t('itemsBought', { n: checkout.items.length })}
+              </p>
+            </div>
+
+            <Label>{t('storeOptional')}</Label>
+            <Input
+              autoFocus
+              value={checkoutStore}
+              onChange={(e) => setCheckoutStore(e.target.value)}
+              placeholder={t('storeNotePlaceholder')}
+              className="mb-4"
+            />
+
+            <Label>{t('amountOptional')}</Label>
+            <div className="relative mb-5">
+              <Input
+                inputMode="decimal"
+                value={checkoutAmount}
+                onChange={(e) => setCheckoutAmount(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') finalizeCheckout(true);
+                }}
+                placeholder="0,00"
+                className="pr-9"
+              />
+              <span className="absolute top-1/2 right-3.5 -translate-y-1/2 text-base font-semibold text-stone-400 dark:text-stone-500">
+                €
+              </span>
+            </div>
+
+            <Btn v="success" onClick={() => finalizeCheckout(true)} className="mb-2">
+              {tc('save')}
+            </Btn>
+            <Btn v="ghost" onClick={() => finalizeCheckout(false)}>
+              {t('skip')}
+            </Btn>
+          </>
+        )}
       </Modal>
 
       <ConfirmModal action={confirmAction} onClose={() => setConfirmAction(null)} />

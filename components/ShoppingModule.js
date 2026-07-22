@@ -18,7 +18,7 @@ import {
   X,
 } from 'lucide-react';
 import { SHOP_SUGG } from '@/lib/constants';
-import { cx } from '@/lib/utils';
+import { cx, localDateStr } from '@/lib/utils';
 import { analyzeShoppingSuggestions, analyzeShoppingHistory } from '@/lib/shopping';
 import {
   Screen,
@@ -429,7 +429,6 @@ export default function ShoppingModule({
   const [checkout, setCheckout] = useState(null); // { items } — open checkout modal on "bought"
   const [checkoutStore, setCheckoutStore] = useState('');
   const [checkoutAmount, setCheckoutAmount] = useState('');
-  const [openGroup, setOpenGroup] = useState(null); // expanded purchase in the analysis list
   useEffect(() => {
     const v = localStorage.getItem('cozy_shop_sugg_open');
     if (v != null) setSuggOpen(v === '1');
@@ -710,11 +709,27 @@ export default function ShoppingModule({
     const analysis = analyzeShoppingHistory(shopArchive);
     const storeName = (id) => shopStores.find((s) => s.id === id);
     const eur = (v) => format.number(v, 'eur');
-    // Guard unparseable dates (a bad completed_at would otherwise crash format).
-    const fmtDate = (d) => (d && !isNaN(d.getTime()) ? format.dateTime(d, 'dayShort') : '—');
-    const groups = q
-      ? analysis.groups.filter((g) => g.items.some((it) => it.name.toLowerCase().includes(q)))
-      : analysis.groups;
+    // Group purchases by calendar day — each day is a separator that lists all
+    // its items inline. Same-day checkouts merge (stores joined, amounts summed).
+    const byDate = {};
+    for (const g of analysis.groups) {
+      if (!g.date || isNaN(g.date.getTime())) continue;
+      const key = localDateStr(g.date);
+      if (!byDate[key]) byDate[key] = { key, date: g.date, items: [], amount: 0, hasAmount: false, stores: [] };
+      const b = byDate[key];
+      for (const it of g.items) b.items.push(it);
+      if (g.amount != null) {
+        b.amount += g.amount;
+        b.hasAmount = true;
+      }
+      if (g.store && !b.stores.includes(g.store)) b.stores.push(g.store);
+    }
+    let dateGroups = Object.values(byDate).sort((a, b) => b.date - a.date);
+    if (q) {
+      dateGroups = dateGroups
+        .map((d) => ({ ...d, items: d.items.filter((it) => it.name.toLowerCase().includes(q)) }))
+        .filter((d) => d.items.length > 0);
+    }
     const maxStore = analysis.storeList.length ? analysis.storeList[0].amount : 0;
 
     return (
@@ -845,22 +860,33 @@ export default function ShoppingModule({
             </>
           )}
 
-          {/* Purchases — grouped by checkout, newest first; tap to expand */}
-          {groups.length > 0 && (
+          {/* Purchases grouped by date — each day is a separator, items inline */}
+          {dateGroups.length > 0 && (
             <div>
               <SectionHeader>{t('purchaseList')}</SectionHeader>
-              <div className="flex flex-col">
-                {groups.map((g) => {
-                  const solo = g.id.startsWith('solo-');
-                  // Legacy rows (no purchase_group) render as a single flat item.
-                  if (solo) {
-                    const it = g.items[0];
+              {dateGroups.map((d) => (
+                <div key={d.key} className="mb-4">
+                  <div className="mb-1 flex items-baseline justify-between gap-2">
+                    <h3 className="min-w-0 truncate text-sm font-bold text-stone-700 capitalize dark:text-stone-300">
+                      {format.dateTime(d.date, 'fullDate')}
+                    </h3>
+                    <div className="flex shrink-0 items-baseline gap-2">
+                      {d.stores.length > 0 && (
+                        <span className="text-xs text-stone-400 dark:text-stone-500">{d.stores.join(', ')}</span>
+                      )}
+                      {d.hasAmount && (
+                        <span className="text-sm font-bold text-stone-900 dark:text-stone-100">{eur(d.amount)}</span>
+                      )}
+                    </div>
+                  </div>
+                  {d.items.map((it, i) => {
+                    const store = storeName(it.store);
                     return (
                       <div
-                        key={g.id}
+                        key={it.id + '-' + i}
                         onClick={() => setReAddItem(it)}
                         className={cx(
-                          'flex items-center gap-2.5 border-b border-dotted border-stone-300 px-0.5 py-2.5 last:border-b-0 dark:border-stone-700',
+                          'flex items-center gap-2.5 border-b border-dotted border-stone-300 px-0.5 py-2.25 last:border-b-0 dark:border-stone-700',
                           ROW_PRESS,
                         )}
                       >
@@ -868,71 +894,14 @@ export default function ShoppingModule({
                           {it.name}
                           {it.qty && <span className="ml-2 text-xs text-stone-400 dark:text-stone-500">{it.qty}</span>}
                         </div>
-                        <span className="shrink-0 text-xs text-stone-400 dark:text-stone-600">{fmtDate(g.date)}</span>
+                        {store && (
+                          <span className="shrink-0 text-xs text-stone-400 dark:text-stone-600">{store.icon}</span>
+                        )}
                       </div>
                     );
-                  }
-                  const open = openGroup === g.id;
-                  return (
-                    <div
-                      key={g.id}
-                      className="border-b border-dotted border-stone-300 last:border-b-0 dark:border-stone-700"
-                    >
-                      <button
-                        onClick={() => setOpenGroup(open ? null : g.id)}
-                        className={cx('flex w-full items-center gap-2.5 px-0.5 py-2.5 text-left', PRESS_SM)}
-                      >
-                        <div className="min-w-0 flex-1">
-                          <div className="truncate text-sm font-bold text-stone-900 dark:text-stone-100">
-                            {g.store || t('other')}
-                          </div>
-                          <div className="text-xs text-stone-400 dark:text-stone-500">
-                            {fmtDate(g.date)} · {t('itemCount', { n: g.items.length })}
-                          </div>
-                        </div>
-                        {g.amount != null && (
-                          <span className="shrink-0 text-sm font-bold text-stone-900 dark:text-stone-100">
-                            {eur(g.amount)}
-                          </span>
-                        )}
-                        <ChevronDown
-                          className={cx(
-                            'size-4 shrink-0 text-stone-400 transition-transform duration-200 dark:text-stone-500',
-                            open && 'rotate-180',
-                          )}
-                        />
-                      </button>
-                      <AnimatePresence initial={false}>
-                        {open && (
-                          <motion.div {...COLLAPSE} className="overflow-hidden">
-                            <div className="pb-2 pl-2">
-                              {g.items.map((it, i) => (
-                                <div
-                                  key={it.id + '-' + i}
-                                  onClick={() => setReAddItem(it)}
-                                  className={cx(
-                                    'flex items-center gap-2 border-b border-dotted border-stone-200 py-1.75 last:border-b-0 dark:border-stone-800',
-                                    ROW_PRESS,
-                                  )}
-                                >
-                                  <span className="min-w-0 flex-1 truncate text-sm text-stone-700 dark:text-stone-300">
-                                    {it.name}
-                                  </span>
-                                  {it.qty && (
-                                    <span className="shrink-0 text-xs text-stone-400 dark:text-stone-600">
-                                      {it.qty}
-                                    </span>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </div>
-                  );
-                })}
-              </div>
+                  })}
+                </div>
+              ))}
             </div>
           )}
         </PageBody>

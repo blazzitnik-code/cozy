@@ -291,6 +291,11 @@
     "skipDay": "Skip this day",
     "deleteConfirm": "Delete event?",
     "noEvents": "No events",
+    "viewWeek": "Week",
+    "viewAgenda": "Agenda",
+    "viewMonth": "Month",
+    "today": "Today",
+    "tomorrow": "Tomorrow",
     "types": {
       "sluzba": "Work",
       "sport": "Sport",

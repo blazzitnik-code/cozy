@@ -291,6 +291,11 @@
     "skipDay": "Preskoči ta dan",
     "deleteConfirm": "Izbrišem dogodek?",
     "noEvents": "Ni dogodkov",
+    "viewWeek": "Teden",
+    "viewAgenda": "Agenda",
+    "viewMonth": "Mesec",
+    "today": "Danes",
+    "tomorrow": "Jutri",
     "types": {
       "sluzba": "Služba",
       "sport": "Šport",

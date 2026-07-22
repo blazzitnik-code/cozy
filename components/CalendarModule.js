@@ -3,7 +3,7 @@ import { useState, useMemo } from 'react';
 import { motion } from 'motion/react';
 import { useTranslations, useFormatter } from 'next-intl';
 import { Filter, Settings, ChevronLeft, ChevronRight, Plus, Repeat } from 'lucide-react';
-import { cx, localDateStr, memberColorClass } from '@/lib/utils';
+import { cx, localDateStr, localDateFromStr, memberColorClass } from '@/lib/utils';
 import { EVENT_TYPES, EVENT_TYPE_KEYS, RECURRENCE_KEYS, expandEvents } from '@/lib/calendar';
 import {
   Screen,
@@ -15,6 +15,7 @@ import {
   Card,
   Modal,
   ConfirmModal,
+  Segmented,
   Input,
   Label,
   Btn,
@@ -200,6 +201,26 @@ function EventForm({ event, members, user, onSave, onDelete, onSkip }) {
   );
 }
 
+// One event row (Week + Agenda). Colour/person/time are pre-resolved by the
+// parent (they depend on members/locale) so this stays a pure presentational bit.
+function EventRow({ ev, colorClass, personName, timeLabel, onClick }) {
+  return (
+    <Card onClick={onClick} className="flex items-stretch gap-3 rounded-2xl px-3.5 py-3">
+      <span className={cx('w-1 shrink-0 rounded-full', colorClass)} />
+      <div className="min-w-0 flex-1">
+        <div className="mb-0.5 flex items-center gap-1.5 text-xs font-semibold text-stone-500 dark:text-stone-400">
+          <span className="text-sm">{EVENT_TYPES[ev.event_type]?.emoji || '📌'}</span>
+          <span className="shrink-0">{timeLabel}</span>
+          <span className="truncate">· {personName}</span>
+          {ev.recurrence !== 'once' && <Repeat className="size-3 shrink-0 text-stone-400 dark:text-stone-500" />}
+        </div>
+        <div className="text-base font-semibold text-stone-900 dark:text-stone-100">{ev.title}</div>
+        {ev.note && <div className="mt-0.5 truncate text-xs text-stone-400 dark:text-stone-500">📝 {ev.note}</div>}
+      </div>
+    </Card>
+  );
+}
+
 export default function CalendarModule({
   user,
   members,
@@ -227,6 +248,7 @@ export default function CalendarModule({
   const [showFilter, setShowFilter] = useState(false);
   const [editing, setEditing] = useState(null);
   const [confirmDel, setConfirmDel] = useState(null);
+  const [view, setView] = useState('week'); // 'week' | 'agenda' | 'month'
 
   const today = useMemo(() => {
     const d = new Date();
@@ -298,9 +320,61 @@ export default function CalendarModule({
     setEditing(null);
   };
 
+  // Shared event renderer (Week + Agenda).
+  const renderEvent = (ev) => (
+    <EventRow
+      key={ev.id + ev._date}
+      ev={ev}
+      colorClass={colorFor(ev.assigned_to)}
+      personName={nameFor(ev.assigned_to)}
+      timeLabel={ev.all_day ? t('allDay') : fmtTime(ev.start_time) + (ev.end_time ? '–' + fmtTime(ev.end_time) : '')}
+      onClick={() => setEditing({ ...ev })}
+    />
+  );
+
+  // Agenda: next 14 days from today, grouped by date (expandEvents already sorts).
+  const AGENDA_DAYS = 14;
+  const agendaGroups = useMemo(() => {
+    const evs = expandEvents(events, today, addDays(today, AGENDA_DAYS - 1)).filter((e) =>
+      activeTypes.has(e.event_type),
+    );
+    const groups = [];
+    const byDate = {};
+    for (const e of evs) {
+      if (!byDate[e._date]) {
+        byDate[e._date] = { date: e._date, items: [] };
+        groups.push(byDate[e._date]);
+      }
+      byDate[e._date].items.push(e);
+    }
+    return groups;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [events, todayStr, activeTypes]);
+  const agendaLabel = (ds) => {
+    if (ds === todayStr) return t('today');
+    if (ds === localDateStr(addDays(today, 1))) return t('tomorrow');
+    return format.dateTime(localDateFromStr(ds), 'weekdayFull');
+  };
+
+  // Month grid: 6 weeks (42 cells) from the Monday on/before the 1st.
+  const monthFirst = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
+  const monthGridStart = startOfWeek(monthFirst);
+  const monthGridStartStr = localDateStr(monthGridStart);
+  const monthCells = Array.from({ length: 42 }, (_, i) => addDays(monthGridStart, i));
+  const monthDots = useMemo(() => {
+    const evs = expandEvents(events, monthGridStart, addDays(monthGridStart, 41)).filter((e) =>
+      activeTypes.has(e.event_type),
+    );
+    const map = {};
+    for (const e of evs) (map[e._date] ||= new Set()).add(e.assigned_to || 'all');
+    return map;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [events, monthGridStartStr, activeTypes]);
+  const shiftMonth = (delta) => setSelectedDate((d) => new Date(d.getFullYear(), d.getMonth() + delta, 1));
+
   return (
     <Screen>
-      <PageBody key="cal-week">
+      <PageBody key="cal">
         <ModuleHeader title={tMod('calendar')} emoji="📅" onHome={onGoHome}>
           <IconButton
             onClick={() => setShowFilter((s) => !s)}
@@ -313,6 +387,17 @@ export default function CalendarModule({
             <Settings className="size-4.5" />
           </IconButton>
         </ModuleHeader>
+
+        <Segmented
+          className="mb-3.5"
+          value={view}
+          onChange={setView}
+          options={[
+            { value: 'week', label: t('viewWeek') },
+            { value: 'agenda', label: t('viewAgenda') },
+            { value: 'month', label: t('viewMonth') },
+          ]}
+        />
 
         {showFilter && (
           <Card className="mb-3 flex flex-wrap gap-1.5 p-3">
@@ -332,148 +417,236 @@ export default function CalendarModule({
           </Card>
         )}
 
-        {/* Week nav */}
-        <div className="mb-2 flex items-center justify-between">
-          <div className="text-sm font-bold text-stone-500 capitalize dark:text-stone-400">
-            {format.dateTime(weekMon, 'monthYear')}
-          </div>
-          <div className="flex gap-1">
-            <button
-              aria-label={ta('prevWeek')}
-              onClick={() => setSelectedDate((d) => addDays(d, -7))}
-              className={cx(
-                'flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-stone-400 dark:text-stone-500',
-                PRESS_SM,
-              )}
-            >
-              <ChevronLeft className="size-4.5" />
-            </button>
-            <button
-              aria-label={ta('nextWeek')}
-              onClick={() => setSelectedDate((d) => addDays(d, 7))}
-              className={cx(
-                'flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-stone-400 dark:text-stone-500',
-                PRESS_SM,
-              )}
-            >
-              <ChevronRight className="size-4.5" />
-            </button>
-          </div>
-        </div>
-
-        {/* Swipeable day strip */}
-        <motion.div
-          drag="x"
-          dragConstraints={{ left: 0, right: 0 }}
-          dragElastic={0.15}
-          onDragEnd={(_, info) => {
-            if (info.offset.x < -50) setSelectedDate((d) => addDays(d, 7));
-            else if (info.offset.x > 50) setSelectedDate((d) => addDays(d, -7));
-          }}
-          className="mb-4 flex gap-1"
-        >
-          {days.map((d, i) => {
-            const ds = localDateStr(d);
-            const isSel = ds === selStr;
-            const isToday = ds === todayStr;
-            const dots = [...(dotsByDate[ds] || [])].slice(0, 3);
-            return (
-              <button
-                key={i}
-                onClick={() => setSelectedDate(d)}
-                className={cx(
-                  'relative flex flex-1 cursor-pointer touch-pan-y flex-col items-center gap-0.75 rounded-xl border px-0.5 py-2',
-                  PRESS_SM,
-                  isSel ? 'border-transparent' : 'border-stone-200 bg-transparent dark:border-white/10',
-                )}
-              >
-                {isSel && (
-                  <motion.span
-                    layoutId="cal-day"
-                    transition={SPRING_FAST}
-                    aria-hidden
-                    className="absolute inset-0 rounded-xl border border-stone-900 bg-stone-900 dark:border-stone-100 dark:bg-stone-100"
-                  />
-                )}
-                <span
+        {view === 'week' && (
+          <>
+            {/* Week nav */}
+            <div className="mb-2 flex items-center justify-between">
+              <div className="text-sm font-bold text-stone-500 capitalize dark:text-stone-400">
+                {format.dateTime(weekMon, 'monthYear')}
+              </div>
+              <div className="flex gap-1">
+                <button
+                  aria-label={ta('prevWeek')}
+                  onClick={() => setSelectedDate((d) => addDays(d, -7))}
                   className={cx(
-                    'relative z-1 text-[9px] font-semibold',
-                    isSel
-                      ? 'text-white/70 dark:text-stone-900/70'
-                      : isToday
-                        ? 'text-orange-600 dark:text-orange-400'
-                        : 'text-stone-400 dark:text-stone-500',
+                    'flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-stone-400 dark:text-stone-500',
+                    PRESS_SM,
                   )}
                 >
-                  {dow[d.getDay()]}
-                </span>
-                <span
+                  <ChevronLeft className="size-4.5" />
+                </button>
+                <button
+                  aria-label={ta('nextWeek')}
+                  onClick={() => setSelectedDate((d) => addDays(d, 7))}
                   className={cx(
-                    'relative z-1 text-base font-extrabold',
-                    isSel
-                      ? 'text-white dark:text-stone-900'
-                      : isToday
-                        ? 'text-orange-600 dark:text-orange-400'
-                        : 'text-stone-500 dark:text-stone-400',
+                    'flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-stone-400 dark:text-stone-500',
+                    PRESS_SM,
                   )}
                 >
-                  {d.getDate()}
-                </span>
-                <span className="relative z-1 flex h-1.5 items-center gap-0.5">
-                  {dots.map((uid, j) => (
-                    <span
-                      key={j}
-                      className={cx(
-                        'h-1 w-1 rounded-full',
-                        isSel ? 'bg-white/70 dark:bg-stone-900/70' : colorFor(uid === 'all' ? null : uid),
-                      )}
-                    />
-                  ))}
-                </span>
-              </button>
-            );
-          })}
-        </motion.div>
+                  <ChevronRight className="size-4.5" />
+                </button>
+              </div>
+            </div>
 
-        {/* Selected-day events */}
-        <ScreenEnter key={selStr}>
-          <div className="mb-2 text-sm font-bold text-stone-500 capitalize dark:text-stone-400">
-            {format.dateTime(selectedDate, 'weekdayFull')}
-          </div>
-          {dayEvents.length === 0 ? (
-            <EmptyState icon="📅">{loading ? '' : t('noEvents')}</EmptyState>
-          ) : (
-            <div className="flex flex-col gap-2">
-              {dayEvents.map((ev) => (
-                <Card
-                  key={ev.id + ev._date}
-                  onClick={() => setEditing({ ...ev })}
-                  className="flex items-stretch gap-3 rounded-2xl px-3.5 py-3"
-                >
-                  <span className={cx('w-1 shrink-0 rounded-full', colorFor(ev.assigned_to))} />
-                  <div className="min-w-0 flex-1">
-                    <div className="mb-0.5 flex items-center gap-1.5 text-xs font-semibold text-stone-500 dark:text-stone-400">
-                      <span className="text-sm">{EVENT_TYPES[ev.event_type]?.emoji || '📌'}</span>
-                      <span className="shrink-0">
-                        {ev.all_day
-                          ? t('allDay')
-                          : fmtTime(ev.start_time) + (ev.end_time ? '–' + fmtTime(ev.end_time) : '')}
-                      </span>
-                      <span className="truncate">· {nameFor(ev.assigned_to)}</span>
-                      {ev.recurrence !== 'once' && (
-                        <Repeat className="size-3 shrink-0 text-stone-400 dark:text-stone-500" />
-                      )}
-                    </div>
-                    <div className="text-base font-semibold text-stone-900 dark:text-stone-100">{ev.title}</div>
-                    {ev.note && (
-                      <div className="mt-0.5 truncate text-xs text-stone-400 dark:text-stone-500">📝 {ev.note}</div>
+            {/* Swipeable day strip */}
+            <motion.div
+              drag="x"
+              dragConstraints={{ left: 0, right: 0 }}
+              dragElastic={0.15}
+              onDragEnd={(_, info) => {
+                if (info.offset.x < -50) setSelectedDate((d) => addDays(d, 7));
+                else if (info.offset.x > 50) setSelectedDate((d) => addDays(d, -7));
+              }}
+              className="mb-4 flex gap-1"
+            >
+              {days.map((d, i) => {
+                const ds = localDateStr(d);
+                const isSel = ds === selStr;
+                const isToday = ds === todayStr;
+                const dots = [...(dotsByDate[ds] || [])].slice(0, 3);
+                return (
+                  <button
+                    key={i}
+                    onClick={() => setSelectedDate(d)}
+                    className={cx(
+                      'relative flex flex-1 cursor-pointer touch-pan-y flex-col items-center gap-0.75 rounded-xl border px-0.5 py-2',
+                      PRESS_SM,
+                      isSel ? 'border-transparent' : 'border-stone-200 bg-transparent dark:border-white/10',
                     )}
+                  >
+                    {isSel && (
+                      <motion.span
+                        layoutId="cal-day"
+                        transition={SPRING_FAST}
+                        aria-hidden
+                        className="absolute inset-0 rounded-xl border border-stone-900 bg-stone-900 dark:border-stone-100 dark:bg-stone-100"
+                      />
+                    )}
+                    <span
+                      className={cx(
+                        'relative z-1 text-[9px] font-semibold',
+                        isSel
+                          ? 'text-white/70 dark:text-stone-900/70'
+                          : isToday
+                            ? 'text-orange-600 dark:text-orange-400'
+                            : 'text-stone-400 dark:text-stone-500',
+                      )}
+                    >
+                      {dow[d.getDay()]}
+                    </span>
+                    <span
+                      className={cx(
+                        'relative z-1 text-base font-extrabold',
+                        isSel
+                          ? 'text-white dark:text-stone-900'
+                          : isToday
+                            ? 'text-orange-600 dark:text-orange-400'
+                            : 'text-stone-500 dark:text-stone-400',
+                      )}
+                    >
+                      {d.getDate()}
+                    </span>
+                    <span className="relative z-1 flex h-1.5 items-center gap-0.5">
+                      {dots.map((uid, j) => (
+                        <span
+                          key={j}
+                          className={cx(
+                            'h-1 w-1 rounded-full',
+                            isSel ? 'bg-white/70 dark:bg-stone-900/70' : colorFor(uid === 'all' ? null : uid),
+                          )}
+                        />
+                      ))}
+                    </span>
+                  </button>
+                );
+              })}
+            </motion.div>
+
+            {/* Selected-day events */}
+            <ScreenEnter key={selStr}>
+              <div className="mb-2 text-sm font-bold text-stone-500 capitalize dark:text-stone-400">
+                {format.dateTime(selectedDate, 'weekdayFull')}
+              </div>
+              {dayEvents.length === 0 ? (
+                <EmptyState icon="📅">{loading ? '' : t('noEvents')}</EmptyState>
+              ) : (
+                <div className="flex flex-col gap-2">{dayEvents.map(renderEvent)}</div>
+              )}
+            </ScreenEnter>
+          </>
+        )}
+
+        {view === 'agenda' && (
+          <ScreenEnter key="agenda">
+            {agendaGroups.length === 0 ? (
+              <EmptyState icon="📅">{loading ? '' : t('noEvents')}</EmptyState>
+            ) : (
+              <div className="flex flex-col gap-4">
+                {agendaGroups.map((g) => (
+                  <div key={g.date}>
+                    <div className="mb-1.5 text-sm font-bold text-stone-500 capitalize dark:text-stone-400">
+                      {agendaLabel(g.date)}
+                    </div>
+                    <div className="flex flex-col gap-2">{g.items.map(renderEvent)}</div>
                   </div>
-                </Card>
+                ))}
+              </div>
+            )}
+          </ScreenEnter>
+        )}
+
+        {view === 'month' && (
+          <ScreenEnter key="month">
+            {/* Month nav */}
+            <div className="mb-2 flex items-center justify-between">
+              <div className="text-sm font-bold text-stone-500 capitalize dark:text-stone-400">
+                {format.dateTime(monthFirst, 'monthYear')}
+              </div>
+              <div className="flex gap-1">
+                <button
+                  aria-label={ta('prevWeek')}
+                  onClick={() => shiftMonth(-1)}
+                  className={cx(
+                    'flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-stone-400 dark:text-stone-500',
+                    PRESS_SM,
+                  )}
+                >
+                  <ChevronLeft className="size-4.5" />
+                </button>
+                <button
+                  aria-label={ta('nextWeek')}
+                  onClick={() => shiftMonth(1)}
+                  className={cx(
+                    'flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-stone-400 dark:text-stone-500',
+                    PRESS_SM,
+                  )}
+                >
+                  <ChevronRight className="size-4.5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Weekday header (Mon–Sun) */}
+            <div className="mb-1 grid grid-cols-7 gap-1">
+              {[1, 2, 3, 4, 5, 6, 0].map((wd) => (
+                <div key={wd} className="text-center text-[10px] font-bold text-stone-400 dark:text-stone-500">
+                  {dow[wd]}
+                </div>
               ))}
             </div>
-          )}
-        </ScreenEnter>
+
+            {/* Grid — swipe changes month; tap a day opens it in Week view */}
+            <motion.div
+              drag="x"
+              dragConstraints={{ left: 0, right: 0 }}
+              dragElastic={0.15}
+              onDragEnd={(_, info) => {
+                if (info.offset.x < -50) shiftMonth(1);
+                else if (info.offset.x > 50) shiftMonth(-1);
+              }}
+              className="grid grid-cols-7 gap-1"
+            >
+              {monthCells.map((d, i) => {
+                const ds = localDateStr(d);
+                const inMonth = d.getMonth() === selectedDate.getMonth();
+                const isToday = ds === todayStr;
+                const dots = [...(monthDots[ds] || [])].slice(0, 3);
+                return (
+                  <button
+                    key={i}
+                    onClick={() => {
+                      setSelectedDate(d);
+                      setView('week');
+                    }}
+                    className={cx(
+                      'flex aspect-square touch-pan-y flex-col items-center justify-center gap-0.5 rounded-lg border',
+                      PRESS_SM,
+                      isToday ? 'border-orange-500/40 bg-orange-500/5' : 'border-transparent',
+                    )}
+                  >
+                    <span
+                      className={cx(
+                        'text-sm font-bold',
+                        isToday
+                          ? 'text-orange-600 dark:text-orange-400'
+                          : inMonth
+                            ? 'text-stone-900 dark:text-stone-100'
+                            : 'text-stone-300 dark:text-stone-700',
+                      )}
+                    >
+                      {d.getDate()}
+                    </span>
+                    <span className="flex h-1.5 items-center gap-0.5">
+                      {dots.map((uid, j) => (
+                        <span key={j} className={cx('h-1 w-1 rounded-full', colorFor(uid === 'all' ? null : uid))} />
+                      ))}
+                    </span>
+                  </button>
+                );
+              })}
+            </motion.div>
+          </ScreenEnter>
+        )}
       </PageBody>
 
       <Fab onClick={openAdd} aria-label={ta('add')}>

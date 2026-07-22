@@ -1437,7 +1437,7 @@ export default function ShoppingModule({
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') finalizeCheckout(true);
                 }}
-                placeholder="0,00"
+                placeholder={t('amountPlaceholder')}
                 className="pr-9"
               />
               <span className="absolute top-1/2 right-3.5 -translate-y-1/2 text-base font-semibold text-stone-400 dark:text-stone-500">

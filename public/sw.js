@@ -11,7 +11,7 @@
  * Bump VERSION to invalidate all caches on the next activate.
  */
 
-const VERSION = 'v10';
+const VERSION = 'v11';
 const PAGES = `cozy-pages-${VERSION}`;
 const STATIC = `cozy-static-${VERSION}`;
 const DATA = `cozy-data-${VERSION}`;

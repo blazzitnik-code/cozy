@@ -273,7 +273,7 @@ function EditModalBody({ settings, onSave, onClose }) {
                 n[i] = { ...n[i], url: e.target.value };
                 setShortcuts(n);
               }}
-              placeholder="https://..."
+              placeholder={t('linkPlaceholder')}
               className="flex-1"
             />
             <button

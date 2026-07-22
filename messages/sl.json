@@ -419,7 +419,12 @@
     "arriving": "🟢 Prihaja",
     "minutes": "{min} min",
     "stands": "{count, plural, one {# mesto} two {# mesti} few {# mesta} other {# mest}}",
-    "standsUnknown": "? mest"
+    "standsUnknown": "? mest",
+    "avtobusi": "Avtobusi",
+    "bicikelj": "BicikeLJ",
+    "niPodatkovPrihodi": "Ni podatkov o prihodih",
+    "prostihMest": "{n, plural, one {# prosto mesto} two {# prosti mesti} few {# prosta mesta} other {# prostih mest}}",
+    "tapniZaVse": "tapni 🚌 ali 🚲 za vse postaje"
   },
   "Errors": {
     "addFailed": "Dodajanje ni uspelo",

@@ -419,7 +419,12 @@
     "arriving": "🟢 Arriving",
     "minutes": "{min} min",
     "stands": "{count, plural, one {# stand} other {# stands}}",
-    "standsUnknown": "? stands"
+    "standsUnknown": "? stands",
+    "avtobusi": "Buses",
+    "bicikelj": "BicikeLJ",
+    "niPodatkovPrihodi": "No arrival data",
+    "prostihMest": "{n, plural, one {# free stand} other {# free stands}}",
+    "tapniZaVse": "tap 🚌 or 🚲 for all stops"
   },
   "Errors": {
     "addFailed": "Adding failed",

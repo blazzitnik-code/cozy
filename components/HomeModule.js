@@ -35,9 +35,20 @@ const RM_BTN = cx(
 );
 // One cell of the Domov ETA grid (car / bus / walk / bike). Inner tile on a
 // subtle secondary surface, matching the compact mock.
-function EtaTile({ emoji, value, sub, tone }) {
+function EtaTile({ emoji, value, sub, tone, badge, onClick }) {
   return (
-    <div className="rounded-xl bg-stone-50 px-1 py-2 text-center dark:bg-stone-950/60">
+    <div
+      onClick={onClick}
+      className={cx(
+        'relative rounded-xl bg-stone-50 px-1 py-2 text-center dark:bg-stone-950/60',
+        onClick && cx('cursor-pointer', PRESS_SM),
+      )}
+    >
+      {badge != null && (
+        <span className="absolute top-1 right-1 rounded-full bg-orange-500/15 px-1.25 py-px text-[9px] font-bold text-orange-600 dark:text-orange-400">
+          {badge}
+        </span>
+      )}
       <div className="text-sm">{emoji}</div>
       <div className={cx('text-sm leading-tight font-bold', tone || 'text-stone-900 dark:text-stone-100')}>{value}</div>
       <div className="truncate text-[9px] text-stone-400 dark:text-stone-500">{sub || ' '}</div>
@@ -381,6 +392,8 @@ export default function HomeModule({ settings, loading, saveSettings }) {
   const t = useTranslations('HomeModule');
   const ta = useTranslations('A11y');
   const [editing, setEditing] = useState(false);
+  const [busModalOpen, setBusModalOpen] = useState(false);
+  const [bikeModalOpen, setBikeModalOpen] = useState(false);
   const [busData, setBusData] = useState(() => busCache);
   const [bikeData, setBikeData] = useState(() => bikeCache);
   const [busRefreshing, setBusRefreshing] = useState(false);
@@ -530,10 +543,28 @@ export default function HomeModule({ settings, loading, saveSettings }) {
         {/* 4-col ETA grid */}
         <div className="grid grid-cols-4 gap-1.5">
           <EtaTile emoji="🚗" value="–" />
-          <EtaTile emoji="🚌" value={busVal} sub={busSub} />
+          <EtaTile
+            emoji="🚌"
+            value={busVal}
+            sub={busSub}
+            badge={busStops.length > 1 ? `+${busStops.length - 1}` : null}
+            onClick={busStops.length > 1 ? () => setBusModalOpen(true) : undefined}
+          />
           <EtaTile emoji="🚶" value="–" />
-          <EtaTile emoji="🚲" value={bikeVal} sub={firstBike?.name} tone={firstBike ? bikeTone : undefined} />
+          <EtaTile
+            emoji="🚲"
+            value={bikeVal}
+            sub={firstBike?.name}
+            tone={firstBike ? bikeTone : undefined}
+            badge={bikeStations.length > 1 ? `+${bikeStations.length - 1}` : null}
+            onClick={bikeStations.length > 1 ? () => setBikeModalOpen(true) : undefined}
+          />
         </div>
+
+        {/* Hint — only when at least one group has more than the shown stop */}
+        {(busStops.length > 1 || bikeStations.length > 1) && (
+          <div className="mt-1.5 text-center text-[10px] text-stone-400 dark:text-stone-500">{t('tapniZaVse')}</div>
+        )}
 
         {/* Destinations (navigate links) */}
         {destinations.length > 0 && (
@@ -579,6 +610,93 @@ export default function HomeModule({ settings, loading, saveSettings }) {
       </Card>
 
       <EditModal open={editing} settings={settings} onSave={handleSave} onClose={() => setEditing(false)} />
+
+      {/* All bus stops — next 3 arrivals each */}
+      <Modal open={busModalOpen} onClose={() => setBusModalOpen(false)}>
+        <h3 className="mb-4 font-serif text-xl font-semibold tracking-tight text-stone-900 dark:text-stone-100">
+          🚌 {t('avtobusi')}
+        </h3>
+        <div className="flex flex-col gap-4">
+          {busStops.map((stop, si) => {
+            const arrivals = (busData[stop.code] || []).slice(0, 3);
+            return (
+              <div key={si}>
+                <div className="mb-1 text-[11px] font-bold tracking-[1px] text-stone-400 uppercase dark:text-stone-500">
+                  {stop.name}
+                </div>
+                {arrivals.length === 0 ? (
+                  <div className="py-1 text-sm text-stone-400 dark:text-stone-500">{t('niPodatkovPrihodi')}</div>
+                ) : (
+                  arrivals.map((a, ai) => {
+                    const eta = a.eta_seconds != null ? Math.round(a.eta_seconds / 60) : (a.eta_min ?? a.eta);
+                    const soon = ai === 0 && eta != null && eta <= 3;
+                    return (
+                      <div
+                        key={ai}
+                        className="flex items-center gap-2.5 border-b border-dotted border-stone-300 py-2 last:border-b-0 dark:border-stone-700"
+                      >
+                        <span className="flex h-6 min-w-6 shrink-0 items-center justify-center rounded-md bg-stone-900 px-1.5 text-xs font-bold text-white dark:bg-stone-100 dark:text-stone-900">
+                          {a.route_name || a.route_id || '?'}
+                        </span>
+                        <span className="min-w-0 flex-1 truncate text-sm text-stone-700 dark:text-stone-300">
+                          {a.stations?.arrival || a.trip_name || ''}
+                        </span>
+                        <span
+                          className={cx(
+                            'shrink-0 text-sm font-bold',
+                            soon ? 'text-green-600 dark:text-green-400' : 'text-stone-500 dark:text-stone-400',
+                          )}
+                        >
+                          {eta != null ? t('minutes', { min: eta }) : '–'}
+                        </span>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </Modal>
+
+      {/* All BicikeLJ stations — bikes + free stands */}
+      <Modal open={bikeModalOpen} onClose={() => setBikeModalOpen(false)}>
+        <h3 className="mb-4 font-serif text-xl font-semibold tracking-tight text-stone-900 dark:text-stone-100">
+          🚲 {t('bicikelj')}
+        </h3>
+        <div className="flex flex-col">
+          {bikeStations.map((station, si) => {
+            const d = bikeData[station.number];
+            const bikes = d?.available_bikes;
+            const stands = d?.available_bike_stands;
+            return (
+              <div
+                key={si}
+                className="flex items-center gap-3 border-b border-dotted border-stone-300 py-2.5 last:border-b-0 dark:border-stone-700"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-bold text-stone-900 dark:text-stone-100">{station.name}</div>
+                  {stands != null && (
+                    <div className="text-xs text-stone-400 dark:text-stone-500">{t('prostihMest', { n: stands })}</div>
+                  )}
+                </div>
+                <div
+                  className={cx(
+                    'shrink-0 text-2xl font-extrabold',
+                    bikes === 0
+                      ? 'text-red-600 dark:text-red-400'
+                      : bikes != null
+                        ? 'text-green-600 dark:text-green-400'
+                        : 'text-stone-400 dark:text-stone-500',
+                  )}
+                >
+                  {bikes ?? '?'}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </Modal>
     </div>
   );
 }

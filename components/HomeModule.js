@@ -17,7 +17,6 @@ import {
   ROW_PRESS,
 } from './ui';
 
-const LPP_BASE = 'https://data.lpp.si/api';
 const BIKE_API_KEY = process.env.NEXT_PUBLIC_BICIKELJ_API_KEY;
 const BIKE_CONTRACT = 'ljubljana';
 
@@ -46,9 +45,11 @@ function EtaTile({ emoji, value, sub, tone }) {
   );
 }
 
+// Both LPP calls go through our own /api/lpp/* proxy — data.lpp.si has no CORS
+// headers, so calling it from the browser is blocked (see app/api/lpp/*).
 async function fetchLppStations() {
   try {
-    const res = await fetch(`${LPP_BASE}/station/active-stations`);
+    const res = await fetch('/api/lpp/stations');
     const json = await res.json();
     return json?.data || [];
   } catch {
@@ -58,7 +59,7 @@ async function fetchLppStations() {
 
 async function fetchBusArrivals(stationCode) {
   try {
-    const res = await fetch(`${LPP_BASE}/station/arrival-on-station?station-code=${stationCode}&route-id=&limit=5`);
+    const res = await fetch(`/api/lpp/arrivals?station-code=${encodeURIComponent(stationCode)}`);
     const json = await res.json();
     return json?.data || [];
   } catch {

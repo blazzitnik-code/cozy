@@ -866,13 +866,13 @@ export default function ShoppingModule({
               <SectionHeader>{t('purchaseList')}</SectionHeader>
               {dateGroups.map((d) => (
                 <div key={d.key} className="mb-4">
-                  <div className="mb-1 flex items-baseline justify-between gap-2">
-                    <h3 className="min-w-0 truncate text-sm font-bold text-stone-700 capitalize dark:text-stone-300">
+                  <div className="mb-1.5 flex items-baseline justify-between gap-2 rounded-lg bg-stone-200/70 px-3 py-1.5 dark:bg-stone-800/50">
+                    <h3 className="min-w-0 truncate text-sm font-bold text-stone-700 capitalize dark:text-stone-200">
                       {format.dateTime(d.date, 'fullDate')}
                     </h3>
                     <div className="flex shrink-0 items-baseline gap-2">
                       {d.stores.length > 0 && (
-                        <span className="text-xs text-stone-400 dark:text-stone-500">{d.stores.join(', ')}</span>
+                        <span className="text-xs text-stone-500 dark:text-stone-400">{d.stores.join(', ')}</span>
                       )}
                       {d.hasAmount && (
                         <span className="text-sm font-bold text-stone-900 dark:text-stone-100">{eur(d.amount)}</span>

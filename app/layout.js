@@ -10,11 +10,14 @@ const inter = Inter({
   variable: '--font-inter',
   display: 'swap',
 });
+// Fraunces is only ever used at 600 (every `font-serif` is `font-semibold`) —
+// pin that static weight and drop the opsz axis so we ship one small file per
+// subset instead of the full variable font.
 const fraunces = Fraunces({
   subsets: ['latin', 'latin-ext'],
   variable: '--font-fraunces',
   display: 'swap',
-  axes: ['opsz'],
+  weight: '600',
 });
 
 export const metadata = {

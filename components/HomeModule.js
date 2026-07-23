@@ -4,18 +4,7 @@ import { useTranslations } from 'next-intl';
 import { House, Pencil, RotateCw, X } from 'lucide-react';
 import { cx } from '@/lib/utils';
 import { motion } from 'motion/react';
-import {
-  Modal,
-  Input,
-  Card,
-  SectionHeader,
-  ModalActions,
-  POPOVER,
-  POPOVER_POP,
-  PRESS,
-  PRESS_SM,
-  ROW_PRESS,
-} from './ui';
+import { Modal, Input, Card, SectionHeader, ModalActions, POPOVER, POPOVER_POP, PRESS_SM, ROW_PRESS } from './ui';
 
 const BIKE_API_KEY = process.env.NEXT_PUBLIC_BICIKELJ_API_KEY;
 const BIKE_CONTRACT = 'ljubljana';
@@ -33,7 +22,7 @@ const RM_BTN = cx(
   'flex h-10.5 w-10.5 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-red-500/10 text-red-600 dark:text-red-400',
   PRESS_SM,
 );
-// One cell of the Domov ETA grid (car / bus / walk / bike). Inner tile on a
+// One cell of the Domov ETA grid (bus / bike / navigation). Inner tile on a
 // subtle secondary surface, matching the compact mock.
 function EtaTile({ emoji, value, sub, tone, badge, onClick }) {
   return (
@@ -50,10 +39,23 @@ function EtaTile({ emoji, value, sub, tone, badge, onClick }) {
         </span>
       )}
       <div className="text-sm">{emoji}</div>
-      <div className={cx('text-sm leading-tight font-bold', tone || 'text-stone-900 dark:text-stone-100')}>{value}</div>
+      <div className={cx('truncate text-sm leading-tight font-bold', tone || 'text-stone-900 dark:text-stone-100')}>
+        {value}
+      </div>
       <div className="truncate text-[9px] text-stone-400 dark:text-stone-500">{sub || ' '}</div>
     </div>
   );
+}
+
+// Trim overly long addresses so the navigation tile subtitle stays on one line.
+// Safety net only — the user types the address; CSS ellipsis handles the rest.
+function shortAddress(addr) {
+  if (!addr) return '';
+  return addr
+    .trim()
+    .replace(/\s+\d+[a-zA-Z]?$/, '') // drop a trailing house number
+    .replace(/\bcesta\b/gi, 'c.')
+    .replace(/\bulica\b/gi, 'ul.');
 }
 
 // Both LPP calls go through our own /api/lpp/* proxy — data.lpp.si has no CORS
@@ -394,6 +396,7 @@ export default function HomeModule({ settings, loading, saveSettings }) {
   const [editing, setEditing] = useState(false);
   const [busModalOpen, setBusModalOpen] = useState(false);
   const [bikeModalOpen, setBikeModalOpen] = useState(false);
+  const [navModalOpen, setNavModalOpen] = useState(false);
   const [busData, setBusData] = useState(() => busCache);
   const [bikeData, setBikeData] = useState(() => bikeCache);
   const [busRefreshing, setBusRefreshing] = useState(false);
@@ -497,6 +500,8 @@ export default function HomeModule({ settings, loading, saveSettings }) {
   const bikeTone =
     firstBike && bike0?.available_bikes === 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400';
 
+  const firstDest = destinations[0];
+
   return (
     <div className="mb-2.5">
       <Card className="rounded-2xl px-3.5 py-3">
@@ -540,9 +545,8 @@ export default function HomeModule({ settings, loading, saveSettings }) {
           </div>
         </div>
 
-        {/* 4-col ETA grid */}
-        <div className="grid grid-cols-4 gap-1.5">
-          <EtaTile emoji="🚗" value="–" />
+        {/* 3-col ETA grid: bus / bike / navigation */}
+        <div className="grid grid-cols-3 gap-1.5">
           <EtaTile
             emoji="🚌"
             value={busVal}
@@ -550,7 +554,6 @@ export default function HomeModule({ settings, loading, saveSettings }) {
             badge={busStops.length > 1 ? `+${busStops.length - 1}` : null}
             onClick={busStops.length > 1 ? () => setBusModalOpen(true) : undefined}
           />
-          <EtaTile emoji="🚶" value="–" />
           <EtaTile
             emoji="🚲"
             value={bikeVal}
@@ -559,33 +562,20 @@ export default function HomeModule({ settings, loading, saveSettings }) {
             badge={bikeStations.length > 1 ? `+${bikeStations.length - 1}` : null}
             onClick={bikeStations.length > 1 ? () => setBikeModalOpen(true) : undefined}
           />
+          <EtaTile
+            emoji="📍"
+            value={firstDest ? firstDest.name : '–'}
+            sub={firstDest ? shortAddress(firstDest.address) : undefined}
+            badge={destinations.length > 1 ? `+${destinations.length - 1}` : null}
+            onClick={
+              destinations.length > 1
+                ? () => setNavModalOpen(true)
+                : firstDest
+                  ? () => window.open(mapsNavLink(settings.home_address, firstDest.address), '_blank', 'noopener')
+                  : undefined
+            }
+          />
         </div>
-
-        {/* Hint — only when at least one group has more than the shown stop */}
-        {(busStops.length > 1 || bikeStations.length > 1) && (
-          <div className="mt-1.5 text-center text-[10px] text-stone-400 dark:text-stone-500">{t('tapniZaVse')}</div>
-        )}
-
-        {/* Destinations (navigate links) */}
-        {destinations.length > 0 && (
-          <div className="mt-1.5 grid grid-cols-2 gap-1.5">
-            {destinations.map((dest, i) => (
-              <a
-                key={i}
-                href={mapsNavLink(settings.home_address, dest.address)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={cx(
-                  'flex items-center gap-1.5 rounded-xl bg-stone-50 px-2.5 py-2 no-underline dark:bg-stone-950/60',
-                  ROW_PRESS,
-                )}
-              >
-                <span className="text-sm">📍</span>
-                <span className="truncate text-xs font-bold text-stone-900 dark:text-stone-100">{dest.name}</span>
-              </a>
-            ))}
-          </div>
-        )}
 
         {/* Shortcuts */}
         {shortcuts.length > 0 && (
@@ -695,6 +685,35 @@ export default function HomeModule({ settings, loading, saveSettings }) {
               </div>
             );
           })}
+        </div>
+      </Modal>
+
+      {/* All destinations — tap a row to navigate in Google Maps */}
+      <Modal open={navModalOpen} onClose={() => setNavModalOpen(false)}>
+        <h3 className="mb-4 font-serif text-xl font-semibold tracking-tight text-stone-900 dark:text-stone-100">
+          📍 {t('navigacija')}
+        </h3>
+        <div className="flex flex-col">
+          {destinations.map((dest, i) => (
+            <a
+              key={i}
+              href={mapsNavLink(settings.home_address, dest.address)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={cx(
+                'flex items-center gap-3 border-b border-dotted border-stone-300 py-2.5 no-underline last:border-b-0 dark:border-stone-700',
+                ROW_PRESS,
+              )}
+            >
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm font-bold text-stone-900 dark:text-stone-100">{dest.name}</div>
+                {dest.address && (
+                  <div className="truncate text-xs text-stone-400 dark:text-stone-500">{dest.address}</div>
+                )}
+              </div>
+              <span className="shrink-0 text-base text-orange-600 dark:text-orange-400">↗</span>
+            </a>
+          ))}
         </div>
       </Modal>
     </div>

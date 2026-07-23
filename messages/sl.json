@@ -424,7 +424,7 @@
     "bicikelj": "BicikeLJ",
     "niPodatkovPrihodi": "Ni podatkov o prihodih",
     "prostihMest": "{n, plural, one {# prosto mesto} two {# prosti mesti} few {# prosta mesta} other {# prostih mest}}",
-    "tapniZaVse": "tapni 🚌 ali 🚲 za vse postaje"
+    "navigacija": "Navigacija"
   },
   "Errors": {
     "addFailed": "Dodajanje ni uspelo",

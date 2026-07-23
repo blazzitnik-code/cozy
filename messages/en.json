@@ -424,7 +424,7 @@
     "bicikelj": "BicikeLJ",
     "niPodatkovPrihodi": "No arrival data",
     "prostihMest": "{n, plural, one {# free stand} other {# free stands}}",
-    "tapniZaVse": "tap 🚌 or 🚲 for all stops"
+    "navigacija": "Navigation"
   },
   "Errors": {
     "addFailed": "Adding failed",

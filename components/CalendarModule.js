@@ -2,7 +2,7 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'motion/react';
 import { useTranslations, useFormatter } from 'next-intl';
-import { Filter, Settings, ChevronLeft, ChevronRight, Plus, Repeat } from 'lucide-react';
+import { Filter, Settings, ChevronLeft, ChevronRight, Plus, Repeat, Lock } from 'lucide-react';
 import { cx, localDateStr, localDateFromStr, memberColorClass } from '@/lib/utils';
 import { EVENT_TYPES, EVENT_TYPE_KEYS, RECURRENCE_KEYS, expandEvents } from '@/lib/calendar';
 import {
@@ -203,6 +203,26 @@ function EventForm({ event, members, user, onSave, onDelete, onSkip }) {
 
 // One event row (Week + Agenda). Colour/person/time are pre-resolved by the
 // parent (they depend on members/locale) so this stays a pure presentational bit.
+// Busy block from an ICS freebusy source (Koledarko phase 2). Deliberately
+// NOT a Card and NOT clickable — there's no title/detail behind it, and the
+// dashed border + reduced opacity signal "read-only, not a real Cožy event"
+// at a glance so it's never confused with something editable.
+function BusyBlockRow({ colorClass, personName, timeLabel, label }) {
+  return (
+    <div className="flex items-stretch gap-3 rounded-2xl border border-dashed border-stone-300 px-3.5 py-3 opacity-70 dark:border-stone-700">
+      <span className={cx('w-1 shrink-0 rounded-full', colorClass)} />
+      <div className="min-w-0 flex-1">
+        <div className="mb-0.5 flex items-center gap-1.5 text-xs font-semibold text-stone-500 dark:text-stone-400">
+          <Lock className="size-3 shrink-0" />
+          <span className="shrink-0">{timeLabel}</span>
+          <span className="truncate">· {personName}</span>
+        </div>
+        <div className="text-sm font-semibold text-stone-500 dark:text-stone-400">{label}</div>
+      </div>
+    </div>
+  );
+}
+
 function EventRow({ ev, colorClass, personName, timeLabel, onClick }) {
   return (
     <Card onClick={onClick} className="flex items-stretch gap-3 rounded-2xl px-3.5 py-3">
@@ -230,6 +250,7 @@ export default function CalendarModule({
   updateEvent,
   deleteEvent,
   skipOccurrence,
+  busyBlocks = [],
   onGoHome,
   onOpenSettings,
 }) {
@@ -332,24 +353,51 @@ export default function CalendarModule({
     />
   );
 
-  // Agenda: next 14 days from today, grouped by date (expandEvents already sorts).
+  // Busy blocks (ICS freebusy) overlapping local day `d`, sorted by start.
+  // Not date-string-keyed like Cožy events (blocks carry full timestamps,
+  // not a plain event_date), so this filters by local-midnight overlap —
+  // cheap enough at this volume (one household, ≤60-day window).
+  const blocksForDay = (d) => {
+    const dayStart = new Date(d);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = addDays(dayStart, 1);
+    return busyBlocks
+      .filter((b) => new Date(b.ends_at) > dayStart && new Date(b.starts_at) < dayEnd)
+      .sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at));
+  };
+  const renderBusyBlock = (b) => (
+    <BusyBlockRow
+      key={b.id}
+      colorClass={colorFor(b.user_id)}
+      personName={nameFor(b.user_id)}
+      timeLabel={format.dateTime(new Date(b.starts_at), 'time') + '–' + format.dateTime(new Date(b.ends_at), 'time')}
+      label={t('busy')}
+    />
+  );
+
+  // Agenda: next 14 days from today, grouped by date (expandEvents already sorts
+  // within a day). Iterated day-by-day (not event-by-event) so a day with ONLY
+  // busy blocks and no Cožy events still gets a group — otherwise "she's busy
+  // Thursday" would be invisible here even though it shows in Week view.
   const AGENDA_DAYS = 14;
   const agendaGroups = useMemo(() => {
     const evs = expandEvents(events, today, addDays(today, AGENDA_DAYS - 1)).filter((e) =>
       activeTypes.has(e.event_type),
     );
+    const evsByDate = {};
+    for (const e of evs) (evsByDate[e._date] ||= []).push(e);
+
     const groups = [];
-    const byDate = {};
-    for (const e of evs) {
-      if (!byDate[e._date]) {
-        byDate[e._date] = { date: e._date, items: [] };
-        groups.push(byDate[e._date]);
-      }
-      byDate[e._date].items.push(e);
+    for (let i = 0; i < AGENDA_DAYS; i++) {
+      const d = addDays(today, i);
+      const ds = localDateStr(d);
+      const dayEvs = evsByDate[ds] || [];
+      const dayBlocks = blocksForDay(d);
+      if (dayEvs.length || dayBlocks.length) groups.push({ date: ds, items: dayEvs, blocks: dayBlocks });
     }
     return groups;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [events, todayStr, activeTypes]);
+  }, [events, todayStr, activeTypes, busyBlocks]);
   const agendaLabel = (ds) => {
     if (ds === todayStr) return t('today');
     if (ds === localDateStr(addDays(today, 1))) return t('tomorrow');
@@ -527,10 +575,13 @@ export default function CalendarModule({
               <div className="mb-2 text-sm font-bold text-stone-500 capitalize dark:text-stone-400">
                 {format.dateTime(selectedDate, 'weekdayFull')}
               </div>
-              {dayEvents.length === 0 ? (
+              {dayEvents.length === 0 && blocksForDay(selectedDate).length === 0 ? (
                 <EmptyState icon="📅">{loading ? '' : t('noEvents')}</EmptyState>
               ) : (
-                <div className="flex flex-col gap-2">{dayEvents.map(renderEvent)}</div>
+                <div className="flex flex-col gap-2">
+                  {blocksForDay(selectedDate).map(renderBusyBlock)}
+                  {dayEvents.map(renderEvent)}
+                </div>
               )}
             </ScreenEnter>
           </>
@@ -547,7 +598,10 @@ export default function CalendarModule({
                     <div className="mb-1.5 text-sm font-bold text-stone-500 capitalize dark:text-stone-400">
                       {agendaLabel(g.date)}
                     </div>
-                    <div className="flex flex-col gap-2">{g.items.map(renderEvent)}</div>
+                    <div className="flex flex-col gap-2">
+                      {g.blocks.map(renderBusyBlock)}
+                      {g.items.map(renderEvent)}
+                    </div>
                   </div>
                 ))}
               </div>

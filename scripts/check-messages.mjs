@@ -49,6 +49,8 @@ const params = {
   amount: '5 €',
   label: 'X',
   date: '1. 1. 2026',
+  time: '14:30',
+  error: 'fetch failed: 404',
   p: 40,
   n: 3,
   h: 2,

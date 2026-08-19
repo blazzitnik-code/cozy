@@ -425,3 +425,8 @@ enabled = true
 # header instead of a user JWT.
 [functions.send-push]
 verify_jwt = false
+
+# sync-freebusy is called by pg_cron (via pg_net) with a shared-secret
+# header instead of a user JWT.
+[functions.sync-freebusy]
+verify_jwt = false

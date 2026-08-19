@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   useItems,
   useArchived,
@@ -11,6 +11,8 @@ import {
   useShoppingStores,
   useCalendarConnections,
   useCalendarEvents,
+  useFreebusySources,
+  useBusyBlocks,
   useTodoLists,
   useTodoItems,
   useHomeSettings,
@@ -18,12 +20,12 @@ import {
   useBoardNotes,
   useWeather,
 } from '@/lib/hooks';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useFormatter } from 'next-intl';
 import { useLocaleSwitch } from './IntlProvider';
 import { rpcErrorKey } from '@/lib/intl';
 import { supabase } from '@/lib/supabase';
 import { cx, MEMBER_COLORS, memberColorClass } from '@/lib/utils';
-import { X } from 'lucide-react';
+import { X, Plus, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
 import {
   Modal,
   ConfirmModal,
@@ -194,6 +196,27 @@ export default function AppShell({ user, household, members, signOut }) {
     skipOccurrence: skipCalOccurrence,
   } = useCalendarEvents(householdId);
 
+  // ─── FREEBUSY (Koledarko phase 2: ICS-sourced busy blocks) ───
+  // Sources = own private ICS URLs (Settings). Busy blocks = the synced
+  // result, household-wide, range-limited to what CalendarModule can show
+  // (matches the edge function's WINDOW_DAYS — see supabase/functions/sync-freebusy).
+  const {
+    sources: freebusySources,
+    loading: freebusySourcesLoading,
+    addSource: addFreebusySource,
+    removeSource: removeFreebusySource,
+  } = useFreebusySources(householdId, user.id);
+  const busyBlocksRange = useMemo(() => {
+    const now = new Date();
+    const end = new Date(now.getTime() + 60 * 86_400_000);
+    return { start: now.toISOString(), end: end.toISOString() };
+  }, []);
+  const { blocks: busyBlocks, loading: busyBlocksLoading } = useBusyBlocks(
+    householdId,
+    busyBlocksRange.start,
+    busyBlocksRange.end,
+  );
+
   // ─── SETTINGS ───
   const [showSettings, setShowSettings] = useState(false);
   const [confirmAction, setConfirmAction] = useState(null); // { message, onConfirm }
@@ -291,6 +314,10 @@ export default function AppShell({ user, household, members, signOut }) {
           calConnection={calConnection}
           removeCalConnection={removeCalConnection}
           connectCalendar={connectCalendar}
+          freebusySources={freebusySources}
+          freebusySourcesLoading={freebusySourcesLoading}
+          addFreebusySource={addFreebusySource}
+          removeFreebusySource={removeFreebusySource}
           setShowSettings={setShowSettings}
           setConfirmAction={setConfirmAction}
           handleSignOut={handleSignOut}
@@ -342,6 +369,8 @@ export default function AppShell({ user, household, members, signOut }) {
           updateEvent={updateCalEvent}
           deleteEvent={deleteCalEvent}
           skipOccurrence={skipCalOccurrence}
+          busyBlocks={busyBlocks}
+          busyBlocksLoading={busyBlocksLoading}
           onGoHome={() => navigate('home')}
           onOpenSettings={openSettings}
         />
@@ -428,6 +457,10 @@ function SettingsBody({
   calConnection,
   removeCalConnection,
   connectCalendar,
+  freebusySources,
+  freebusySourcesLoading,
+  addFreebusySource,
+  removeFreebusySource,
   setShowSettings,
   setConfirmAction,
   handleSignOut,
@@ -435,7 +468,25 @@ function SettingsBody({
   const t = useTranslations('Settings');
   const tc = useTranslations('Common');
   const ta = useTranslations('A11y');
+  const format = useFormatter();
   const { locale, switchLocale } = useLocaleSwitch();
+
+  // Freebusy ICS source form — add/collapse state lives here, not in a hook,
+  // since it's pure UI state scoped to this modal render.
+  const [showFreebusyForm, setShowFreebusyForm] = useState(false);
+  const [showFreebusyHelp, setShowFreebusyHelp] = useState(false);
+  const [fbLabel, setFbLabel] = useState('');
+  const [fbUrl, setFbUrl] = useState('');
+  const [fbSaving, setFbSaving] = useState(false);
+  const saveFreebusySource = async () => {
+    if (!fbUrl.trim()) return;
+    setFbSaving(true);
+    await addFreebusySource({ label: fbLabel.trim(), icsUrl: fbUrl.trim() });
+    setFbSaving(false);
+    setFbLabel('');
+    setFbUrl('');
+    setShowFreebusyForm(false);
+  };
 
   // Member profile (birthday + colour). members is a prop that doesn't refetch
   // here, so saved values are mirrored into a local overlay for instant feedback.
@@ -633,6 +684,103 @@ function SettingsBody({
           >
             {t('connectCalendar')}
           </button>
+        )}
+      </div>
+
+      {/* Freebusy sharing (Koledarko phase 2) */}
+      <div className="mb-5">
+        <div className="mb-1 text-sm font-bold text-stone-500 dark:text-stone-400">{t('freebusyTitle')}</div>
+        <p className="mb-2.5 text-xs text-stone-400 dark:text-stone-500">{t('freebusyDescription')}</p>
+
+        {!freebusySourcesLoading && freebusySources.length > 0 && (
+          <div className="mb-2.5 space-y-2">
+            {freebusySources.map((src) => (
+              <div
+                key={src.id}
+                className="flex items-center gap-2.5 rounded-xl border border-stone-200/70 bg-white px-3.5 py-3 dark:border-white/10 dark:bg-stone-900"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-bold">{src.label || t('icsSource')}</div>
+                  <div className="mt-0.5 text-xs text-stone-500 dark:text-stone-400">
+                    {src.last_error
+                      ? t('freebusyError', { error: src.last_error })
+                      : src.last_synced_at
+                        ? t('freebusySyncedAt', {
+                            date: format.dateTime(new Date(src.last_synced_at), 'dayShort'),
+                            time: format.dateTime(new Date(src.last_synced_at), 'time'),
+                          })
+                        : t('freebusyNotSyncedYet')}
+                  </div>
+                </div>
+                <button
+                  onClick={() => removeFreebusySource(src.id)}
+                  aria-label={ta('remove')}
+                  className={cx(
+                    'cursor-pointer rounded-full border-none bg-red-500/10 p-2 text-red-600 dark:text-red-400',
+                    PRESS_SM,
+                  )}
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {showFreebusyForm ? (
+          <div className="rounded-xl border border-stone-200/70 bg-white p-3.5 dark:border-white/10 dark:bg-stone-900">
+            <Label>{t('freebusyLabel')}</Label>
+            <Input
+              size="xs"
+              className="mb-2.5"
+              value={fbLabel}
+              onChange={(e) => setFbLabel(e.target.value)}
+              placeholder={t('freebusyLabelPlaceholder')}
+            />
+            <Label>{t('icsAddress')}</Label>
+            <Input
+              size="xs"
+              className="mb-3"
+              value={fbUrl}
+              onChange={(e) => setFbUrl(e.target.value)}
+              placeholder="https://…"
+              inputMode="url"
+            />
+            <ModalActions
+              onSave={saveFreebusySource}
+              onCancel={() => {
+                setShowFreebusyForm(false);
+                setFbLabel('');
+                setFbUrl('');
+              }}
+              disabled={!fbUrl.trim() || fbSaving}
+            />
+          </div>
+        ) : (
+          <button
+            onClick={() => setShowFreebusyForm(true)}
+            className={cx(
+              'flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-full border border-stone-300 bg-transparent p-3 text-sm font-bold text-stone-700 dark:border-stone-700 dark:text-stone-300',
+              PRESS,
+            )}
+          >
+            <Plus size={16} />
+            {t('addFreebusySource')}
+          </button>
+        )}
+
+        <button
+          onClick={() => setShowFreebusyHelp((v) => !v)}
+          className="mt-2.5 flex items-center gap-1 text-xs font-semibold text-stone-500 dark:text-stone-400"
+        >
+          {showFreebusyHelp ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          {t('freebusyHelpToggle')}
+        </button>
+        {showFreebusyHelp && (
+          <div className="mt-2 space-y-1.5 rounded-xl bg-stone-100 p-3 text-xs text-stone-500 dark:bg-stone-900 dark:text-stone-400">
+            <p>{t('freebusyHelpGoogle')}</p>
+            <p>{t('freebusyHelpOutlook')}</p>
+          </div>
         )}
       </div>
 

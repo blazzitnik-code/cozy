@@ -21,7 +21,7 @@
 - `supabase` — hosted MCP for the cloud project (`https://mcp.supabase.com/mcp`); requires one-time OAuth: run `claude /mcp` in a regular terminal → "supabase" → Authenticate.
 - `supabase-local` — local stack MCP (`http://127.0.0.1:55321/mcp`); no auth, works whenever `npx supabase start` is running. Prefer this one for local DB work.
 - `next-devtools` — official Next.js devtools MCP (`npx next-devtools-mcp`); most useful while `npm run dev` is running.
-- `motion` — free Motion registry MCP (`motion-studio-mcp` via npx, no API key): Motion docs + CSS spring/bounce easing generators. (The paid `npx motion-ai` AI Kit with premium examples needs a Motion+ key — deliberately skipped.)
+- `motion` — **disabled** (via `claude /mcp` → Disable). Motion.dev's `motion-studio-mcp` registry install now requires a Motion Plus account + `MOTION_TOKEN` env var — no longer free/keyless as originally set up here. Re-enable only if a Motion Plus token is added; it's Motion docs + CSS spring/bounce easing generators, nothing in the app depends on it.
 
 ## Env
 

@@ -17,3 +17,4 @@ vapid.json
 
 # Claude Code — machine-local permission grants
 .claude/settings.local.json
+.claude/settings.json

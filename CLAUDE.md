@@ -166,3 +166,15 @@ Architecture: data hooks live in AppShell and flow into modules via props — mo
 5. ~~Toast error handling + timezone fix + CSS design-token theming foundation~~ ✅
 6. ~~i18n refactor with **next-intl** ("without i18n routing" mode — client app, locale from settings, SL + EN) replacing the ad-hoc `useT`~~ ✅
 7. ~~Theme design migration: unify all styling onto stock Tailwind utilities (light + dark via `dark:`) → "warm minimal" redesign from Nik's visual references (Fraunces + Inter, stone/cream + ink capsules + orange accent, hybrid cards/flat lists, lucide chrome icons)~~ ✅
+
+## Backlog (not yet scheduled)
+
+Carried over from the retired `COZY_CONTEXT.md` — status unverified against current code, prune/reprioritize as needed:
+
+- **Koledarko phase 2** — Google freebusy for Tina (busy/free only, no details), Outlook for B (harder — freebusy is Google-to-Google), "kdaj sva prosta" week view, "this and all following" instance-range edits
+- **Listko phase 2** — push notifications (assigned, due date), pin/drag-and-drop ordering, recurring tasks (from archive autocomplete), priority flags, per-person list ownership + "only mine" filter, item notes
+- **Trgovko** — deeper purchase-history analytics (recurring items, budget)
+- **New modules** — "kdo je doma za večerjo" check-in + time on home page; Vault (document photos/instructions, e.g. "how to shut off water at the cabin") behind a new menu tier once nav has too many tabs
+- **Bigger bets** — EV charging / home integrations; **ePaper family dashboard** (product north star — glanceable wall display)
+- Deska: history view (data already retained, just not surfaced) — build once there's a real need
+- Out of scope, deliberately: chat, photo sharing, extending beyond one household

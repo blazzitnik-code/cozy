@@ -140,6 +140,7 @@
     "freebusyLabelPlaceholder": "npr. Google, Outlook služba",
     "icsAddress": "ICS naslov",
     "addFreebusySource": "Dodaj vir",
+    "renameFreebusySource": "Preimenuj vir",
     "freebusyHelpToggle": "Kje najdem to?",
     "freebusyHelpGoogle": "Google Koledar: Nastavitve → izbran koledar → \"Secret address in iCal format\".",
     "freebusyHelpOutlook": "Outlook: Koledar → Deli → \"Publish a calendar\" → izberi \"Availability only\" → kopiraj povezavo.",

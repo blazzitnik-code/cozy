@@ -25,7 +25,7 @@ import { useLocaleSwitch } from './IntlProvider';
 import { rpcErrorKey } from '@/lib/intl';
 import { supabase } from '@/lib/supabase';
 import { cx, MEMBER_COLORS, memberColorClass } from '@/lib/utils';
-import { X, Plus, Trash2, ChevronDown, ChevronUp } from 'lucide-react';
+import { X, Plus, Trash2, ChevronDown, ChevronUp, Pencil } from 'lucide-react';
 import {
   Modal,
   ConfirmModal,
@@ -205,6 +205,7 @@ export default function AppShell({ user, household, members, signOut }) {
     loading: freebusySourcesLoading,
     addSource: addFreebusySource,
     removeSource: removeFreebusySource,
+    updateSourceLabel: updateFreebusySourceLabel,
   } = useFreebusySources(householdId, user.id);
   const busyBlocksRange = useMemo(() => {
     const now = new Date();
@@ -318,6 +319,7 @@ export default function AppShell({ user, household, members, signOut }) {
           freebusySourcesLoading={freebusySourcesLoading}
           addFreebusySource={addFreebusySource}
           removeFreebusySource={removeFreebusySource}
+          updateFreebusySourceLabel={updateFreebusySourceLabel}
           setShowSettings={setShowSettings}
           setConfirmAction={setConfirmAction}
           handleSignOut={handleSignOut}
@@ -461,6 +463,7 @@ function SettingsBody({
   freebusySourcesLoading,
   addFreebusySource,
   removeFreebusySource,
+  updateFreebusySourceLabel,
   setShowSettings,
   setConfirmAction,
   handleSignOut,
@@ -486,6 +489,16 @@ function SettingsBody({
     setFbLabel('');
     setFbUrl('');
     setShowFreebusyForm(false);
+  };
+
+  // Rename an existing freebusy source (label only — the ICS URL itself is
+  // immutable once added, matching cozy's "delete + re-add" pattern for
+  // anything more than a rename).
+  const [editFreebusySource, setEditFreebusySource] = useState(null);
+  const [efLabel, setEfLabel] = useState('');
+  const saveFreebusyLabel = async () => {
+    await updateFreebusySourceLabel(editFreebusySource.id, efLabel.trim());
+    setEditFreebusySource(null);
   };
 
   // Member profile (birthday + colour). members is a prop that doesn't refetch
@@ -713,6 +726,19 @@ function SettingsBody({
                   </div>
                 </div>
                 <button
+                  onClick={() => {
+                    setEditFreebusySource(src);
+                    setEfLabel(src.label || '');
+                  }}
+                  aria-label={ta('edit')}
+                  className={cx(
+                    'cursor-pointer rounded-full border-none bg-stone-900/5 p-2 text-stone-600 dark:bg-white/10 dark:text-stone-300',
+                    PRESS_SM,
+                  )}
+                >
+                  <Pencil size={16} />
+                </button>
+                <button
                   onClick={() => removeFreebusySource(src.id)}
                   aria-label={ta('remove')}
                   className={cx(
@@ -783,6 +809,26 @@ function SettingsBody({
           </div>
         )}
       </div>
+
+      {/* Rename a freebusy source (label only) */}
+      <Modal open={!!editFreebusySource} onClose={() => setEditFreebusySource(null)}>
+        {editFreebusySource && (
+          <>
+            <h3 className="mb-4 font-serif text-xl font-semibold tracking-tight text-stone-900 dark:text-stone-100">
+              {t('renameFreebusySource')}
+            </h3>
+            <Label>{t('freebusyLabel')}</Label>
+            <Input
+              className="mb-4"
+              value={efLabel}
+              onChange={(e) => setEfLabel(e.target.value)}
+              placeholder={t('freebusyLabelPlaceholder')}
+              autoFocus
+            />
+            <ModalActions onSave={saveFreebusyLabel} onCancel={() => setEditFreebusySource(null)} />
+          </>
+        )}
+      </Modal>
 
       {/* Notifications */}
       <div className="mb-5">

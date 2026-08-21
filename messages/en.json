@@ -140,6 +140,7 @@
     "freebusyLabelPlaceholder": "e.g. Google, Outlook work",
     "icsAddress": "ICS address",
     "addFreebusySource": "Add source",
+    "renameFreebusySource": "Rename source",
     "freebusyHelpToggle": "Where do I find this?",
     "freebusyHelpGoogle": "Google Calendar: Settings → chosen calendar → \"Secret address in iCal format\".",
     "freebusyHelpOutlook": "Outlook: Calendar → Share → \"Publish a calendar\" → pick \"Availability only\" → copy the link.",

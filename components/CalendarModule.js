@@ -20,6 +20,7 @@ import {
   Label,
   Btn,
   EmptyState,
+  Badge,
   CHIP_ON,
   CHIP_OFF,
   PRESS_SM,
@@ -207,7 +208,7 @@ function EventForm({ event, members, user, onSave, onDelete, onSkip }) {
 // NOT a Card and NOT clickable — there's no title/detail behind it, and the
 // dashed border + reduced opacity signal "read-only, not a real Cožy event"
 // at a glance so it's never confused with something editable.
-function BusyBlockRow({ colorClass, personName, timeLabel, label }) {
+function BusyBlockRow({ colorClass, personName, timeLabel, label, sourceLabel }) {
   return (
     <div className="flex items-stretch gap-3 rounded-2xl border border-dashed border-stone-300 px-3.5 py-3 opacity-70 dark:border-stone-700">
       <span className={cx('w-1 shrink-0 rounded-full', colorClass)} />
@@ -217,7 +218,14 @@ function BusyBlockRow({ colorClass, personName, timeLabel, label }) {
           <span className="shrink-0">{timeLabel}</span>
           <span className="truncate">· {personName}</span>
         </div>
-        <div className="text-sm font-semibold text-stone-500 dark:text-stone-400">{label}</div>
+        <div className="flex items-center gap-1.5">
+          <div className="text-sm font-semibold text-stone-500 dark:text-stone-400">{label}</div>
+          {sourceLabel && (
+            <Badge className="border-stone-300 bg-transparent px-2 py-0.5 text-[10px] font-semibold text-stone-500 dark:border-stone-600 dark:text-stone-400">
+              {sourceLabel}
+            </Badge>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -372,6 +380,7 @@ export default function CalendarModule({
       personName={nameFor(b.user_id)}
       timeLabel={format.dateTime(new Date(b.starts_at), 'time') + '–' + format.dateTime(new Date(b.ends_at), 'time')}
       label={t('busy')}
+      sourceLabel={b.source_label}
     />
   );
 

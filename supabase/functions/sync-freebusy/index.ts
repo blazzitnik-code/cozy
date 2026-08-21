@@ -29,6 +29,7 @@ interface SourceRow {
   household_id: string;
   user_id: string;
   ics_url: string;
+  label: string | null;
 }
 
 interface BusyBlock {
@@ -92,6 +93,7 @@ async function syncOne(source: SourceRow) {
           starts_at: b.start.toISOString(),
           ends_at: b.end.toISOString(),
           source_id: source.id,
+          source_label: source.label,
         })),
       );
       if (error) throw error;

@@ -20,6 +20,8 @@
     "removeMember": "Odstrani člana",
     "prevWeek": "Prejšnji teden",
     "nextWeek": "Naslednji teden",
+    "prevMonth": "Prejšnji mesec",
+    "nextMonth": "Naslednji mesec",
     "favourite": "Priljubljeno"
   },
   "NotFound": {
@@ -236,6 +238,7 @@
   "Shopping": {
     "historyTitle": "🧾 Zgodovina nakupov",
     "historyEmpty": "Še ni opravljenih nakupov",
+    "historyEmptyMonth": "Ta mesec ni bilo nakupov",
     "searchHistory": "Išči v zgodovini...",
     "total": "Skupaj",
     "trips": "Nakupi",
@@ -276,6 +279,7 @@
     "skip": "Preskoči",
     "analysisTitle": "📊 Analiza nakupov",
     "thisMonth": "Ta mesec",
+    "spentTotal": "Skupaj",
     "purchases": "Nakupov",
     "avgLine": "povprečen nakup {amount} · {n} artiklov",
     "missingAmounts": "Manjka znesek za {count, plural, one {# nakup} two {# nakupa} few {# nakupe} other {# nakupov}}",

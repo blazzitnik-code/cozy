@@ -20,6 +20,8 @@
     "removeMember": "Remove member",
     "prevWeek": "Previous week",
     "nextWeek": "Next week",
+    "prevMonth": "Previous month",
+    "nextMonth": "Next month",
     "favourite": "Favourite"
   },
   "NotFound": {
@@ -236,6 +238,7 @@
   "Shopping": {
     "historyTitle": "🧾 Purchase history",
     "historyEmpty": "No completed purchases yet",
+    "historyEmptyMonth": "No purchases this month",
     "searchHistory": "Search history...",
     "total": "Total",
     "trips": "Trips",
@@ -276,6 +279,7 @@
     "skip": "Skip",
     "analysisTitle": "📊 Purchase insights",
     "thisMonth": "This month",
+    "spentTotal": "Total",
     "purchases": "Purchases",
     "avgLine": "avg {amount} · {n} items",
     "missingAmounts": "Missing amount for {count, plural, one {# purchase} other {# purchases}}",

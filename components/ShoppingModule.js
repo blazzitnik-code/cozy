@@ -5,6 +5,8 @@ import { useTranslations, useFormatter, useLocale } from 'next-intl';
 import {
   Check,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Clock,
   GripVertical,
   History,
@@ -437,6 +439,14 @@ export default function ShoppingModule({
   const [backfillStore, setBackfillStore] = useState('');
   const [backfillAmount, setBackfillAmount] = useState('');
   const [backfillSaving, setBackfillSaving] = useState(false);
+  // Which calendar month the analysis screen shows — the purchase list is
+  // paginated by month instead of dumping the entire archive on one page.
+  const [analysisMonth, setAnalysisMonth] = useState(() => {
+    const d = new Date();
+    d.setDate(1);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  });
   useEffect(() => {
     const v = localStorage.getItem('cozy_shop_sugg_open');
     if (v != null) setSuggOpen(v === '1');
@@ -731,13 +741,18 @@ export default function ShoppingModule({
   // ─── ANALYSIS VIEW (replaces the old purchase history) ───
   if (showShopArchive) {
     const q = archSearch.trim().toLowerCase();
-    const analysis = analyzeShoppingHistory(shopArchive);
+    const analysis = analyzeShoppingHistory(shopArchive, analysisMonth);
     const storeName = (id) => shopStores.find((s) => s.id === id);
     const eur = (v) => format.number(v, 'eur');
+    const now = new Date();
+    const isCurrentMonth = analysisMonth.getFullYear() === now.getFullYear() && analysisMonth.getMonth() === now.getMonth();
+    // Searching looks across the whole archive, not just the open month —
+    // finding "when did I last buy X" shouldn't require paging back by hand.
+    const listGroups = q ? analysis.allGroups : analysis.groups;
     // Group purchases by calendar day — each day is a separator that lists all
     // its items inline. Same-day checkouts merge (stores joined, amounts summed).
     const byDate = {};
-    for (const g of analysis.groups) {
+    for (const g of listGroups) {
       if (!g.date || isNaN(g.date.getTime())) continue;
       const key = localDateStr(g.date);
       if (!byDate[key]) {
@@ -816,8 +831,46 @@ export default function ShoppingModule({
             )}
           </div>
 
-          {analysis.groups.length === 0 && (
-            <EmptyState icon="🧾">{shopArchiveLoading ? '' : t('historyEmpty')}</EmptyState>
+          {/* Month nav — hidden while searching (search spans the whole archive) */}
+          {!q && (
+            <div className="mb-4 flex items-center justify-between">
+              <div className="text-sm font-bold text-stone-500 capitalize dark:text-stone-400">
+                {format.dateTime(analysisMonth, 'monthYear')}
+              </div>
+              <div className="flex gap-1">
+                <button
+                  aria-label={ta('prevMonth')}
+                  onClick={() =>
+                    setAnalysisMonth((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1))
+                  }
+                  className={cx(
+                    'flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-stone-400 dark:text-stone-500',
+                    PRESS_SM,
+                  )}
+                >
+                  <ChevronLeft className="size-4.5" />
+                </button>
+                <button
+                  aria-label={ta('nextMonth')}
+                  disabled={isCurrentMonth}
+                  onClick={() =>
+                    setAnalysisMonth((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1))
+                  }
+                  className={cx(
+                    'flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-stone-400 disabled:cursor-default disabled:opacity-30 dark:text-stone-500',
+                    PRESS_SM,
+                  )}
+                >
+                  <ChevronRight className="size-4.5" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {dateGroups.length === 0 && (
+            <EmptyState icon="🧾">
+              {shopArchiveLoading ? '' : shopArchive.length === 0 ? t('historyEmpty') : q ? tc('noResults') : t('historyEmptyMonth')}
+            </EmptyState>
           )}
 
           {/* Summary — hidden while searching to focus results */}
@@ -826,7 +879,7 @@ export default function ShoppingModule({
               <div className="mb-2 grid grid-cols-2 gap-2">
                 <Card className="rounded-xl px-3.5 py-3">
                   <div className="text-[10px] font-semibold tracking-[1px] text-stone-400 uppercase dark:text-stone-500">
-                    {t('thisMonth')}
+                    {t('spentTotal')}
                   </div>
                   <div className="mt-0.5 text-2xl font-extrabold text-stone-900 dark:text-stone-100">
                     {analysis.hasAmounts ? format.number(analysis.monthTotal, 'eurWhole') : '—'}

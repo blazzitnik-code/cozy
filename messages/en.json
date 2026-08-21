@@ -390,7 +390,9 @@
     "itemTitle": "Title",
     "notes": "Notes",
     "notesPlaceholder": "Add details, notes...",
-    "nobody": "Nobody"
+    "nobody": "Nobody",
+    "onlyMine": "Only mine",
+    "markImportant": "Mark as important"
   },
   "HomeScreen": {
     "inFreezer": "in the freezer",

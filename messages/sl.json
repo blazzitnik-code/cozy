@@ -390,7 +390,9 @@
     "itemTitle": "Naslov",
     "notes": "Opombe",
     "notesPlaceholder": "Dodaj podrobnosti, opombe...",
-    "nobody": "Nihče"
+    "nobody": "Nihče",
+    "onlyMine": "Samo moje",
+    "markImportant": "Označi kot pomembno"
   },
   "HomeScreen": {
     "inFreezer": "v zamrzovalniku",

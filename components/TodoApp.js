@@ -1,8 +1,8 @@
 'use client';
-import { useState, useRef, useCallback, memo } from 'react';
-import { AnimatePresence, motion } from 'motion/react';
+import { useState, useRef, useEffect, useCallback, memo } from 'react';
+import { AnimatePresence, motion, Reorder, useDragControls } from 'motion/react';
 import { useTranslations, useFormatter } from 'next-intl';
-import { Check, History, Pencil, Plus, Settings, X } from 'lucide-react';
+import { Check, GripVertical, History, Pencil, Plus, Settings, Star, X } from 'lucide-react';
 import { cx, dueTone, localDateFromStr, DUE_TEXT, DUE_BAR, DUE_BADGE } from '@/lib/utils';
 import {
   Screen,
@@ -18,6 +18,7 @@ import {
   ModuleHeader,
   IconButton,
   EmptyState,
+  Pill,
   POPOVER,
   POPOVER_POP,
   POP,
@@ -356,6 +357,7 @@ function TodoListScreen({
   const [assignPicker, setAssignPicker] = useState(null); // item id
   const [itemDetail, setItemDetail] = useState(null); // item being edited
   const [listEdit, setListEdit] = useState(null); // { title, emoji, due_date }
+  const [onlyMine, setOnlyMine] = useState(false); // filter rows to items assigned to me
   const inputRef = useRef(null);
 
   const done = items.filter((i) => i.checked).length;
@@ -373,8 +375,12 @@ function TodoListScreen({
     inputRef.current?.focus();
   };
 
-  const openItems = items.filter((i) => !i.checked).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
-  const doneItems = items.filter((i) => i.checked).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+  // "Only mine" filters which rows render — done/total and the progress bar
+  // above still reflect the WHOLE list regardless, since the filter is a
+  // view preference, not a change to what the list actually contains.
+  const visibleItems = onlyMine ? items.filter((i) => i.assigned_to === user.id) : items;
+  const openItems = visibleItems.filter((i) => !i.checked).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+  const doneItems = visibleItems.filter((i) => i.checked).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
   const getMember = (userId) => members.find((m) => m.user_id === userId);
 
   // Stable handlers so memo'd TodoItemRows skip re-render when siblings change.
@@ -383,6 +389,23 @@ function TodoListScreen({
     (id, userId) => {
       updateItem(id, { assigned_to: userId });
       setAssignPicker(null);
+    },
+    [updateItem],
+  );
+
+  // Persist a drag reorder: reassign sort_order for the dragged segment only
+  // (same approach as persistGroupOrder in ShoppingModule.js). updateItem is
+  // already optimistic (local state applies instantly, write happens in the
+  // background), so no need to await here.
+  const persistItemOrder = useCallback(
+    (ordered) => {
+      let slots = ordered.map((i) => i.sort_order ?? 0).sort((a, b) => a - b);
+      if (new Set(slots).size !== slots.length) {
+        slots = ordered.map((_, idx) => slots[0] + idx);
+      }
+      ordered.forEach((item, idx) => {
+        if ((item.sort_order ?? 0) !== slots[idx]) updateItem(item.id, { sort_order: slots[idx] });
+      });
     },
     [updateItem],
   );
@@ -485,28 +508,32 @@ function TodoListScreen({
           </div>
         )}
 
+        {/* Filter: only items assigned to me (pointless in a solo household) */}
+        {members.length > 1 && total > 0 && (
+          <div className="mb-4 flex justify-end">
+            <Pill small active={onlyMine} onClick={() => setOnlyMine((v) => !v)}>
+              {t('onlyMine')}
+            </Pill>
+          </div>
+        )}
+
         {/* Open items */}
         {openItems.length > 0 && (
           <>
             <SectionHeader>{t('open', { count: openItems.length })}</SectionHeader>
             <Card className="relative mb-4 px-3 py-1">
-              <AnimatePresence initial={false} mode="popLayout">
-                {openItems.map((item, idx) => (
-                  <TodoItemRow
-                    key={item.id}
-                    item={item}
-                    isLast={idx === openItems.length - 1}
-                    member={getMember(item.assigned_to)}
-                    members={members}
-                    showPicker={assignPicker === item.id}
-                    onToggle={toggleItem}
-                    onDelete={deleteItem}
-                    onTap={openItemDetail}
-                    onPickerOpen={setAssignPicker}
-                    onAssign={assignMember}
-                  />
-                ))}
-              </AnimatePresence>
+              <TodoItemGroup
+                items={openItems}
+                members={members}
+                assignPicker={assignPicker}
+                getMember={getMember}
+                onPersist={persistItemOrder}
+                onToggle={toggleItem}
+                onDelete={deleteItem}
+                onTap={openItemDetail}
+                onPickerOpen={setAssignPicker}
+                onAssign={assignMember}
+              />
             </Card>
           </>
         )}
@@ -517,11 +544,10 @@ function TodoListScreen({
             <SectionHeader>{t('doneSection', { count: doneItems.length })}</SectionHeader>
             <Card className="relative mb-5 px-3 py-1 opacity-65">
               <AnimatePresence initial={false} mode="popLayout">
-                {doneItems.map((item, idx) => (
+                {doneItems.map((item) => (
                   <TodoItemRow
                     key={item.id}
                     item={item}
-                    isLast={idx === doneItems.length - 1}
                     member={getMember(item.assigned_to)}
                     members={members}
                     showPicker={assignPicker === item.id}
@@ -606,6 +632,30 @@ function TodoListScreen({
               onChange={(e) => setItemDetail((d) => ({ ...d, title: e.target.value }))}
               className="mb-3.5"
             />
+            <div className="mb-3.5 flex items-end gap-3">
+              <div className="flex-1">
+                <Label className="mb-1.5 text-xs">{t('due')}</Label>
+                <Input
+                  type="date"
+                  value={itemDetail.due_date || ''}
+                  onChange={(e) => setItemDetail((d) => ({ ...d, due_date: e.target.value }))}
+                />
+              </div>
+              <button
+                onClick={() => setItemDetail((d) => ({ ...d, important: !d.important }))}
+                aria-label={t('markImportant')}
+                aria-pressed={!!itemDetail.important}
+                className={cx(
+                  'flex h-12 w-12 shrink-0 cursor-pointer items-center justify-center rounded-xl border',
+                  PRESS_SM,
+                  itemDetail.important
+                    ? 'border-orange-500 bg-orange-500/10 text-orange-600 dark:text-orange-400'
+                    : 'border-stone-300 bg-transparent text-stone-400 dark:border-stone-700 dark:text-stone-600',
+                )}
+              >
+                <Star className={cx('size-5', itemDetail.important && 'fill-current')} />
+              </button>
+            </div>
             <Label className="mb-1.5 text-xs">{t('notes')}</Label>
             <textarea
               value={itemDetail.notes || ''}
@@ -617,7 +667,12 @@ function TodoListScreen({
             <ModalActions
               onSave={async () => {
                 if (!itemDetail.title.trim()) return;
-                await updateItem(itemDetail.id, { title: itemDetail.title.trim(), notes: itemDetail.notes || null });
+                await updateItem(itemDetail.id, {
+                  title: itemDetail.title.trim(),
+                  notes: itemDetail.notes || null,
+                  due_date: itemDetail.due_date || null,
+                  important: !!itemDetail.important,
+                });
                 setItemDetail(null);
               }}
               onCancel={() => setItemDetail(null)}
@@ -629,15 +684,78 @@ function TodoListScreen({
   );
 }
 
+// ─── OPEN-ITEMS GROUP (drag-to-reorder) ───
+// Wraps open items in a Reorder.Group — same shape as ShopGroup in
+// ShoppingModule.js. Order lives in local state during the drag; sort_order
+// is persisted once on drag end via onPersist. Done items don't get this —
+// they're rendered as a plain list further down, no reordering needed.
+function TodoItemGroup({ items, members, assignPicker, getMember, onPersist, onToggle, onDelete, onTap, onPickerOpen, onAssign }) {
+  const [order, setOrder] = useState(items);
+  const orderRef = useRef(items);
+  const dragging = useRef(false);
+  // True between "our drag ended" and "the persisted order came back via
+  // realtime" — while set, stale props (pre-persist order, same id set) must
+  // not snap the rows back.
+  const pending = useRef(false);
+  const adopt = (next) => {
+    orderRef.current = next;
+    setOrder(next);
+  };
+  useEffect(() => {
+    if (dragging.current) return;
+    const propSeq = items.map((i) => i.id).join(',');
+    const localSeq = orderRef.current.map((i) => i.id).join(',');
+    if (propSeq === localSeq) {
+      pending.current = false;
+      if (items.length === orderRef.current.length && items.every((it, i) => it === orderRef.current[i])) return;
+    } else if (pending.current && propSeq.split(',').sort().join() === localSeq.split(',').sort().join()) return;
+    adopt(items);
+  }, [items]);
+  const onRowDragStart = useCallback(() => (dragging.current = true), []);
+  const onRowDragEnd = useCallback(() => {
+    dragging.current = false;
+    pending.current = true;
+    onPersist(orderRef.current);
+  }, [onPersist]);
+  return (
+    <Reorder.Group as="div" axis="y" values={order} onReorder={adopt} className="relative flex flex-col">
+      <AnimatePresence initial={false} mode="popLayout">
+        {order.map((item) => (
+          <TodoItemRow
+            key={item.id}
+            item={item}
+            reorderable
+            member={getMember(item.assigned_to)}
+            members={members}
+            showPicker={assignPicker === item.id}
+            onRowDragStart={onRowDragStart}
+            onRowDragEnd={onRowDragEnd}
+            onToggle={onToggle}
+            onDelete={onDelete}
+            onTap={onTap}
+            onPickerOpen={onPickerOpen}
+            onAssign={onAssign}
+          />
+        ))}
+      </AnimatePresence>
+    </Reorder.Group>
+  );
+}
+
 // ─── ITEM ROW ───
 // `ref` reaches the DOM node — required by AnimatePresence mode="popLayout".
 // memo'd: parent passes stable handlers so untouched rows skip re-render on toggle.
+// Reorderable open-item rows render as Reorder.Item (dragged by the ⠿ handle
+// only, see ShopItemRow in ShoppingModule.js for the same pattern); done
+// rows stay plain motion.div — finished items don't need manual ordering.
 const TodoItemRow = memo(function TodoItemRow({
   item,
-  isLast,
   member,
   members,
   showPicker,
+  reorderable = false,
+  onRowDragStart,
+  onRowDragEnd,
   onToggle,
   onDelete,
   onTap,
@@ -648,15 +766,34 @@ const TodoItemRow = memo(function TodoItemRow({
   const t = useTranslations('Todo');
   const tc = useTranslations('Common');
   const ta = useTranslations('A11y');
-  return (
-    <motion.div
-      ref={ref}
-      {...LIST_ROW}
-      className={cx(
-        'flex items-center gap-2.5 py-2.75',
-        !isLast && 'border-b border-dotted border-stone-300 dark:border-stone-700',
+  const format = useFormatter();
+  const dragControls = useDragControls();
+
+  const dueDate = item.due_date ? localDateFromStr(item.due_date) : null;
+  const daysLeft = dueDate ? Math.ceil((dueDate - new Date()) / 864e5) : null;
+  const isPast = daysLeft !== null && daysLeft < 0;
+  const tone = dueTone(daysLeft);
+
+  // Opaque bg matching the surrounding Card — Reorder.Item rows overlap
+  // while dragging, so a transparent bg would show the row underneath.
+  const rowClass = cx(
+    'relative flex items-center gap-2.5 bg-white py-2.75 last:border-b-0 dark:bg-stone-900',
+    'border-b border-dotted border-stone-300 dark:border-stone-700',
+  );
+
+  const inner = (
+    <>
+      {reorderable && (
+        <span
+          onPointerDown={(e) => {
+            e.preventDefault();
+            dragControls.start(e);
+          }}
+          className="-m-2 shrink-0 cursor-grab touch-none p-2 text-stone-400 select-none active:cursor-grabbing dark:text-stone-600"
+        >
+          <GripVertical className="size-4" />
+        </span>
       )}
-    >
       <button
         onClick={() => onToggle(item.id)}
         className={cx(
@@ -671,11 +808,17 @@ const TodoItemRow = memo(function TodoItemRow({
       <div onClick={() => onTap(item)} className="min-w-0 flex-1 cursor-pointer">
         <div
           className={cx(
-            'text-base font-medium',
+            'flex items-center gap-1 text-base font-medium',
             item.checked ? 'text-stone-400 line-through dark:text-stone-500' : 'text-stone-900 dark:text-stone-100',
           )}
         >
-          {item.title}
+          {item.important && (
+            <Star
+              aria-hidden="true"
+              className="size-3 shrink-0 fill-current text-orange-600 dark:text-orange-400"
+            />
+          )}
+          <span className="min-w-0 truncate">{item.title}</span>
         </div>
         {item.notes && (
           <div className="mt-0.5 overflow-hidden text-xs text-ellipsis whitespace-nowrap text-stone-400 dark:text-stone-500">
@@ -683,6 +826,12 @@ const TodoItemRow = memo(function TodoItemRow({
           </div>
         )}
       </div>
+
+      {dueDate && !item.checked && (
+        <span className={cx('shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-bold', DUE_BADGE[tone])}>
+          {isPast ? t('overdueBadge') : format.dateTime(dueDate, 'dayShort')}
+        </span>
+      )}
 
       {/* Assign picker */}
       <div className="relative shrink-0">
@@ -739,6 +888,34 @@ const TodoItemRow = memo(function TodoItemRow({
       >
         <X className="size-4" />
       </button>
-    </motion.div>
+    </>
+  );
+
+  if (!reorderable)
+    return (
+      <motion.div ref={ref} {...LIST_ROW} className={rowClass}>
+        {inner}
+      </motion.div>
+    );
+  return (
+    // No `layout` prop here — Reorder.Item is already a layout component
+    // (same note as ShopItemRow).
+    <Reorder.Item
+      as="div"
+      ref={ref}
+      value={item}
+      dragListener={false}
+      dragControls={dragControls}
+      whileDrag={{ scale: 1.01 }}
+      onDragStart={onRowDragStart}
+      onDragEnd={onRowDragEnd}
+      initial={LIST_ROW.initial}
+      animate={LIST_ROW.animate}
+      exit={LIST_ROW.exit}
+      transition={LIST_ROW.transition}
+      className={rowClass}
+    >
+      {inner}
+    </Reorder.Item>
   );
 });

@@ -2,9 +2,16 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'motion/react';
 import { useTranslations, useFormatter } from 'next-intl';
-import { Filter, Settings, ChevronLeft, ChevronRight, Plus, Repeat, Lock } from 'lucide-react';
+import { Filter, Settings, ChevronLeft, ChevronRight, Plus, Repeat, Lock, Users } from 'lucide-react';
 import { cx, localDateStr, localDateFromStr, memberColorClass } from '@/lib/utils';
-import { EVENT_TYPES, EVENT_TYPE_KEYS, RECURRENCE_KEYS, expandEvents } from '@/lib/calendar';
+import {
+  EVENT_TYPES,
+  EVENT_TYPE_KEYS,
+  RECURRENCE_KEYS,
+  expandEvents,
+  mergeBusyBlocks,
+  commonFreeIntervals,
+} from '@/lib/calendar';
 import {
   Screen,
   PageBody,
@@ -231,6 +238,19 @@ function BusyBlockRow({ colorClass, personName, timeLabel, label, sourceLabel })
   );
 }
 
+// "Both free" hint — every tracked member's freebusy calendars are clear for
+// this window, i.e. a good time to suggest a shared plan. Deliberately the
+// success/green tone (STATUS_BADGE.ok in lib/utils.js uses the same pairing)
+// rather than a person color, since it's not about either individual.
+function CommonFreeRow({ timeLabel }) {
+  return (
+    <div className="flex items-center gap-2 rounded-2xl bg-green-100 px-3.5 py-2.5 text-xs font-bold text-green-700 dark:bg-green-500/15 dark:text-green-400">
+      <Users className="size-3.5 shrink-0" />
+      <span>{timeLabel}</span>
+    </div>
+  );
+}
+
 function EventRow({ ev, colorClass, personName, timeLabel, onClick }) {
   return (
     <Card onClick={onClick} className="flex items-stretch gap-3 rounded-2xl px-3.5 py-3">
@@ -361,6 +381,16 @@ export default function CalendarModule({
     />
   );
 
+  // Raw ICS busy blocks arrive fragmented (back-to-back meetings = separate
+  // rows) — merge same-source overlapping/touching ones so "busy until X"
+  // reads as one bar. Recomputed only when the underlying data changes.
+  const mergedBusyBlocks = useMemo(() => mergeBusyBlocks(busyBlocks), [busyBlocks]);
+  // Which members actually have a freebusy source connected — inferred from
+  // who has ANY block in the fetched window. Needed to know whether a
+  // "both free" comparison is even possible (can't intersect against a
+  // member with no calendar connected — silence isn't the same as free).
+  const trackedUserIds = useMemo(() => [...new Set(busyBlocks.map((b) => b.user_id))], [busyBlocks]);
+
   // Busy blocks (ICS freebusy) overlapping local day `d`, sorted by start.
   // Not date-string-keyed like Cožy events (blocks carry full timestamps,
   // not a plain event_date), so this filters by local-midnight overlap —
@@ -369,7 +399,7 @@ export default function CalendarModule({
     const dayStart = new Date(d);
     dayStart.setHours(0, 0, 0, 0);
     const dayEnd = addDays(dayStart, 1);
-    return busyBlocks
+    return mergedBusyBlocks
       .filter((b) => new Date(b.ends_at) > dayStart && new Date(b.starts_at) < dayEnd)
       .sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at));
   };
@@ -383,6 +413,31 @@ export default function CalendarModule({
       sourceLabel={b.source_label}
     />
   );
+
+  // Shared free windows for day `d`, within waking hours (07:00–23:00) so a
+  // 3am gap between two late-night blocks never counts as "free together".
+  // Segments under 20 min are dropped — too short to plan anything around.
+  const DAY_WINDOW_START_HOUR = 7;
+  const DAY_WINDOW_END_HOUR = 23;
+  const MIN_FREE_MS = 20 * 60 * 1000;
+  const commonFreeForDay = (d) => {
+    if (trackedUserIds.length < 2) return [];
+    const dayStart = new Date(d);
+    dayStart.setHours(DAY_WINDOW_START_HOUR, 0, 0, 0);
+    const dayEnd = new Date(d);
+    dayEnd.setHours(DAY_WINDOW_END_HOUR, 0, 0, 0);
+    return commonFreeIntervals(mergedBusyBlocks, trackedUserIds, dayStart, dayEnd).filter(
+      (f) => f.e - f.s >= MIN_FREE_MS,
+    );
+  };
+  const renderCommonFree = (d) => {
+    const free = commonFreeForDay(d);
+    if (!free.length) return null;
+    const label = free
+      .map((f) => format.dateTime(new Date(f.s), 'time') + '–' + format.dateTime(new Date(f.e), 'time'))
+      .join(', ');
+    return <CommonFreeRow key="common-free" timeLabel={t('bothFree', { time: label })} />;
+  };
 
   // Agenda: next 14 days from today, grouped by date (expandEvents already sorts
   // within a day). Iterated day-by-day (not event-by-event) so a day with ONLY
@@ -588,6 +643,7 @@ export default function CalendarModule({
                 <EmptyState icon="📅">{loading ? '' : t('noEvents')}</EmptyState>
               ) : (
                 <div className="flex flex-col gap-2">
+                  {renderCommonFree(selectedDate)}
                   {blocksForDay(selectedDate).map(renderBusyBlock)}
                   {dayEvents.map(renderEvent)}
                 </div>
@@ -608,6 +664,7 @@ export default function CalendarModule({
                       {agendaLabel(g.date)}
                     </div>
                     <div className="flex flex-col gap-2">
+                      {renderCommonFree(localDateFromStr(g.date))}
                       {g.blocks.map(renderBusyBlock)}
                       {g.items.map(renderEvent)}
                     </div>

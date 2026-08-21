@@ -335,6 +335,7 @@
     "today": "Danes",
     "tomorrow": "Jutri",
     "busy": "Zaseden/a",
+    "bothFree": "Oba prosta: {time}",
     "types": {
       "sluzba": "Služba",
       "sport": "Šport",

@@ -35,38 +35,52 @@ interface SourceRow {
 interface BusyBlock {
   start: Date;
   end: Date;
+  allDay: boolean;
 }
 
-// Parses raw ICS text and returns busy blocks (start/end only) that
-// intersect [rangeStart, rangeEnd]. Recurring events are expanded via
-// ical.js's built-in RRULE iterator. Events explicitly marked TRANSPARENT
-// (i.e. "don't show me as busy") are skipped.
+// Parses raw ICS text and returns busy blocks that intersect
+// [rangeStart, rangeEnd]. Recurring events are expanded via ical.js's
+// built-in RRULE iterator. Events explicitly marked TRANSPARENT (i.e.
+// "don't show me as busy") are skipped.
+//
+// All-day events (DTSTART;VALUE=DATE, e.g. "Annual leave", "Out of office")
+// carry no real time-of-day — ical.js anchors them to UTC midnight, which
+// after client-side timezone conversion renders as a misleading near-zero
+// span (e.g. "02:00-02:00" in UTC+2). Flagged via `allDay` instead of
+// relying on the raw timestamps, and given a duration of at least one day
+// so a client-side merge/free-time calculation still treats the day as
+// occupied even if the source event's own duration was malformed as 0.
 function extractBusyBlocks(icsText: string, rangeStart: Date, rangeEnd: Date): BusyBlock[] {
   const jcalData = ICAL.parse(icsText);
   const comp = new ICAL.Component(jcalData);
   const blocks: BusyBlock[] = [];
+  const DAY_MS = 86_400_000;
 
   for (const vevent of comp.getAllSubcomponents('vevent')) {
     const transp = vevent.getFirstPropertyValue('transp');
     if (transp === 'TRANSPARENT') continue;
 
     const event = new ICAL.Event(vevent);
+    const allDay = !!event.startDate?.isDate;
 
     if (event.isRecurring()) {
       const iter = event.iterator();
-      const durationMs = event.duration.toSeconds() * 1000;
+      const durationMs = allDay ? DAY_MS : event.duration.toSeconds() * 1000;
+      if (durationMs <= 0) continue; // malformed/zero-length source event — skip rather than emit a fake blip
       let next: ICAL.Time | null;
       // eslint-disable-next-line no-cond-assign
       while ((next = iter.next())) {
         const occStart = next.toJSDate();
         if (occStart > rangeEnd) break;
         const occEnd = new Date(occStart.getTime() + durationMs);
-        if (occEnd >= rangeStart) blocks.push({ start: occStart, end: occEnd });
+        if (occEnd >= rangeStart) blocks.push({ start: occStart, end: occEnd, allDay });
       }
     } else {
       const start = event.startDate.toJSDate();
-      const end = event.endDate.toJSDate();
-      if (end >= rangeStart && start <= rangeEnd) blocks.push({ start, end });
+      let end = event.endDate.toJSDate();
+      if (allDay && end.getTime() <= start.getTime()) end = new Date(start.getTime() + DAY_MS);
+      if (end.getTime() <= start.getTime()) continue; // malformed/zero-length source event — skip
+      if (end >= rangeStart && start <= rangeEnd) blocks.push({ start, end, allDay });
     }
   }
   return blocks;
@@ -94,6 +108,7 @@ async function syncOne(source: SourceRow) {
           ends_at: b.end.toISOString(),
           source_id: source.id,
           source_label: source.label,
+          all_day: b.allDay,
         })),
       );
       if (error) throw error;

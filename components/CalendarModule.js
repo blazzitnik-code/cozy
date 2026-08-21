@@ -408,7 +408,11 @@ export default function CalendarModule({
       key={b.id}
       colorClass={colorFor(b.user_id)}
       personName={nameFor(b.user_id)}
-      timeLabel={format.dateTime(new Date(b.starts_at), 'time') + '–' + format.dateTime(new Date(b.ends_at), 'time')}
+      timeLabel={
+        b.all_day
+          ? t('allDay')
+          : format.dateTime(new Date(b.starts_at), 'time') + '–' + format.dateTime(new Date(b.ends_at), 'time')
+      }
       label={t('busy')}
       sourceLabel={b.source_label}
     />

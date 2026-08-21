@@ -960,6 +960,51 @@ export default function ShoppingModule({
             </div>
           )}
         </PageBody>
+
+        {/* Backfill modal — add a store/amount to a past purchase archived without one */}
+        <Modal open={!!backfill} onClose={() => setBackfill(null)}>
+          {backfill && (
+            <>
+              <div className="mb-5 text-center">
+                <div className="mb-2 text-5xl">🧾</div>
+                <h3 className="mb-1 font-serif text-xl font-semibold tracking-tight">{t('addAmount')}</h3>
+                <p className="text-sm text-stone-500 dark:text-stone-400">
+                  {t('itemsBought', { n: backfill.items.length })}
+                </p>
+              </div>
+
+              <Label>{t('storeOptional')}</Label>
+              <Input
+                autoFocus
+                value={backfillStore}
+                onChange={(e) => setBackfillStore(e.target.value)}
+                placeholder={t('storeNotePlaceholder')}
+                className="mb-4"
+              />
+
+              <Label>{t('amountOptional')}</Label>
+              <div className="relative mb-5">
+                <Input
+                  inputMode="decimal"
+                  value={backfillAmount}
+                  onChange={(e) => setBackfillAmount(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') saveBackfill();
+                  }}
+                  placeholder={t('amountPlaceholder')}
+                  className="pr-9"
+                />
+                <span className="absolute top-1/2 right-3.5 -translate-y-1/2 text-base font-semibold text-stone-400 dark:text-stone-500">
+                  €
+                </span>
+              </div>
+
+              <Btn v="success" onClick={saveBackfill} disabled={backfillSaving}>
+                {tc('save')}
+              </Btn>
+            </>
+          )}
+        </Modal>
       </Screen>
     );
   }
@@ -1505,51 +1550,6 @@ export default function ShoppingModule({
             </Btn>
             <Btn v="ghost" onClick={() => finalizeCheckout(false)}>
               {t('skip')}
-            </Btn>
-          </>
-        )}
-      </Modal>
-
-      {/* Backfill modal — add a store/amount to a past purchase archived without one */}
-      <Modal open={!!backfill} onClose={() => setBackfill(null)}>
-        {backfill && (
-          <>
-            <div className="mb-5 text-center">
-              <div className="mb-2 text-5xl">🧾</div>
-              <h3 className="mb-1 font-serif text-xl font-semibold tracking-tight">{t('addAmount')}</h3>
-              <p className="text-sm text-stone-500 dark:text-stone-400">
-                {t('itemsBought', { n: backfill.items.length })}
-              </p>
-            </div>
-
-            <Label>{t('storeOptional')}</Label>
-            <Input
-              autoFocus
-              value={backfillStore}
-              onChange={(e) => setBackfillStore(e.target.value)}
-              placeholder={t('storeNotePlaceholder')}
-              className="mb-4"
-            />
-
-            <Label>{t('amountOptional')}</Label>
-            <div className="relative mb-5">
-              <Input
-                inputMode="decimal"
-                value={backfillAmount}
-                onChange={(e) => setBackfillAmount(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') saveBackfill();
-                }}
-                placeholder={t('amountPlaceholder')}
-                className="pr-9"
-              />
-              <span className="absolute top-1/2 right-3.5 -translate-y-1/2 text-base font-semibold text-stone-400 dark:text-stone-500">
-                €
-              </span>
-            </div>
-
-            <Btn v="success" onClick={saveBackfill} disabled={backfillSaving}>
-              {tc('save')}
             </Btn>
           </>
         )}

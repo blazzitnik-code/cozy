@@ -128,6 +128,7 @@ export default function AppShell({ user, household, members, signOut }) {
     archived: shopArchive,
     loading: shopArchiveLoading,
     archiveChecked: dbShopArchiveChecked,
+    updatePurchaseAmount: dbUpdatePurchaseAmount,
   } = useShoppingArchived(householdId);
   const { favourites: shopFavourites, toggleFavourite: dbShopToggleFav } = useShoppingFavourites(householdId);
   const {
@@ -408,6 +409,7 @@ export default function AppShell({ user, household, members, signOut }) {
           dbShopDelete={dbShopDelete}
           shopArchive={shopArchive}
           dbShopArchiveChecked={dbShopArchiveChecked}
+          dbUpdatePurchaseAmount={dbUpdatePurchaseAmount}
           shopFavourites={shopFavourites}
           dbShopToggleFav={dbShopToggleFav}
           shopStores={shopStores}

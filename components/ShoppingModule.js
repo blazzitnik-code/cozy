@@ -389,6 +389,7 @@ export default function ShoppingModule({
   dbShopDelete,
   shopArchive,
   dbShopArchiveChecked,
+  dbUpdatePurchaseAmount,
   shopFavourites,
   dbShopToggleFav,
   shopStores,
@@ -429,6 +430,13 @@ export default function ShoppingModule({
   const [checkout, setCheckout] = useState(null); // { items } — open checkout modal on "bought"
   const [checkoutStore, setCheckoutStore] = useState('');
   const [checkoutAmount, setCheckoutAmount] = useState('');
+  // Backfill: add a store/amount to a past purchase that was archived without
+  // one (price is opt-in at checkout, so most purchases never get one — this
+  // is how the analysis totals stop being an undercount over time).
+  const [backfill, setBackfill] = useState(null); // { items, store } — the purchase_group being filled in
+  const [backfillStore, setBackfillStore] = useState('');
+  const [backfillAmount, setBackfillAmount] = useState('');
+  const [backfillSaving, setBackfillSaving] = useState(false);
   useEffect(() => {
     const v = localStorage.getItem('cozy_shop_sugg_open');
     if (v != null) setSuggOpen(v === '1');
@@ -651,6 +659,23 @@ export default function ShoppingModule({
     if (items.length > 0) dbShopArchiveChecked(items, meta);
   }
 
+  function openBackfill(group) {
+    setBackfillStore(group.store || '');
+    setBackfillAmount('');
+    setBackfill(group);
+  }
+
+  async function saveBackfill() {
+    if (!backfill || backfillSaving) return;
+    setBackfillSaving(true);
+    await dbUpdatePurchaseAmount(backfill.items, {
+      storeNote: backfillStore,
+      amount: parseAmount(backfillAmount),
+    });
+    setBackfillSaving(false);
+    setBackfill(null);
+  }
+
   function shopInputChange(val) {
     setShopInput(val);
     if (val.length >= 1) {
@@ -715,12 +740,18 @@ export default function ShoppingModule({
     for (const g of analysis.groups) {
       if (!g.date || isNaN(g.date.getTime())) continue;
       const key = localDateStr(g.date);
-      if (!byDate[key]) byDate[key] = { key, date: g.date, items: [], amount: 0, hasAmount: false, stores: [] };
+      if (!byDate[key]) {
+        byDate[key] = { key, date: g.date, items: [], amount: 0, hasAmount: false, stores: [], missing: [] };
+      }
       const b = byDate[key];
       for (const it of g.items) b.items.push(it);
       if (g.amount != null) {
         b.amount += g.amount;
         b.hasAmount = true;
+      } else {
+        // This checkout (purchase_group) never got a price — offer to add
+        // one right here instead of silently leaving it out of the totals.
+        b.missing.push(g);
       }
       if (g.store && !b.stores.includes(g.store)) b.stores.push(g.store);
     }
@@ -811,12 +842,19 @@ export default function ShoppingModule({
                 </Card>
               </div>
               {analysis.monthCount > 0 && (
-                <p className="mb-4 px-0.5 text-xs text-stone-400 dark:text-stone-500">
-                  {t('avgLine', {
-                    amount: analysis.hasAmounts ? eur(analysis.avgBasket) : '—',
-                    n: analysis.avgItems,
-                  })}
-                </p>
+                <div className="mb-4 px-0.5">
+                  <p className="text-xs text-stone-400 dark:text-stone-500">
+                    {t('avgLine', {
+                      amount: analysis.hasAmounts ? eur(analysis.avgBasket) : '—',
+                      n: analysis.avgItems,
+                    })}
+                  </p>
+                  {analysis.monthMissingCount > 0 && (
+                    <p className="mt-0.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
+                      {t('missingAmounts', { count: analysis.monthMissingCount })}
+                    </p>
+                  )}
+                </div>
               )}
 
               {analysis.storeList.length > 0 && (
@@ -879,6 +917,23 @@ export default function ShoppingModule({
                       )}
                     </div>
                   </div>
+                  {d.missing.length > 0 && (
+                    <div className="mb-1.5 flex flex-wrap gap-1.5 px-0.5">
+                      {d.missing.map((g) => (
+                        <button
+                          key={g.id}
+                          onClick={() => openBackfill(g)}
+                          className={cx(
+                            'flex cursor-pointer items-center gap-1 rounded-full border border-dashed border-amber-400/60 bg-amber-500/10 px-2.5 py-1 text-xs font-semibold text-amber-700 dark:border-amber-500/40 dark:text-amber-400',
+                            PRESS_SM,
+                          )}
+                        >
+                          <Plus size={12} />
+                          {t('addAmount')}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                   {d.items.map((it, i) => {
                     const store = storeName(it.store);
                     return (
@@ -1450,6 +1505,51 @@ export default function ShoppingModule({
             </Btn>
             <Btn v="ghost" onClick={() => finalizeCheckout(false)}>
               {t('skip')}
+            </Btn>
+          </>
+        )}
+      </Modal>
+
+      {/* Backfill modal — add a store/amount to a past purchase archived without one */}
+      <Modal open={!!backfill} onClose={() => setBackfill(null)}>
+        {backfill && (
+          <>
+            <div className="mb-5 text-center">
+              <div className="mb-2 text-5xl">🧾</div>
+              <h3 className="mb-1 font-serif text-xl font-semibold tracking-tight">{t('addAmount')}</h3>
+              <p className="text-sm text-stone-500 dark:text-stone-400">
+                {t('itemsBought', { n: backfill.items.length })}
+              </p>
+            </div>
+
+            <Label>{t('storeOptional')}</Label>
+            <Input
+              autoFocus
+              value={backfillStore}
+              onChange={(e) => setBackfillStore(e.target.value)}
+              placeholder={t('storeNotePlaceholder')}
+              className="mb-4"
+            />
+
+            <Label>{t('amountOptional')}</Label>
+            <div className="relative mb-5">
+              <Input
+                inputMode="decimal"
+                value={backfillAmount}
+                onChange={(e) => setBackfillAmount(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') saveBackfill();
+                }}
+                placeholder={t('amountPlaceholder')}
+                className="pr-9"
+              />
+              <span className="absolute top-1/2 right-3.5 -translate-y-1/2 text-base font-semibold text-stone-400 dark:text-stone-500">
+                €
+              </span>
+            </div>
+
+            <Btn v="success" onClick={saveBackfill} disabled={backfillSaving}>
+              {tc('save')}
             </Btn>
           </>
         )}

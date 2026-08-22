@@ -283,6 +283,8 @@
     "purchases": "Purchases",
     "avgLine": "avg {amount} · {n} items",
     "missingAmounts": "Missing amount for {count, plural, one {# purchase} other {# purchases}}",
+    "vsAverage": "vs. average",
+    "avgMonthlyLine": "avg over last {count} mo.: {amount}",
     "addAmount": "Add amount",
     "mostBought": "Most bought",
     "other": "Other",

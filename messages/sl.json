@@ -283,6 +283,8 @@
     "purchases": "Nakupov",
     "avgLine": "povprečen nakup {amount} · {n} artiklov",
     "missingAmounts": "Manjka znesek za {count, plural, one {# nakup} two {# nakupa} few {# nakupe} other {# nakupov}}",
+    "vsAverage": "od povprečja",
+    "avgMonthlyLine": "povprečje zadnjih {count} mes.: {amount}",
     "addAmount": "Dodaj znesek",
     "mostBought": "Najpogosteje kupljeno",
     "other": "Ostalo",

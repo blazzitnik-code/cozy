@@ -745,7 +745,8 @@ export default function ShoppingModule({
     const storeName = (id) => shopStores.find((s) => s.id === id);
     const eur = (v) => format.number(v, 'eur');
     const now = new Date();
-    const isCurrentMonth = analysisMonth.getFullYear() === now.getFullYear() && analysisMonth.getMonth() === now.getMonth();
+    const isCurrentMonth =
+      analysisMonth.getFullYear() === now.getFullYear() && analysisMonth.getMonth() === now.getMonth();
     // Searching looks across the whole archive, not just the open month —
     // finding "when did I last buy X" shouldn't require paging back by hand.
     const listGroups = q ? analysis.allGroups : analysis.groups;
@@ -840,9 +841,7 @@ export default function ShoppingModule({
               <div className="flex gap-1">
                 <button
                   aria-label={ta('prevMonth')}
-                  onClick={() =>
-                    setAnalysisMonth((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1))
-                  }
+                  onClick={() => setAnalysisMonth((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1))}
                   className={cx(
                     'flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-stone-400 dark:text-stone-500',
                     PRESS_SM,
@@ -853,9 +852,7 @@ export default function ShoppingModule({
                 <button
                   aria-label={ta('nextMonth')}
                   disabled={isCurrentMonth}
-                  onClick={() =>
-                    setAnalysisMonth((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1))
-                  }
+                  onClick={() => setAnalysisMonth((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1))}
                   className={cx(
                     'flex h-8 w-8 cursor-pointer items-center justify-center rounded-lg border-none bg-transparent text-stone-400 disabled:cursor-default disabled:opacity-30 dark:text-stone-500',
                     PRESS_SM,
@@ -869,7 +866,13 @@ export default function ShoppingModule({
 
           {dateGroups.length === 0 && (
             <EmptyState icon="🧾">
-              {shopArchiveLoading ? '' : shopArchive.length === 0 ? t('historyEmpty') : q ? tc('noResults') : t('historyEmptyMonth')}
+              {shopArchiveLoading
+                ? ''
+                : shopArchive.length === 0
+                  ? t('historyEmpty')
+                  : q
+                    ? tc('noResults')
+                    : t('historyEmptyMonth')}
             </EmptyState>
           )}
 
@@ -884,6 +887,19 @@ export default function ShoppingModule({
                   <div className="mt-0.5 text-2xl font-extrabold text-stone-900 dark:text-stone-100">
                     {analysis.hasAmounts ? format.number(analysis.monthTotal, 'eurWhole') : '—'}
                   </div>
+                  {analysis.vsAveragePct != null && (
+                    <div
+                      className={cx(
+                        'mt-0.5 text-xs font-semibold',
+                        analysis.vsAveragePct > 0 && 'text-red-600 dark:text-red-400',
+                        analysis.vsAveragePct < 0 && 'text-green-600 dark:text-green-400',
+                        analysis.vsAveragePct === 0 && 'text-stone-400 dark:text-stone-500',
+                      )}
+                    >
+                      {analysis.vsAveragePct > 0 ? '+' : ''}
+                      {analysis.vsAveragePct}% {t('vsAverage')}
+                    </div>
+                  )}
                 </Card>
                 <Card className="rounded-xl px-3.5 py-3">
                   <div className="text-[10px] font-semibold tracking-[1px] text-stone-400 uppercase dark:text-stone-500">
@@ -905,6 +921,14 @@ export default function ShoppingModule({
                   {analysis.monthMissingCount > 0 && (
                     <p className="mt-0.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
                       {t('missingAmounts', { count: analysis.monthMissingCount })}
+                    </p>
+                  )}
+                  {analysis.avgMonthlySpend != null && (
+                    <p className="mt-0.5 text-xs text-stone-400 dark:text-stone-500">
+                      {t('avgMonthlyLine', {
+                        amount: eur(analysis.avgMonthlySpend),
+                        count: analysis.avgMonthsCount,
+                      })}
                     </p>
                   )}
                 </div>

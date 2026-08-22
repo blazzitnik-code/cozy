@@ -176,5 +176,4 @@ Carried over from the retired `COZY_CONTEXT.md` — status unverified against cu
 - **Trgovko** — deeper purchase-history analytics (recurring items, budget)
 - **New modules** — "kdo je doma za večerjo" check-in + time on home page; Vault (document photos/instructions, e.g. "how to shut off water at the cabin") behind a new menu tier once nav has too many tabs
 - **Bigger bets** — EV charging / home integrations; **ePaper family dashboard** (product north star — glanceable wall display)
-- Deska: history view (data already retained, just not surfaced) — build once there's a real need
 - Out of scope, deliberately: chat, photo sharing, extending beyond one household

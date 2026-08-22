@@ -358,6 +358,7 @@ function TodoListScreen({
   const [itemDetail, setItemDetail] = useState(null); // item being edited
   const [listEdit, setListEdit] = useState(null); // { title, emoji, due_date }
   const [onlyMine, setOnlyMine] = useState(false); // filter rows to items assigned to me
+  const [onlyImportant, setOnlyImportant] = useState(false); // filter rows to starred items
   const inputRef = useRef(null);
 
   const done = items.filter((i) => i.checked).length;
@@ -375,12 +376,16 @@ function TodoListScreen({
     inputRef.current?.focus();
   };
 
-  // "Only mine" filters which rows render — done/total and the progress bar
-  // above still reflect the WHOLE list regardless, since the filter is a
-  // view preference, not a change to what the list actually contains.
-  const visibleItems = onlyMine ? items.filter((i) => i.assigned_to === user.id) : items;
+  // "Only mine" / "Important" filter which rows render (combinable, AND) —
+  // done/total and the progress bar above still reflect the WHOLE list
+  // regardless, since these are view preferences, not a change to what the
+  // list actually contains.
+  const visibleItems = items
+    .filter((i) => !onlyMine || i.assigned_to === user.id)
+    .filter((i) => !onlyImportant || i.important);
   const openItems = visibleItems.filter((i) => !i.checked).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
   const doneItems = visibleItems.filter((i) => i.checked).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+  const hasImportant = items.some((i) => i.important);
   const getMember = (userId) => members.find((m) => m.user_id === userId);
 
   // Stable handlers so memo'd TodoItemRows skip re-render when siblings change.
@@ -508,12 +513,20 @@ function TodoListScreen({
           </div>
         )}
 
-        {/* Filter: only items assigned to me (pointless in a solo household) */}
-        {members.length > 1 && total > 0 && (
-          <div className="mb-4 flex justify-end">
-            <Pill small active={onlyMine} onClick={() => setOnlyMine((v) => !v)}>
-              {t('onlyMine')}
-            </Pill>
+        {/* Filters: assignee (2+ members only) + starred (once something's starred) */}
+        {((members.length > 1 && total > 0) || hasImportant) && (
+          <div className="mb-4 flex flex-wrap justify-end gap-1.5">
+            {hasImportant && (
+              <Pill small active={onlyImportant} onClick={() => setOnlyImportant((v) => !v)}>
+                <Star className={cx('mr-1 inline size-3', onlyImportant && 'fill-current')} />
+                {t('important')}
+              </Pill>
+            )}
+            {members.length > 1 && total > 0 && (
+              <Pill small active={onlyMine} onClick={() => setOnlyMine((v) => !v)}>
+                {t('onlyMine')}
+              </Pill>
+            )}
           </div>
         )}
 

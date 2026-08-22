@@ -162,7 +162,7 @@ async function handleDailyDigest() {
 
   await Promise.all(
     [...byHousehold.entries()].map(async ([householdId, householdSubs]) => {
-      const [{ count: expiring }, { count: due }] = await Promise.all([
+      const [{ count: expiring }, { count: dueLists }, { count: dueItems }] = await Promise.all([
         supabase
           .from('items')
           .select('*', { count: 'exact', head: true })
@@ -175,7 +175,18 @@ async function handleDailyDigest() {
           .eq('household_id', householdId)
           .eq('due_date', today)
           .is('archived_at', null),
+        // Item-level due dates (added after list-level due dates already
+        // existed) — an unchecked item due today should surface in the
+        // digest even if its list itself has no (or a different) due_date.
+        supabase
+          .from('todo_items')
+          .select('id, todo_lists!inner(archived_at)', { count: 'exact', head: true })
+          .eq('household_id', householdId)
+          .eq('due_date', today)
+          .eq('checked', false)
+          .is('todo_lists.archived_at', null),
       ]);
+      const due = (dueLists ?? 0) + (dueItems ?? 0);
       if (!expiring && !due) return;
       await Promise.all(
         householdSubs.map((sub) => {

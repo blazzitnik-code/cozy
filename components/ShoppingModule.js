@@ -447,6 +447,10 @@ export default function ShoppingModule({
     d.setHours(0, 0, 0, 0);
     return d;
   });
+  // The "Average" card: collapsed by default (just a one-line summary),
+  // expands on tap to show the full breakdown + the range picker.
+  const [avgOpen, setAvgOpen] = useState(false);
+  const [avgRangeMonths, setAvgRangeMonths] = useState(null); // null = since tracking started
   useEffect(() => {
     const v = localStorage.getItem('cozy_shop_sugg_open');
     if (v != null) setSuggOpen(v === '1');
@@ -741,7 +745,7 @@ export default function ShoppingModule({
   // ─── ANALYSIS VIEW (replaces the old purchase history) ───
   if (showShopArchive) {
     const q = archSearch.trim().toLowerCase();
-    const analysis = analyzeShoppingHistory(shopArchive, analysisMonth);
+    const analysis = analyzeShoppingHistory(shopArchive, analysisMonth, avgRangeMonths);
     const storeName = (id) => shopStores.find((s) => s.id === id);
     const eur = (v) => format.number(v, 'eur');
     const now = new Date();
@@ -879,10 +883,10 @@ export default function ShoppingModule({
           {/* Summary — hidden while searching to focus results */}
           {!q && analysis.groups.length > 0 && (
             <>
-              <div className="mb-2 grid grid-cols-2 gap-2">
+              <div className="mb-4 space-y-2">
                 <Card className="rounded-xl px-3.5 py-3">
                   <div className="text-[10px] font-semibold tracking-[1px] text-stone-400 uppercase dark:text-stone-500">
-                    {t('spentTotal')}
+                    {t('thisMonth')}
                   </div>
                   <div className="mt-0.5 text-2xl font-extrabold text-stone-900 dark:text-stone-100">
                     {analysis.hasAmounts ? format.number(analysis.monthTotal, 'eurWhole') : '—'}
@@ -900,39 +904,75 @@ export default function ShoppingModule({
                       {analysis.vsAveragePct}% {t('vsAverage')}
                     </div>
                   )}
-                </Card>
-                <Card className="rounded-xl px-3.5 py-3">
-                  <div className="text-[10px] font-semibold tracking-[1px] text-stone-400 uppercase dark:text-stone-500">
-                    {t('purchases')}
-                  </div>
-                  <div className="mt-0.5 text-2xl font-extrabold text-stone-900 dark:text-stone-100">
-                    {analysis.monthCount}
-                  </div>
-                </Card>
-              </div>
-              {analysis.monthCount > 0 && (
-                <div className="mb-4 px-0.5">
-                  <p className="text-xs text-stone-400 dark:text-stone-500">
-                    {t('avgLine', {
-                      amount: analysis.hasAmounts ? eur(analysis.avgBasket) : '—',
-                      n: analysis.avgItems,
-                    })}
-                  </p>
+                  {analysis.monthCount > 0 && (
+                    <p className="mt-2 text-xs text-stone-400 dark:text-stone-500">
+                      {t('purchaseLine', {
+                        count: analysis.monthCount,
+                        amount: analysis.hasAmounts ? eur(analysis.avgBasket) : '—',
+                        n: analysis.avgItems,
+                      })}
+                    </p>
+                  )}
                   {analysis.monthMissingCount > 0 && (
                     <p className="mt-0.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
                       {t('missingAmounts', { count: analysis.monthMissingCount })}
                     </p>
                   )}
-                  {analysis.avgMonthlySpend != null && (
-                    <p className="mt-0.5 text-xs text-stone-400 dark:text-stone-500">
-                      {t('avgMonthlyLine', {
-                        amount: eur(analysis.avgMonthlySpend),
-                        count: analysis.avgMonthsCount,
-                      })}
-                    </p>
-                  )}
-                </div>
-              )}
+                </Card>
+
+                {analysis.avgMonthsCount > 0 && (
+                  <Card className="cursor-pointer rounded-xl px-3.5 py-3" onClick={() => setAvgOpen((v) => !v)}>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[10px] font-semibold tracking-[1px] text-stone-400 uppercase dark:text-stone-500">
+                          {t('average')}
+                        </div>
+                        {!avgOpen && (
+                          <p className="mt-0.5 truncate text-xs text-stone-400 dark:text-stone-500">
+                            {t('purchaseLine', {
+                              count: analysis.avgPurchasesPerMonth,
+                              amount: eur(analysis.avgBasketAcrossPrior),
+                              n: analysis.avgItemsAcrossPrior,
+                            })}
+                          </p>
+                        )}
+                      </div>
+                      <ChevronDown
+                        className={cx(
+                          'size-4.5 shrink-0 text-stone-400 transition-transform dark:text-stone-500',
+                          avgOpen && 'rotate-180',
+                        )}
+                      />
+                    </div>
+                    {avgOpen && (
+                      <div
+                        className="mt-3 border-t border-dotted border-stone-300 pt-3 dark:border-stone-700"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <select
+                          value={avgRangeMonths ?? 'all'}
+                          onChange={(e) => setAvgRangeMonths(e.target.value === 'all' ? null : Number(e.target.value))}
+                          className="mb-3 w-full cursor-pointer rounded-lg border border-stone-300 bg-transparent px-2.5 py-1.5 text-xs text-stone-700 dark:border-stone-700 dark:text-stone-300"
+                        >
+                          <option value="all">{t('rangeAll')}</option>
+                          <option value="3">{t('rangeMonths', { count: 3 })}</option>
+                          <option value="6">{t('rangeMonths', { count: 6 })}</option>
+                        </select>
+                        <div className="text-2xl font-extrabold text-stone-900 dark:text-stone-100">
+                          {eur(analysis.avgMonthlySpend)}
+                        </div>
+                        <p className="mt-0.5 text-xs text-stone-400 dark:text-stone-500">
+                          {t('purchaseLine', {
+                            count: analysis.avgPurchasesPerMonth,
+                            amount: eur(analysis.avgBasketAcrossPrior),
+                            n: analysis.avgItemsAcrossPrior,
+                          })}
+                        </p>
+                      </div>
+                    )}
+                  </Card>
+                )}
+              </div>
 
               {analysis.storeList.length > 0 && (
                 <div className="mb-4">

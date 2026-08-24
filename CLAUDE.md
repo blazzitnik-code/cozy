@@ -169,11 +169,10 @@ Architecture: data hooks live in AppShell and flow into modules via props — mo
 
 ## Backlog (not yet scheduled)
 
-Carried over from the retired `COZY_CONTEXT.md` — status unverified against current code, prune/reprioritize as needed:
+Koledarko and Listko phase 2, and Trgovko's analytics pass, are now mostly done (freebusy for both Google + Outlook with merge + "both free" indicator, item-level due dates + drag-reorder + priority flags + "only mine" filter, push notifications incl. item-level due dates in the daily digest, monthly spend vs. historical average). What's genuinely still open:
 
-- **Koledarko phase 2** — Google freebusy for Tina (busy/free only, no details), Outlook for B (harder — freebusy is Google-to-Google), "kdaj sva prosta" week view, "this and all following" instance-range edits
-- **Listko phase 2** — push notifications (assigned, due date), pin/drag-and-drop ordering, recurring tasks (from archive autocomplete), priority flags, per-person list ownership + "only mine" filter, item notes
-- **Trgovko** — deeper purchase-history analytics (recurring items, budget)
+- **Koledarko** — "uredi to in vse naslednje" instance-range edits for recurring events (bigger — recurrence-edit semantics)
+- **Listko** — recurring tasks (from archive autocomplete) (bigger — needs a recurrence model); per-person list ownership (separate from the existing item-level "only mine" filter — revisit if that filter alone doesn't feel like enough)
 - **New modules** — "kdo je doma za večerjo" check-in + time on home page; Vault (document photos/instructions, e.g. "how to shut off water at the cabin") behind a new menu tier once nav has too many tabs
 - **Bigger bets** — EV charging / home integrations; **ePaper family dashboard** (product north star — glanceable wall display)
 - Out of scope, deliberately: chat, photo sharing, extending beyond one household

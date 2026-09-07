@@ -27,14 +27,24 @@ function HiLo({ max, min, className }) {
   );
 }
 
-// ─── 7-DAY FORECAST ROW (shared: compact + full modal) ───
-function SevenDayRow({ daily }) {
+// ─── 7-DAY FORECAST ROW ─── tappable: each day selects itself into DayDetail
+// below (highlighted with a background tint since it's a selection, not a
+// navigation action — matches the chip's ink-invert being reserved for that).
+function SevenDayRow({ daily, selectedIdx, onSelect }) {
   const format = useFormatter();
   if (!daily?.time?.length) return null;
   return (
     <div className="grid grid-cols-7 gap-1">
       {daily.time.map((d, i) => (
-        <div key={d} className="flex flex-col items-center gap-0.5 rounded-lg py-1.5 text-center">
+        <button
+          key={d}
+          onClick={() => onSelect(i)}
+          className={cx(
+            'flex cursor-pointer flex-col items-center gap-0.5 rounded-lg border-none py-1.5 text-center',
+            PRESS_SM,
+            i === selectedIdx ? 'bg-stone-200 dark:bg-stone-800' : 'bg-transparent',
+          )}
+        >
           <div className="text-[10px] font-semibold text-stone-400 uppercase dark:text-stone-500">
             {format.dateTime(localDateFromStr(d), 'weekdayShort')}
           </div>
@@ -45,8 +55,43 @@ function SevenDayRow({ daily }) {
           <div className="text-[11px] text-stone-400 dark:text-stone-500">
             {Math.round(daily.temperature_2m_min?.[i])}°
           </div>
-        </div>
+        </button>
       ))}
+    </div>
+  );
+}
+
+// ─── DAY DETAIL — expanded info for whichever day is selected in SevenDayRow ───
+function DayDetail({ daily, idx }) {
+  const tw = useTranslations('Weather');
+  const format = useFormatter();
+  if (!daily?.time?.[idx]) return null;
+  const info = weatherInfo(daily.weather_code?.[idx]);
+  const prob = daily.precipitation_probability_max?.[idx];
+  const mm = daily.precipitation_sum?.[idx];
+  return (
+    <div className="mt-3 rounded-xl bg-stone-50 p-3 dark:bg-stone-950/60">
+      <div className="mb-1.5 text-xs font-semibold text-stone-400 uppercase dark:text-stone-500">
+        {format.dateTime(localDateFromStr(daily.time[idx]), 'weekdayFull')}
+      </div>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-2xl">{info.emoji}</span>
+          <span className="text-sm font-semibold text-stone-700 capitalize dark:text-stone-300">{tw(info.key)}</span>
+        </div>
+        <HiLo max={daily.temperature_2m_max?.[idx]} min={daily.temperature_2m_min?.[idx]} className="text-sm" />
+      </div>
+      {(prob != null || mm != null) && (
+        <div className="mt-2 flex items-center gap-3 text-xs font-semibold text-stone-400 dark:text-stone-500">
+          {prob != null && (
+            <span className="flex items-center gap-0.5 text-orange-600 dark:text-orange-400">
+              <Droplets className="size-3" />
+              {prob}%
+            </span>
+          )}
+          {mm != null && <span>{mm} mm</span>}
+        </div>
+      )}
     </div>
   );
 }
@@ -238,6 +283,7 @@ function WeatherModal({ open, onClose, locations, onSetMain, onRemove, onAdd, ma
   const t = useTranslations('Weather');
   const ta = useTranslations('A11y');
   const [selIdx, setSelIdx] = useState(0);
+  const [selDay, setSelDay] = useState(0);
   const [editing, setEditing] = useState(false);
   const [adding, setAdding] = useState(false);
   const [cache, setCache] = useState({}); // "lat,lng" -> weather payload
@@ -245,9 +291,16 @@ function WeatherModal({ open, onClose, locations, onSetMain, onRemove, onAdd, ma
   useEffect(() => {
     if (!open) return;
     setSelIdx(0);
+    setSelDay(0);
     setEditing(false);
     setAdding(false);
   }, [open]);
+
+  // Switching location resets the day selection — a day picked for one
+  // place doesn't carry a meaningful highlight over to another.
+  useEffect(() => {
+    setSelDay(0);
+  }, [selIdx]);
 
   useEffect(() => {
     if (!open) return;
@@ -317,7 +370,8 @@ function WeatherModal({ open, onClose, locations, onSetMain, onRemove, onAdd, ma
 
       {/* Selected location's current + 7-day */}
       <CurrentBlock weather={selWeather} />
-      <SevenDayRow daily={selWeather?.daily} />
+      <SevenDayRow daily={selWeather?.daily} selectedIdx={selDay} onSelect={setSelDay} />
+      <DayDetail daily={selWeather?.daily} idx={selDay} />
 
       {editing && (
         <>

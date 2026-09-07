@@ -2,14 +2,33 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'motion/react';
 import { useTranslations, useFormatter } from 'next-intl';
-import { ChevronRight, House, Pencil, Plus, Wind, Droplets, X } from 'lucide-react';
+import { ArrowUp, ArrowDown, ChevronRight, House, Pencil, Plus, Wind, Droplets, X } from 'lucide-react';
 import { cx, weatherInfo, weatherLocationsOf, localDateFromStr } from '@/lib/utils';
 import { fetchWeatherOnce, geocodeLocation } from '@/lib/hooks';
 import { Card, Modal, Input, SectionHeader, POPOVER, POPOVER_POP, ROW_PRESS, PRESS_SM } from './ui';
 
+// Warm/cool color-coded high/low pair with directional arrows — used on the
+// home card, in the current-conditions block, and (color-only, no icons —
+// too tight a column) in the 7-day row, so "which number is which" reads
+// consistently everywhere without relying on the H/L letters alone.
+function HiLo({ max, min, className }) {
+  if (max == null || min == null) return null;
+  return (
+    <span className={cx('inline-flex items-center gap-2', className)}>
+      <span className="inline-flex items-center gap-0.5 text-orange-600 dark:text-orange-400">
+        <ArrowUp className="size-3" />
+        {Math.round(max)}°
+      </span>
+      <span className="inline-flex items-center gap-0.5 text-stone-400 dark:text-stone-500">
+        <ArrowDown className="size-3" />
+        {Math.round(min)}°
+      </span>
+    </span>
+  );
+}
+
 // ─── 7-DAY FORECAST ROW (shared: compact + full modal) ───
 function SevenDayRow({ daily }) {
-  const tw = useTranslations('Weather');
   const format = useFormatter();
   if (!daily?.time?.length) return null;
   return (
@@ -20,7 +39,7 @@ function SevenDayRow({ daily }) {
             {format.dateTime(localDateFromStr(d), 'weekdayShort')}
           </div>
           <div className="text-lg">{weatherInfo(daily.weather_code?.[i]).emoji}</div>
-          <div className="text-xs font-bold text-stone-900 dark:text-stone-100">
+          <div className="text-xs font-bold text-orange-600 dark:text-orange-400">
             {Math.round(daily.temperature_2m_max?.[i])}°
           </div>
           <div className="text-[11px] text-stone-400 dark:text-stone-500">
@@ -54,6 +73,11 @@ function CurrentBlock({ weather }) {
             {tw('feelsLike', { n: Math.round(c.apparent_temperature) })}
           </div>
         )}
+        <HiLo
+          max={weather?.daily?.temperature_2m_max?.[0]}
+          min={weather?.daily?.temperature_2m_min?.[0]}
+          className="mt-1.5 text-xs font-semibold"
+        />
       </div>
       <div className="flex flex-col items-end gap-1">
         <span className="text-4xl">{info.emoji}</span>
@@ -419,14 +443,13 @@ export default function WeatherWidget({ weather, settings, saveSettings }) {
                   {tw(weatherInfo(weather.current.weather_code).key)}
                 </span>
               </div>
-              <div className="mt-0.5 text-xs font-semibold text-stone-400 dark:text-stone-500">
+              <div className="mt-0.5 flex items-center gap-2 text-xs font-semibold text-stone-400 dark:text-stone-500">
                 {weather.daily?.precipitation_probability_max?.[0] != null && (
                   <span className="text-orange-600 dark:text-orange-400">
-                    {tw('precip', { p: weather.daily.precipitation_probability_max[0] })} ·{' '}
+                    {tw('precip', { p: weather.daily.precipitation_probability_max[0] })}
                   </span>
                 )}
-                H {Math.round(weather.daily?.temperature_2m_max?.[0])}° · L{' '}
-                {Math.round(weather.daily?.temperature_2m_min?.[0])}°
+                <HiLo max={weather.daily?.temperature_2m_max?.[0]} min={weather.daily?.temperature_2m_min?.[0]} />
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-1 pl-2">

@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'motion/react';
 import { useTranslations, useFormatter } from 'next-intl';
-import { ChevronRight, House, Plus, Wind, Droplets, X } from 'lucide-react';
+import { ChevronRight, House, Pencil, Plus, Wind, Droplets, X } from 'lucide-react';
 import { cx, weatherInfo, weatherLocationsOf, localDateFromStr } from '@/lib/utils';
 import { fetchWeatherOnce, geocodeLocation } from '@/lib/hooks';
 import { Card, Modal, Input, SectionHeader, POPOVER, POPOVER_POP, ROW_PRESS, PRESS_SM } from './ui';
@@ -209,17 +209,19 @@ function AddLocationForm({ onAdd, onDone }) {
   );
 }
 
-// ─── FULL MODAL: all locations, chips, edit, add ───
-function FullModal({ open, onClose, locations, onSetMain, onRemove, onAdd, mainWeather }) {
+// ─── WEATHER MODAL: chips to switch locations, edit mode toggled by pencil ───
+function WeatherModal({ open, onClose, locations, onSetMain, onRemove, onAdd, mainWeather }) {
   const t = useTranslations('Weather');
   const ta = useTranslations('A11y');
   const [selIdx, setSelIdx] = useState(0);
+  const [editing, setEditing] = useState(false);
   const [adding, setAdding] = useState(false);
   const [cache, setCache] = useState({}); // "lat,lng" -> weather payload
 
   useEffect(() => {
     if (!open) return;
     setSelIdx(0);
+    setEditing(false);
     setAdding(false);
   }, [open]);
 
@@ -255,111 +257,106 @@ function FullModal({ open, onClose, locations, onSetMain, onRemove, onAdd, mainW
           {t('title')}
         </h3>
         <button
-          onClick={() => setAdding((v) => !v)}
+          aria-label={ta('edit')}
+          onClick={() => setEditing((v) => !v)}
           className={cx(
-            'flex items-center gap-1 rounded-full border-none bg-stone-900 px-3 py-1.5 text-xs font-bold text-white dark:bg-stone-100 dark:text-stone-900',
+            'flex size-8 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-stone-400 dark:text-stone-500',
+            editing && 'text-orange-600 dark:text-orange-400',
             PRESS_SM,
           )}
         >
-          <Plus className="size-3.5" />
-          {t('addLocation')}
+          <Pencil className="size-4" />
         </button>
       </div>
 
-      {adding && <AddLocationForm onAdd={onAdd} onDone={() => setAdding(false)} />}
-
-      {/* Location chips */}
-      <div className="mb-4 flex flex-wrap gap-1.5">
-        {locations.map((loc, i) => (
-          <button
-            key={`${loc.lat},${loc.lng}`}
-            onClick={() => setSelIdx(i)}
-            className={cx(
-              'flex shrink-0 cursor-pointer items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-semibold whitespace-nowrap',
-              PRESS_SM,
-              i === selIdx
-                ? 'border-stone-900 bg-stone-900 text-white dark:border-stone-100 dark:bg-stone-100 dark:text-stone-900'
-                : 'border-stone-300 bg-white text-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400',
-            )}
-          >
-            {i === 0 && <House className="size-3" />}
-            {loc.name}
-          </button>
-        ))}
-      </div>
+      {/* Location chips — only worth switching between once there's >1 */}
+      {locations.length > 1 && (
+        <div className="mb-4 flex flex-wrap gap-1.5">
+          {locations.map((loc, i) => (
+            <button
+              key={`${loc.lat},${loc.lng}`}
+              onClick={() => setSelIdx(i)}
+              className={cx(
+                'flex shrink-0 cursor-pointer items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-semibold whitespace-nowrap',
+                PRESS_SM,
+                i === selIdx
+                  ? 'border-stone-900 bg-stone-900 text-white dark:border-stone-100 dark:bg-stone-100 dark:text-stone-900'
+                  : 'border-stone-300 bg-white text-stone-500 dark:border-stone-700 dark:bg-stone-900 dark:text-stone-400',
+              )}
+            >
+              {i === 0 && <House className="size-3" />}
+              {loc.name}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Selected location's current + 7-day */}
       <CurrentBlock weather={selWeather} />
       <SevenDayRow daily={selWeather?.daily} />
 
-      {/* Edit list */}
-      <SectionHeader className="mt-5 mb-1.5">{t('editLocations')}</SectionHeader>
-      <div>
-        {locations.map((loc, i) => (
-          <div
-            key={`${loc.lat},${loc.lng}`}
-            className="flex items-center gap-2 border-b border-dotted border-stone-300 py-2.5 last:border-b-0 dark:border-stone-700"
-          >
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1.5 truncate text-sm font-semibold text-stone-900 dark:text-stone-100">
-                {loc.name}
-                {i === 0 && (
-                  <span className="rounded-full bg-orange-500/15 px-1.5 py-0.25 text-[10px] font-bold text-orange-600 dark:text-orange-400">
-                    {t('main')}
-                  </span>
+      {editing && (
+        <>
+          <SectionHeader className="mt-5 mb-1.5">{t('editLocations')}</SectionHeader>
+          <div className="mb-3">
+            {locations.map((loc, i) => (
+              <div
+                key={`${loc.lat},${loc.lng}`}
+                className="flex items-center gap-2 border-b border-dotted border-stone-300 py-2.5 last:border-b-0 dark:border-stone-700"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 truncate text-sm font-semibold text-stone-900 dark:text-stone-100">
+                    {loc.name}
+                    {i === 0 && (
+                      <span className="rounded-full bg-orange-500/15 px-1.5 py-0.25 text-[10px] font-bold text-orange-600 dark:text-orange-400">
+                        {t('main')}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                {i !== 0 && (
+                  <button
+                    onClick={() => onSetMain(i)}
+                    className={cx(
+                      'shrink-0 rounded-full border border-stone-300 bg-transparent px-2.5 py-1 text-[11px] font-semibold text-stone-600 dark:border-stone-700 dark:text-stone-300',
+                      PRESS_SM,
+                    )}
+                  >
+                    {t('setAsMain')}
+                  </button>
+                )}
+                {locations.length > 1 && i !== 0 && (
+                  <button
+                    aria-label={ta('remove')}
+                    onClick={() => onRemove(i)}
+                    className={cx(
+                      'flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-red-500/10 text-red-600 dark:text-red-400',
+                      PRESS_SM,
+                    )}
+                  >
+                    <X className="size-3.5" />
+                  </button>
                 )}
               </div>
-            </div>
-            {i !== 0 && (
-              <button
-                onClick={() => onSetMain(i)}
-                className={cx(
-                  'shrink-0 rounded-full border border-stone-300 bg-transparent px-2.5 py-1 text-[11px] font-semibold text-stone-600 dark:border-stone-700 dark:text-stone-300',
-                  PRESS_SM,
-                )}
-              >
-                {t('setAsMain')}
-              </button>
-            )}
-            {locations.length > 1 && i !== 0 && (
-              <button
-                aria-label={ta('remove')}
-                onClick={() => onRemove(i)}
-                className={cx(
-                  'flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-red-500/10 text-red-600 dark:text-red-400',
-                  PRESS_SM,
-                )}
-              >
-                <X className="size-3.5" />
-              </button>
-            )}
+            ))}
           </div>
-        ))}
-      </div>
-    </Modal>
-  );
-}
 
-// ─── COMPACT MODAL: main location only, "More locations" link ───
-function CompactModal({ open, onClose, weather, mainName, onMore, multiLocation }) {
-  const t = useTranslations('Weather');
-  return (
-    <Modal open={open} onClose={onClose}>
-      <h3 className="mb-4 font-serif text-xl font-semibold tracking-tight text-stone-900 dark:text-stone-100">
-        ⛅ {mainName}
-      </h3>
-      <CurrentBlock weather={weather} />
-      <SevenDayRow daily={weather?.daily} />
-      <button
-        onClick={onMore}
-        className={cx(
-          'mt-5 flex w-full items-center justify-center gap-1 rounded-xl border border-stone-300 bg-transparent py-2.5 text-sm font-semibold text-stone-600 dark:border-stone-700 dark:text-stone-300',
-          PRESS_SM,
-        )}
-      >
-        {multiLocation ? t('moreLocations') : t('addLocation')}
-        <ChevronRight className="size-4" />
-      </button>
+          {adding ? (
+            <AddLocationForm onAdd={onAdd} onDone={() => setAdding(false)} />
+          ) : (
+            <button
+              onClick={() => setAdding(true)}
+              className={cx(
+                'flex w-full items-center justify-center gap-1 rounded-xl border border-dashed border-stone-300 bg-transparent py-2.5 text-sm font-semibold text-stone-600 dark:border-stone-700 dark:text-stone-300',
+                PRESS_SM,
+              )}
+            >
+              <Plus className="size-4" />
+              {t('addLocation')}
+            </button>
+          )}
+        </>
+      )}
     </Modal>
   );
 }
@@ -370,8 +367,7 @@ function CompactModal({ open, onClose, weather, mainName, onMore, multiLocation 
 export default function WeatherWidget({ weather, settings, saveSettings }) {
   const tw = useTranslations('Weather');
   const ready = weather?.current;
-  const [compactOpen, setCompactOpen] = useState(false);
-  const [fullOpen, setFullOpen] = useState(false);
+  const [open, setOpen] = useState(false);
   // Local-first so add/reorder/remove show instantly (per project convention)
   // instead of waiting on the settings round-trip. `settings` itself loads
   // asynchronously (starts null/default before the home_settings fetch
@@ -406,13 +402,16 @@ export default function WeatherWidget({ weather, settings, saveSettings }) {
   return (
     <>
       <Card
-        onClick={() => setCompactOpen(true)}
-        className="mb-2.5 flex h-[72px] items-center justify-between rounded-2xl px-3.5"
+        onClick={() => setOpen(true)}
+        className="mb-2.5 flex h-[84px] items-center justify-between rounded-2xl px-3.5"
       >
         {ready ? (
           <>
-            <div>
-              <div className="flex items-baseline gap-2">
+            <div className="min-w-0">
+              <div className="truncate text-[10px] font-semibold tracking-[1px] text-stone-400 uppercase dark:text-stone-500">
+                {locations[0]?.name}
+              </div>
+              <div className="mt-0.5 flex items-baseline gap-2">
                 <span className="font-serif text-2xl font-semibold tracking-tight text-stone-900 dark:text-stone-100">
                   {Math.round(weather.current.temperature_2m)}°
                 </span>
@@ -429,11 +428,11 @@ export default function WeatherWidget({ weather, settings, saveSettings }) {
                 H {Math.round(weather.daily?.temperature_2m_max?.[0])}° · L{' '}
                 {Math.round(weather.daily?.temperature_2m_min?.[0])}°
               </div>
-              <div className="mt-1 text-[10px] font-semibold text-stone-400 dark:text-stone-600">
-                {tw('tapForMore', { name: locations[0]?.name })}
-              </div>
             </div>
-            <span className="text-4xl">{weatherInfo(weather.current.weather_code).emoji}</span>
+            <div className="flex shrink-0 items-center gap-1 pl-2">
+              <span className="text-4xl">{weatherInfo(weather.current.weather_code).emoji}</span>
+              <ChevronRight className="size-4 text-stone-300 dark:text-stone-600" />
+            </div>
           </>
         ) : (
           <>
@@ -446,20 +445,9 @@ export default function WeatherWidget({ weather, settings, saveSettings }) {
         )}
       </Card>
 
-      <CompactModal
-        open={compactOpen}
-        onClose={() => setCompactOpen(false)}
-        weather={weather}
-        mainName={locations[0]?.name}
-        multiLocation={locations.length > 1}
-        onMore={() => {
-          setCompactOpen(false);
-          setFullOpen(true);
-        }}
-      />
-      <FullModal
-        open={fullOpen}
-        onClose={() => setFullOpen(false)}
+      <WeatherModal
+        open={open}
+        onClose={() => setOpen(false)}
         locations={locations}
         mainWeather={weather}
         onSetMain={setMain}

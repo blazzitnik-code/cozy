@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useTranslations, useFormatter } from 'next-intl';
 import { Settings, History, RotateCcw, Trash2 } from 'lucide-react';
-import { getSt, cx, dueTone, DUE_BAR, DUE_BADGE, weatherInfo, relativeDay, localDateFromStr } from '@/lib/utils';
+import { getSt, cx, dueTone, DUE_BAR, DUE_BADGE, relativeDay, localDateFromStr } from '@/lib/utils';
 import { expandEvents, EVENT_TYPES } from '@/lib/calendar';
 import {
   Screen,
@@ -22,50 +22,7 @@ import {
   PRESS_SM,
 } from './ui';
 import HomeModule from './HomeModule';
-
-// ─── WEATHER CARD (Open-Meteo) ───
-// Always occupies the same height (skeleton while the API resolves) so the
-// cards below it never shift when the data lands — CLS stays flat.
-function WeatherCard({ weather }) {
-  const tw = useTranslations('Weather');
-  const ready = weather?.current;
-  return (
-    <Card className="mb-2.5 flex h-[72px] items-center justify-between rounded-2xl px-3.5">
-      {ready ? (
-        <>
-          <div>
-            <div className="flex items-baseline gap-2">
-              <span className="font-serif text-2xl font-semibold tracking-tight text-stone-900 dark:text-stone-100">
-                {Math.round(weather.current.temperature_2m)}°
-              </span>
-              <span className="text-sm font-semibold text-stone-500 capitalize dark:text-stone-400">
-                {tw(weatherInfo(weather.current.weather_code).key)}
-              </span>
-            </div>
-            <div className="mt-0.5 text-xs font-semibold text-stone-400 dark:text-stone-500">
-              {weather.daily?.precipitation_probability_max?.[0] != null && (
-                <span className="text-orange-600 dark:text-orange-400">
-                  {tw('precip', { p: weather.daily.precipitation_probability_max[0] })} ·{' '}
-                </span>
-              )}
-              H {Math.round(weather.daily?.temperature_2m_max?.[0])}° · L{' '}
-              {Math.round(weather.daily?.temperature_2m_min?.[0])}°
-            </div>
-          </div>
-          <span className="text-4xl">{weatherInfo(weather.current.weather_code).emoji}</span>
-        </>
-      ) : (
-        <>
-          <div>
-            <div className="mb-1.5 h-6 w-24 rounded-md bg-stone-200 dark:bg-stone-800" />
-            <div className="h-3 w-32 rounded bg-stone-200 dark:bg-stone-800" />
-          </div>
-          <div className="size-9 rounded-full bg-stone-200 dark:bg-stone-800" />
-        </>
-      )}
-    </Card>
-  );
-}
+import WeatherWidget from './WeatherWidget';
 
 // ─── UP-NEXT (calendar) CARD ───
 // Next timed manual event today (recurrences expanded). Renders nothing when
@@ -493,7 +450,7 @@ export default function HomeScreen({
         </div>
 
         {/* Weather */}
-        <WeatherCard weather={weather} />
+        <WeatherWidget weather={weather} settings={homeSettings} saveSettings={saveHomeSettings} />
 
         {/* Up next (calendar) */}
         <UpNextCard calEvents={calEvents} members={members} navigate={navigate} />

@@ -92,7 +92,21 @@
     "snow": "sneg",
     "showers": "plohe",
     "storm": "nevihta",
-    "precip": "☔ {p}%"
+    "precip": "☔ {p}%",
+    "unavailable": "Vreme trenutno ni na voljo",
+    "feelsLike": "občutek {n}°",
+    "tapForMore": "{name} · tapni za več",
+    "title": "Vreme",
+    "moreLocations": "Več lokacij",
+    "addLocation": "Dodaj lokacijo",
+    "editLocations": "Uredi lokacije",
+    "main": "glavna",
+    "setAsMain": "Nastavi kot glavno",
+    "searchPlaceholder": "Išči kraj...",
+    "manualEntry": "Ročni vnos",
+    "placeName": "Ime kraja",
+    "latPlaceholder": "Zemljepisna širina",
+    "lngPlaceholder": "Zemljepisna dolžina"
   },
   "Board": {
     "title": "📌 Deska",

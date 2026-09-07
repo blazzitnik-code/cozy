@@ -92,7 +92,21 @@
     "snow": "snow",
     "showers": "showers",
     "storm": "storm",
-    "precip": "☔ {p}%"
+    "precip": "☔ {p}%",
+    "unavailable": "Weather is currently unavailable",
+    "feelsLike": "feels {n}°",
+    "tapForMore": "{name} · tap for more",
+    "title": "Weather",
+    "moreLocations": "More locations",
+    "addLocation": "Add location",
+    "editLocations": "Edit locations",
+    "main": "main",
+    "setAsMain": "Set as main",
+    "searchPlaceholder": "Search place...",
+    "manualEntry": "Manual entry",
+    "placeName": "Place name",
+    "latPlaceholder": "Latitude",
+    "lngPlaceholder": "Longitude"
   },
   "Board": {
     "title": "📌 Board",

@@ -24,7 +24,7 @@ import { useTranslations, useFormatter } from 'next-intl';
 import { useLocaleSwitch } from './IntlProvider';
 import { rpcErrorKey } from '@/lib/intl';
 import { supabase } from '@/lib/supabase';
-import { cx, MEMBER_COLORS, memberColorClass } from '@/lib/utils';
+import { cx, MEMBER_COLORS, memberColorClass, weatherLocationsOf } from '@/lib/utils';
 import { X, Plus, Trash2, ChevronDown, ChevronUp, Pencil } from 'lucide-react';
 import {
   Modal,
@@ -171,7 +171,10 @@ export default function AppShell({ user, household, members, signOut }) {
     unarchiveNote: dbUnarchiveNote,
     deleteNote: dbDeleteNote,
   } = useBoardNotes(householdId);
-  const weather = useWeather(); // Ljubljana default; coords hardcoded for now
+  // The home card always shows the "main" (first) saved location; other
+  // locations are fetched on demand inside the weather modal itself.
+  const mainWeatherLoc = weatherLocationsOf(homeSettings)[0];
+  const weather = useWeather(mainWeatherLoc.lat, mainWeatherLoc.lng);
 
   // ─── WEB PUSH ───
   // locale is needed here (not just in SettingsModal) because the

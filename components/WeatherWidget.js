@@ -84,7 +84,7 @@ function DayDetail({ daily, idx }) {
       {(prob != null || mm != null) && (
         <div className="mt-2 flex items-center gap-3 text-xs font-semibold text-stone-400 dark:text-stone-500">
           {prob != null && (
-            <span className="flex items-center gap-0.5 text-orange-600 dark:text-orange-400">
+            <span className="flex items-center gap-0.5 text-blue-600 dark:text-blue-400">
               <Droplets className="size-3" />
               {prob}%
             </span>
@@ -128,7 +128,7 @@ function CurrentBlock({ weather }) {
         <span className="text-4xl">{info.emoji}</span>
         <div className="flex items-center gap-2 text-xs font-semibold text-stone-400 dark:text-stone-500">
           {c.precipitation_probability != null && (
-            <span className="flex items-center gap-0.5 text-orange-600 dark:text-orange-400">
+            <span className="flex items-center gap-0.5 text-blue-600 dark:text-blue-400">
               <Droplets className="size-3" />
               {c.precipitation_probability}%
             </span>
@@ -499,7 +499,7 @@ export default function WeatherWidget({ weather, settings, saveSettings }) {
               </div>
               <div className="mt-0.5 flex items-center gap-2 text-xs font-semibold text-stone-400 dark:text-stone-500">
                 {weather.daily?.precipitation_probability_max?.[0] != null && (
-                  <span className="text-orange-600 dark:text-orange-400">
+                  <span className="text-blue-600 dark:text-blue-400">
                     {tw('precip', { p: weather.daily.precipitation_probability_max[0] })}
                   </span>
                 )}

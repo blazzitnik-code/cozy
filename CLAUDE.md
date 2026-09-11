@@ -171,8 +171,15 @@ Architecture: data hooks live in AppShell and flow into modules via props — mo
 
 Koledarko and Listko phase 2, and Trgovko's analytics pass, are now mostly done (freebusy for both Google + Outlook with merge + "both free" indicator, item-level due dates + drag-reorder + priority flags + "only mine" filter, push notifications incl. item-level due dates in the daily digest, monthly spend vs. historical average). What's genuinely still open:
 
-- **Koledarko** — "uredi to in vse naslednje" instance-range edits for recurring events (bigger — recurrence-edit semantics)
-- **Listko** — recurring tasks (from archive autocomplete) (bigger — needs a recurrence model); per-person list ownership (separate from the existing item-level "only mine" filter — revisit if that filter alone doesn't feel like enough)
+- **Koledarko** — "uredi to in vse naslednje" instance-range edits for recurring events (bigger — recurrence-edit semantics); multi-person merged view is still rough — B tried adding Tina's work calendar as a second source and it didn't work, root cause not yet debugged (format vs. auth vs. sync bug — needs a session with terminal access to diagnose)
+- **Listko** — recurring tasks (from archive autocomplete) (bigger — needs a recurrence model); per-person list ownership dropped in priority (the existing item-level "only mine" filter seems to cover it — B is still evaluating how useful Listko is for everyday (non-trip) lists before investing further)
+- **Zmrzko** — severity tiering for overdue items (1–4 wks / 4–8 wks / 8+ wks, color-coded) plus a bulk "archive very old" action — current list has ~15 overdue items, some 60+ weeks past date, sitting untouched; **Zavrzi & Zamenjaj**: one-tap "add back to Trgovko" when discarding/using up a Zmrzko item, so the freezer restocks itself instead of silently going stale — parked until B does a manual cleanup pass of already-consumed items first
+- **Trgovko** — order the list by in-store walking route instead of category; route differs per store (Mercator/Spar/Hofer), so ship one universal category order first as a test, then make it per-store if it proves worth the complexity. Still deciding where reordering lives in the UI — leaning toward reusing the existing drag-reorder pattern (like Listko items), surfaced from Trgovko's settings gear as "Vrstni red kategorij," rather than a separate screen
+- **Home screen** — "Potrebuje pozornost" card: surfaces overdue Zmrzko items, overdue Listko lists, and today's Koledarko events all in one place, visible to every household member regardless of push notification state (see known issue below). Mocked, not yet built — B liked the direction
 - **New modules** — "kdo je doma za večerjo" check-in + time on home page; Vault (document photos/instructions, e.g. "how to shut off water at the cabin") behind a new menu tier once nav has too many tabs
 - **Bigger bets** — EV charging / home integrations; **ePaper family dashboard** (product north star — glanceable wall display)
 - Out of scope, deliberately: chat, photo sharing, extending beyond one household
+
+## Known issues
+
+- Push notifications are blocked at the browser level on at least B's device ("Nastavitve → Obvestila" shows "Obvestila so blokirana v nastavitvah brskalnika") — the daily digest system likely isn't reaching users who hit this. Worth a banner/prompt in-app to detect and surface this rather than failing silently.

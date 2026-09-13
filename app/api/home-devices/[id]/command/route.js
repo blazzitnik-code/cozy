@@ -86,6 +86,7 @@ export async function POST(request, { params }) {
   try {
     accessToken = await getValidAccessToken(admin, device.household_id, device.provider || PROVIDER_NAME);
   } catch (err) {
+    console.error('getValidAccessToken() failed', err?.message || err, err?.stack);
     const friendly = toFriendlyError(err);
     return Response.json({ error: friendly.code, message: friendly.message }, { status: 409 });
   }
@@ -101,10 +102,12 @@ export async function POST(request, { params }) {
         accessToken = await getValidAccessToken(admin, device.household_id, device.provider || PROVIDER_NAME);
         await applyCommand(accessToken, device, body.type, body.value);
       } catch (retryErr) {
+        console.error('command retry after TOKEN_EXPIRED failed', retryErr?.message || retryErr, retryErr?.stack);
         const friendly = toFriendlyError(retryErr);
         return Response.json({ error: friendly.code, message: friendly.message }, { status: 502 });
       }
     } else {
+      console.error('applyCommand() failed', err?.message || err, err?.stack);
       const friendly = toFriendlyError(err);
       return Response.json({ error: friendly.code, message: friendly.message }, { status: 502 });
     }

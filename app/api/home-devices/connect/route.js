@@ -66,6 +66,11 @@ export async function POST(request) {
   try {
     tokens = await provider.login(email, password);
   } catch (err) {
+    // Logged raw (not just the friendly code) — the friendly message shown
+    // to the person is deliberately generic, but this is the only place the
+    // real MELCloud/Cognito failure reason (a changed login page, an
+    // unexpected redirect, ...) ever surfaces.
+    console.error('melcloud login() failed', err?.message || err, err?.stack);
     const friendly = toFriendlyError(err);
     const status = friendly.code === 'invalid_credentials' ? 401 : 502;
     return Response.json({ error: friendly.code, message: friendly.message }, { status });
@@ -126,6 +131,7 @@ export async function POST(request) {
     // The connection itself is good (login succeeded) — a device-list
     // hiccup right after is a soft error, surfaced but not fatal. The next
     // cron sync will retry.
+    console.error('post-connect getDevices()/home_devices upsert failed', err?.message || err, err?.stack);
     deviceSyncError = String(err?.message || err);
   }
 

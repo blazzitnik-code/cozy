@@ -513,7 +513,13 @@ function MelcloudConnectForm({ connection, busy, connect, disconnect, setConfirm
       setEmail('');
       setPassword('');
     } else {
-      setError(te(ERROR_KEYS[result.error] || 'melcloudConnectFailed'));
+      const known = ERROR_KEYS[result.error];
+      // Unmapped codes ('unknown', a raw HTTP failure, ...) have no good
+      // translated copy — show the server's own message too so a real
+      // MELCloud/Cognito failure is diagnosable from the UI itself instead
+      // of requiring a trip through Vercel logs every time.
+      const detail = !known && result.message ? ` (${result.message})` : '';
+      setError(te(known || 'melcloudConnectFailed') + detail);
     }
   };
 

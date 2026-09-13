@@ -424,6 +424,26 @@ function toDhwDevice(systemId, dhw) {
   };
 }
 
+// The raw /systems/{id}/tli response splits each zone/dhw/circuit across
+// three top-level sections — configuration (schedules/settings), properties
+// (static capabilities) and state (live readings) — keyed by a shared
+// `index` rather than one flat array. The official myPyllant library merges
+// these client-side (System.from_api()'s merge_object()); do the same here
+// rather than assuming a flat `system.zones`/`system.domesticHotWater` (an
+// assumption the first live test against B's real VR940F system disproved —
+// confirmed correct once merged: currentRoomTemperature, operationModeHeating,
+// tappingSetpoint etc. all showed up exactly where expected, just split
+// across sections).
+function mergeByIndex(...sections) {
+  const byIndex = new Map();
+  for (const section of sections) {
+    for (const item of section || []) {
+      byIndex.set(item.index, { ...(byIndex.get(item.index) || {}), ...item });
+    }
+  }
+  return [...byIndex.values()];
+}
+
 /**
  * getDevices(accessToken) — every zone + domestic-hot-water tank across
  * every home/system on the account. Discovery IS the sync, same as
@@ -446,8 +466,10 @@ export async function getDevices(accessToken) {
       throw err;
     }
     const system = await apiRequest(accessToken, 'GET', apiBase);
-    for (const zone of system?.zones || []) devices.push(toZoneDevice(systemId, zone));
-    for (const dhw of system?.domesticHotWater || []) devices.push(toDhwDevice(systemId, dhw));
+    const zones = mergeByIndex(system?.configuration?.zones, system?.properties?.zones, system?.state?.zones);
+    const dhwList = mergeByIndex(system?.configuration?.dhw, system?.properties?.dhw, system?.state?.dhw);
+    for (const zone of zones) devices.push(toZoneDevice(systemId, zone));
+    for (const dhw of dhwList) devices.push(toDhwDevice(systemId, dhw));
   }
   return devices;
 }

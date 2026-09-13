@@ -155,6 +155,22 @@ function toDhwDevice(systemId: string, dhw: any) {
   };
 }
 
+// The /systems/{id}/tli response splits each zone/dhw's fields across
+// THREE separate top-level sections (configuration, properties, state),
+// each an array keyed by a shared `index` — not a flat system.zones[]/
+// system.domesticHotWater[]. Mirrors myPyllant's own merge_object() helper
+// and providers/vaillant/index.js's mergeByIndex() — keep in sync.
+// deno-lint-ignore no-explicit-any
+function mergeByIndex(...sections: (any[] | undefined)[]) {
+  const byIndex = new Map<number, any>();
+  for (const section of sections) {
+    for (const item of section || []) {
+      byIndex.set(item.index, { ...(byIndex.get(item.index) || {}), ...item });
+    }
+  }
+  return [...byIndex.values()];
+}
+
 async function getDevices(accessToken: string) {
   const homes = await apiRequest(accessToken, 'GET', `${API_BASE}/homes`);
   const devices = [];
@@ -169,8 +185,10 @@ async function getDevices(accessToken: string) {
       continue;
     }
     const system = await apiRequest(accessToken, 'GET', `${API_BASE}/systems/${systemId}/tli`);
-    for (const zone of system?.zones || []) devices.push(toZoneDevice(systemId, zone));
-    for (const dhw of system?.domesticHotWater || []) devices.push(toDhwDevice(systemId, dhw));
+    const zones = mergeByIndex(system?.configuration?.zones, system?.properties?.zones, system?.state?.zones);
+    const dhwList = mergeByIndex(system?.configuration?.dhw, system?.properties?.dhw, system?.state?.dhw);
+    for (const zone of zones) devices.push(toZoneDevice(systemId, zone));
+    for (const dhw of dhwList) devices.push(toDhwDevice(systemId, dhw));
   }
   return devices;
 }

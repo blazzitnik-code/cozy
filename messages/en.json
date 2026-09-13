@@ -73,16 +73,16 @@
   },
   "Nav": {
     "home": "Home",
-    "freezer": "Freezy",
-    "shopping": "Shopzy",
-    "calendar": "Calzy",
-    "todo": "Taskzy"
+    "freezer": "Freezer",
+    "shopping": "Shop",
+    "calendar": "Cal",
+    "todo": "Task"
   },
   "Modules": {
-    "freezer": "Freezy",
-    "shopping": "Shopzy",
-    "calendar": "Calzy",
-    "todo": "Taskzy"
+    "freezer": "Freezer",
+    "shopping": "Shop",
+    "calendar": "Cal",
+    "todo": "Task"
   },
   "Weather": {
     "clear": "clear",
@@ -420,7 +420,7 @@
     "allBought": "All bought ✓",
     "today": "Today",
     "allDay": "All day",
-    "todos": "Taskzy",
+    "todos": "Task",
     "comingSoon": "Coming soon",
     "soon": "Soon",
     "mealPlan": "Meal plan",

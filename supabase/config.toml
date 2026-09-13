@@ -430,3 +430,11 @@ verify_jwt = false
 # header instead of a user JWT.
 [functions.sync-freebusy]
 verify_jwt = false
+
+# sync-home-devices is called by pg_cron (via pg_net) with a shared-secret
+# header instead of a user JWT — same shape as sync-freebusy above. Missing
+# this block is what caused the platform gateway to reject every call with
+# 401 UNAUTHORIZED_NO_AUTH_HEADER before the function's own x-sync-secret
+# check ever ran.
+[functions.sync-home-devices]
+verify_jwt = false

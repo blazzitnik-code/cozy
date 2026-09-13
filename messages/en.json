@@ -160,6 +160,7 @@
     "melcloudHelp": "Use the same email and password as the MELCloud Home app. Your password is never stored.",
     "melcloudNeedsReauth": "Connection needs to be renewed — enter your password again.",
     "freebusyTitle": "🔒 Share availability",
+    "syncNow": "Sync now",
     "freebusyDescription": "Your partner will only see when you're busy, not what you're doing.",
     "icsSource": "ICS source",
     "freebusySyncedAt": "Synced {date} at {time}",

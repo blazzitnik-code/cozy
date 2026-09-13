@@ -160,6 +160,7 @@
     "melcloudHelp": "Uporabi isti e-poštni naslov in geslo kot v aplikaciji MELCloud Home. Geslo se ne shrani.",
     "melcloudNeedsReauth": "Povezavo je treba obnoviti — vnesi geslo znova.",
     "freebusyTitle": "🔒 Deli zasedenost",
+    "syncNow": "Osveži",
     "freebusyDescription": "Partner bo videl samo kdaj si zaseden/a, ne kaj počneš.",
     "icsSource": "ICS vir",
     "freebusySyncedAt": "Sinhronizirano {date} ob {time}",

@@ -28,7 +28,7 @@ import { useLocaleSwitch } from './IntlProvider';
 import { rpcErrorKey } from '@/lib/intl';
 import { supabase } from '@/lib/supabase';
 import { cx, MEMBER_COLORS, memberColorClass, weatherLocationsOf } from '@/lib/utils';
-import { X, Plus, Trash2, ChevronDown, ChevronUp, ChevronRight, Pencil } from 'lucide-react';
+import { X, Plus, Trash2, ChevronDown, ChevronUp, ChevronRight, Pencil, RefreshCw } from 'lucide-react';
 import {
   Modal,
   ConfirmModal,
@@ -216,6 +216,8 @@ export default function AppShell({ user, household, members, signOut }) {
     addSource: addFreebusySource,
     removeSource: removeFreebusySource,
     updateSourceLabel: updateFreebusySourceLabel,
+    syncNow: syncFreebusyNow,
+    syncing: freebusySyncing,
   } = useFreebusySources(householdId, user.id);
   const busyBlocksRange = useMemo(() => {
     const now = new Date();
@@ -349,6 +351,8 @@ export default function AppShell({ user, household, members, signOut }) {
           addFreebusySource={addFreebusySource}
           removeFreebusySource={removeFreebusySource}
           updateFreebusySourceLabel={updateFreebusySourceLabel}
+          syncFreebusyNow={syncFreebusyNow}
+          freebusySyncing={freebusySyncing}
           setShowSettings={setShowSettings}
           setConfirmAction={setConfirmAction}
           handleSignOut={handleSignOut}
@@ -623,6 +627,8 @@ function SettingsBody({
   addFreebusySource,
   removeFreebusySource,
   updateFreebusySourceLabel,
+  syncFreebusyNow,
+  freebusySyncing,
   setShowSettings,
   setConfirmAction,
   handleSignOut,
@@ -904,7 +910,20 @@ function SettingsBody({
 
           {/* Freebusy sharing (Koledarko phase 2) */}
           <div className="mb-5">
-            <div className="mb-1 text-sm font-bold text-stone-500 dark:text-stone-400">{t('freebusyTitle')}</div>
+            <div className="mb-1 flex items-center justify-between gap-2">
+              <div className="text-sm font-bold text-stone-500 dark:text-stone-400">{t('freebusyTitle')}</div>
+              <button
+                onClick={syncFreebusyNow}
+                disabled={freebusySyncing}
+                className={cx(
+                  'flex cursor-pointer items-center gap-1.5 rounded-full border-none bg-stone-900/5 px-3 py-1.5 text-xs font-semibold text-stone-600 disabled:opacity-50 dark:bg-white/10 dark:text-stone-300',
+                  PRESS_SM,
+                )}
+              >
+                <RefreshCw className={cx('size-3.5', freebusySyncing && 'animate-spin')} />
+                {t('syncNow')}
+              </button>
+            </div>
             <p className="mb-2.5 text-xs text-stone-400 dark:text-stone-500">{t('freebusyDescription')}</p>
 
             {!freebusySourcesLoading && freebusySources.length > 0 && (

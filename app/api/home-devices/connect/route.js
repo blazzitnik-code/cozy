@@ -16,6 +16,17 @@ import { getProvider, PROVIDERS } from '../../../../lib/providers.js';
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
+// Vaillant's identity-server WAF ("Team Trixie" bot management) rejected
+// the very first live connect attempt from this route's default (US)
+// Vercel region with a 403 even after sending app-like headers — its own
+// error page lists "restricted region" as one of the possible trigger
+// reasons, and this whole household + both providers are Slovenian, so
+// this function now runs from an EU region instead of guessing further.
+// MELCloud Home hasn't shown any region sensitivity so this is a safe
+// shared change; revert to the default (remove this line) if that ever
+// changes.
+export const preferredRegion = 'fra1';
+
 function toHomeDeviceRow(householdId, providerName, d) {
   return {
     household_id: householdId,

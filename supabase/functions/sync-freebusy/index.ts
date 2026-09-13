@@ -12,6 +12,16 @@
 //
 // Env (supabase/functions/.env locally, `npx supabase secrets set` in prod):
 //   FREEBUSY_FN_SECRET — shared secret, must match the freebusy_fn_secret Vault entry
+//
+// DIAGNOSTIC LOGGING NOTE (2026-09-13): every invocation was dying with
+// "CPU Time exceeded" before any source's row was ever written, and a 50k
+// iteration guard on the recurrence-expansion loop (see git history) did
+// NOT fix it — so the cost isn't (only) "too many cheap iterations", it's
+// either the raw ICAL.parse() of a large ICS file, or a single iter.next()
+// call that doesn't return promptly for some RRULE shape. The stage-by-
+// stage console.log/console.error calls below exist to find out which by
+// reading whichever is the LAST line printed before the next crash — trim
+// this logging back down once the actual cause is confirmed and fixed.
 
 import ICAL from 'npm:ical.js@2';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
@@ -50,13 +60,33 @@ interface BusyBlock {
 // relying on the raw timestamps, and given a duration of at least one day
 // so a client-side merge/free-time calculation still treats the day as
 // occupied even if the source event's own duration was malformed as 0.
-function extractBusyBlocks(icsText: string, rangeStart: Date, rangeEnd: Date): BusyBlock[] {
+//
+// `tag` is just a short label for correlating log lines to a source when
+// several sources are being synced concurrently (see syncOne below).
+function extractBusyBlocks(icsText: string, rangeStart: Date, rangeEnd: Date, tag: string): BusyBlock[] {
+  const t0 = performance.now();
+  console.log(`[${tag}] ICAL.parse starting, ${icsText.length} bytes`);
   const jcalData = ICAL.parse(icsText);
   const comp = new ICAL.Component(jcalData);
+  console.log(`[${tag}] ICAL.parse done in ${(performance.now() - t0).toFixed(0)}ms`);
+
   const blocks: BusyBlock[] = [];
   const DAY_MS = 86_400_000;
+  const vevents = comp.getAllSubcomponents('vevent');
+  console.log(`[${tag}] ${vevents.length} VEVENTs found`);
 
-  for (const vevent of comp.getAllSubcomponents('vevent')) {
+  const fileBudgetStart = performance.now();
+  const FILE_BUDGET_MS = 6000; // whole-file expansion budget, well under the CPU cap
+
+  for (let i = 0; i < vevents.length; i++) {
+    if (performance.now() - fileBudgetStart > FILE_BUDGET_MS) {
+      console.error(
+        `[${tag}] whole-file time budget exceeded after vevent ${i}/${vevents.length} — stopping early, blocks so far: ${blocks.length}`,
+      );
+      break;
+    }
+
+    const vevent = vevents[i];
     // One malformed VEVENT must not take the whole source down — isolate
     // each event so a single bad recurrence rule degrades gracefully
     // (that event's blocks are skipped) instead of aborting the file.
@@ -66,35 +96,42 @@ function extractBusyBlocks(icsText: string, rangeStart: Date, rangeEnd: Date): B
 
       const event = new ICAL.Event(vevent);
       const allDay = !!event.startDate?.isDate;
+      const summary = event.summary || '(no title)';
 
       if (event.isRecurring()) {
+        const eventStart = performance.now();
         const iter = event.iterator();
         const durationMs = allDay ? DAY_MS : event.duration.toSeconds() * 1000;
         if (durationMs <= 0) continue; // malformed/zero-length source event — skip rather than emit a fake blip
         let next: ICAL.Time | null;
         let guard = 0;
-        // Safety valve: ical.js expands a recurring series one occurrence
-        // at a time from its original DTSTART, not from rangeStart — a
-        // series with no practical end (e.g. a long-running reminder with
-        // a short interval, or an RRULE edge case ical.js can't advance
-        // past) can spin far longer than the function's CPU budget. This
-        // is what took down EVERY sync-freebusy invocation for every
-        // source (see "CPU Time exceeded" in the function logs): the whole
-        // request died mid-expansion before any source's row was ever
-        // written, so nothing showed up as a per-source last_error either.
-        // 50k iterations comfortably covers a daily series running well
-        // over a century; past that, stop expanding this one event rather
-        // than let it consume the whole invocation.
+        // Two independent bail-outs, since we don't know yet whether the
+        // real cost is "too many iterations" or "individually slow
+        // iterations": a hard iteration cap AND a wall-clock cap checked
+        // every 500 iterations (cheap enough not to matter, frequent
+        // enough to catch a slow-but-not-infinite series before it alone
+        // blows the whole file's budget).
         // eslint-disable-next-line no-cond-assign
         while ((next = iter.next())) {
-          if (++guard > 50_000) {
-            console.error('recurring event exceeded expansion guard, truncating:', event.summary || '(no title)');
+          guard++;
+          if (guard % 500 === 0 && performance.now() - eventStart > 2000) {
+            console.error(
+              `[${tag}] vevent ${i} "${summary}" recurrence expansion exceeded 2s after ${guard} iterations — truncating`,
+            );
+            break;
+          }
+          if (guard > 50_000) {
+            console.error(`[${tag}] vevent ${i} "${summary}" exceeded 50k-iteration guard — truncating`);
             break;
           }
           const occStart = next.toJSDate();
           if (occStart > rangeEnd) break;
           const occEnd = new Date(occStart.getTime() + durationMs);
           if (occEnd >= rangeStart) blocks.push({ start: occStart, end: occEnd, allDay });
+        }
+        const eventMs = performance.now() - eventStart;
+        if (eventMs > 500) {
+          console.log(`[${tag}] vevent ${i} "${summary}" recurring expansion took ${eventMs.toFixed(0)}ms (${guard} occurrences walked)`);
         }
       } else {
         const start = event.startDate.toJSDate();
@@ -104,22 +141,27 @@ function extractBusyBlocks(icsText: string, rangeStart: Date, rangeEnd: Date): B
         if (end >= rangeStart && start <= rangeEnd) blocks.push({ start, end, allDay });
       }
     } catch (err) {
-      console.error('skipping unparseable vevent:', err instanceof Error ? err.message : err);
+      console.error(`[${tag}] skipping unparseable vevent ${i}:`, err instanceof Error ? err.message : err);
       continue;
     }
   }
+  console.log(`[${tag}] extractBusyBlocks finished in ${(performance.now() - t0).toFixed(0)}ms, ${blocks.length} blocks`);
   return blocks;
 }
 
 async function syncOne(source: SourceRow) {
+  const tag = source.label || source.id;
   try {
+    console.log(`[${tag}] fetching ICS…`);
+    const fetchStart = performance.now();
     const res = await fetch(source.ics_url, { signal: AbortSignal.timeout(15_000) });
     if (!res.ok) throw new Error(`fetch failed: ${res.status}`);
     const icsText = await res.text();
+    console.log(`[${tag}] fetched ${icsText.length} bytes in ${(performance.now() - fetchStart).toFixed(0)}ms`);
 
     const now = new Date();
     const rangeEnd = new Date(now.getTime() + WINDOW_DAYS * 86_400_000);
-    const blocks = extractBusyBlocks(icsText, now, rangeEnd);
+    const blocks = extractBusyBlocks(icsText, now, rangeEnd, tag);
 
     // Replace this source's blocks wholesale — simplest correct approach,
     // avoids diffing recurring-event expansions across runs.
@@ -143,8 +185,9 @@ async function syncOne(source: SourceRow) {
       .from('calendar_freebusy_sources')
       .update({ last_synced_at: new Date().toISOString(), last_error: null })
       .eq('id', source.id);
+    console.log(`[${tag}] synced ok`);
   } catch (err) {
-    console.error('freebusy sync failed for source', source.id, err);
+    console.error(`[${tag}] freebusy sync failed:`, err);
     await supabase
       .from('calendar_freebusy_sources')
       .update({ last_error: String(err instanceof Error ? err.message : err) })
@@ -162,6 +205,7 @@ Deno.serve(async (req) => {
     console.error('failed to list freebusy sources', error);
     return new Response('internal error', { status: 500 });
   }
+  console.log(`sync-freebusy: syncing ${sources?.length ?? 0} source(s)`);
 
   // Respond 202 immediately (pg_net times out at 3 s for the trigger path;
   // this job also sets a generous 25 s timeout on the caller side) and

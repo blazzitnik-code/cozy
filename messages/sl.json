@@ -522,6 +522,7 @@
     "vaillantUnavailable": "Vaillant trenutno ni dosegljiv, poskusi znova kasneje",
     "vaillantReauthNeeded": "Vaillant povezavo je treba znova vzpostaviti",
     "vaillantUnsupportedController": "Ta tip Vaillant krmilnika (starejši multiMATIC/VRC700) še ni podprt",
+    "vaillantBlockedByWaf": "Vaillant je zahtevo blokiral kot sumljiv promet, poskusi znova čez nekaj minut",
     "rpc": {
       "invalidCode": "Neveljavna koda",
       "memberMissing": "Član ne obstaja",

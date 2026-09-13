@@ -632,6 +632,7 @@ function VaillantConnectForm({ connection, busy, connect, disconnect, setConfirm
     unavailable: 'vaillantUnavailable',
     reauth_needed: 'vaillantReauthNeeded',
     unsupported_controller: 'vaillantUnsupportedController',
+    blocked_by_waf: 'vaillantBlockedByWaf',
   };
 
   const handleSubmit = async (e) => {

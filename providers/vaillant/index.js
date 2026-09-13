@@ -41,6 +41,21 @@ const API_BASE = 'https://api.vaillant-group.com/service-connected-control/end-u
 const CLIENT_ID = 'myvaillant';
 const OAUTH_REDIRECT_URI = 'enduservaillant.page.link://login';
 
+// The myVAILLANT mobile app is built on Android/okhttp — Vaillant's
+// identity-server WAF (Azure Front Door-style bot management, per its own
+// "Team Trixie" error page) blocks requests from cloud/datacenter IPs that
+// don't look like the real app; sending the same User-Agent + Accept-*
+// headers the mobile app itself sends is what gets a Vercel-hosted request
+// treated as legitimate instead of flagged as "a request matching a known
+// attack pattern." Same rationale as providers/melcloud-home/index.js's
+// USER_AGENT constant.
+const APP_USER_AGENT = 'okhttp/4.9.2';
+const APP_HEADERS = {
+  'User-Agent': APP_USER_AGENT,
+  Accept: 'application/json, text/plain, */*',
+  'Accept-Language': 'en-GB',
+};
+
 // Single household, single known system for this integration — the myVAILLANT
 // app itself makes you pick brand+country once at account setup, and there is
 // no way to discover it from the API before logging in. Hardcoded rather than
@@ -175,7 +190,7 @@ function extractLoginFormUrl(html, realm) {
 async function exchangeCodeForTokens(jar, code, verifier, realm) {
   const res = await jarFetch(jar, TOKEN_URL(realm), {
     method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    headers: { ...APP_HEADERS, 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
       grant_type: 'authorization_code',
       client_id: CLIENT_ID,
@@ -219,13 +234,22 @@ export async function login(email, password) {
       redirect_uri: OAUTH_REDIRECT_URI,
     }).toString();
 
-  const authorizeRes = await jarFetch(jar, authorizeUrl);
+  const authorizeRes = await jarFetch(jar, authorizeUrl, { headers: APP_HEADERS });
   if (authorizeRes.status >= 500) throw new VaillantServiceError(authorizeRes.status);
 
   let code = extractCode(authorizeRes.headers.get('location'));
 
   if (!code) {
     const loginHtml = await authorizeRes.text();
+    // Vaillant's identity-server WAF ("Team Trixie" error pages) returns a
+    // 403-with-200-body-shaped block page for requests it flags as bot
+    // traffic (commonly triggered by a cloud/datacenter source IP) — this
+    // is NOT the same failure as Keycloak's login page layout changing, so
+    // it gets its own error code rather than the generic fallback below.
+    if (loginHtml.includes('automatically detected as a potential threat') || loginHtml.includes('Team Trixie')) {
+      console.error('vaillant login(): blocked by Vaillant WAF', JSON.stringify(loginHtml.slice(0, 800)));
+      throw new VaillantAuthError('BLOCKED_BY_WAF');
+    }
     const loginUrl = extractLoginFormUrl(loginHtml, realm);
     if (!loginUrl) {
       console.error('vaillant login(): could not find login form url', JSON.stringify(loginHtml.slice(0, 1500)));
@@ -234,7 +258,7 @@ export async function login(email, password) {
 
     const loginPayload = { username: email, password, credentialId: '' };
     try {
-      const challengeRes = await fetch(ALTCHA_CHALLENGE_URL);
+      const challengeRes = await fetch(ALTCHA_CHALLENGE_URL, { headers: APP_HEADERS });
       if (challengeRes.ok) {
         loginPayload.altcha = solveAltchaChallenge(await challengeRes.json());
       }
@@ -246,7 +270,7 @@ export async function login(email, password) {
 
     const loginRes = await jarFetch(jar, loginUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      headers: { ...APP_HEADERS, 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams(loginPayload),
     });
 
@@ -272,7 +296,7 @@ export async function refreshAccessToken(refreshToken) {
   const realm = realmFor();
   const res = await fetch(TOKEN_URL(realm), {
     method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    headers: { ...APP_HEADERS, 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({ grant_type: 'refresh_token', refresh_token: refreshToken, client_id: CLIENT_ID }),
   });
   if (res.status >= 500) throw new VaillantServiceError(res.status);
@@ -291,6 +315,7 @@ function authHeaders(accessToken) {
   return {
     Authorization: `Bearer ${accessToken}`,
     Accept: 'application/json, text/plain, */*',
+    'User-Agent': APP_USER_AGENT,
     'x-app-identifier': 'VAILLANT',
     'x-idm-identifier': 'KEYCLOAK',
     'x-client-locale': 'en-GB',

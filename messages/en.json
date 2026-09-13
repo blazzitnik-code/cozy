@@ -522,6 +522,7 @@
     "vaillantUnavailable": "Vaillant is currently unavailable, try again later",
     "vaillantReauthNeeded": "The Vaillant connection needs to be re-established",
     "vaillantUnsupportedController": "This Vaillant controller type (older multiMATIC/VRC700) isn't supported yet",
+    "vaillantBlockedByWaf": "Vaillant blocked the request as suspicious traffic, try again in a few minutes",
     "rpc": {
       "invalidCode": "Invalid code",
       "memberMissing": "Member does not exist",

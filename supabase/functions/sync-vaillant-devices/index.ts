@@ -50,6 +50,9 @@ const CLIENT_ID = 'myvaillant';
 // Single household, single known brand/country — see providers/vaillant/index.js's
 // header comment for why this is hardcoded rather than a Settings field.
 const REALM = 'vaillant-slovenia-b2c';
+// Same WAF-avoidance rationale as providers/vaillant/index.js's
+// APP_USER_AGENT — keep in sync with that file.
+const APP_USER_AGENT = 'okhttp/4.9.2';
 
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL')!,
@@ -64,6 +67,7 @@ function authHeaders(accessToken: string) {
   return {
     Authorization: `Bearer ${accessToken}`,
     Accept: 'application/json, text/plain, */*',
+    'User-Agent': APP_USER_AGENT,
     'x-app-identifier': 'VAILLANT',
     'x-idm-identifier': 'KEYCLOAK',
     'x-client-locale': 'en-GB',
@@ -93,7 +97,7 @@ async function apiRequest(accessToken: string, method: string, url: string, body
 async function refreshAccessToken(refreshToken: string) {
   const res = await fetch(TOKEN_URL(REALM), {
     method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    headers: { 'User-Agent': APP_USER_AGENT, 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({ grant_type: 'refresh_token', refresh_token: refreshToken, client_id: CLIENT_ID }),
   });
   if (res.status !== 200) throw new VaillantAuthError('REFRESH_REJECTED');

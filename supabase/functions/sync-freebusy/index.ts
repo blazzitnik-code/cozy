@@ -57,30 +57,55 @@ function extractBusyBlocks(icsText: string, rangeStart: Date, rangeEnd: Date): B
   const DAY_MS = 86_400_000;
 
   for (const vevent of comp.getAllSubcomponents('vevent')) {
-    const transp = vevent.getFirstPropertyValue('transp');
-    if (transp === 'TRANSPARENT') continue;
+    // One malformed VEVENT must not take the whole source down — isolate
+    // each event so a single bad recurrence rule degrades gracefully
+    // (that event's blocks are skipped) instead of aborting the file.
+    try {
+      const transp = vevent.getFirstPropertyValue('transp');
+      if (transp === 'TRANSPARENT') continue;
 
-    const event = new ICAL.Event(vevent);
-    const allDay = !!event.startDate?.isDate;
+      const event = new ICAL.Event(vevent);
+      const allDay = !!event.startDate?.isDate;
 
-    if (event.isRecurring()) {
-      const iter = event.iterator();
-      const durationMs = allDay ? DAY_MS : event.duration.toSeconds() * 1000;
-      if (durationMs <= 0) continue; // malformed/zero-length source event — skip rather than emit a fake blip
-      let next: ICAL.Time | null;
-      // eslint-disable-next-line no-cond-assign
-      while ((next = iter.next())) {
-        const occStart = next.toJSDate();
-        if (occStart > rangeEnd) break;
-        const occEnd = new Date(occStart.getTime() + durationMs);
-        if (occEnd >= rangeStart) blocks.push({ start: occStart, end: occEnd, allDay });
+      if (event.isRecurring()) {
+        const iter = event.iterator();
+        const durationMs = allDay ? DAY_MS : event.duration.toSeconds() * 1000;
+        if (durationMs <= 0) continue; // malformed/zero-length source event — skip rather than emit a fake blip
+        let next: ICAL.Time | null;
+        let guard = 0;
+        // Safety valve: ical.js expands a recurring series one occurrence
+        // at a time from its original DTSTART, not from rangeStart — a
+        // series with no practical end (e.g. a long-running reminder with
+        // a short interval, or an RRULE edge case ical.js can't advance
+        // past) can spin far longer than the function's CPU budget. This
+        // is what took down EVERY sync-freebusy invocation for every
+        // source (see "CPU Time exceeded" in the function logs): the whole
+        // request died mid-expansion before any source's row was ever
+        // written, so nothing showed up as a per-source last_error either.
+        // 50k iterations comfortably covers a daily series running well
+        // over a century; past that, stop expanding this one event rather
+        // than let it consume the whole invocation.
+        // eslint-disable-next-line no-cond-assign
+        while ((next = iter.next())) {
+          if (++guard > 50_000) {
+            console.error('recurring event exceeded expansion guard, truncating:', event.summary || '(no title)');
+            break;
+          }
+          const occStart = next.toJSDate();
+          if (occStart > rangeEnd) break;
+          const occEnd = new Date(occStart.getTime() + durationMs);
+          if (occEnd >= rangeStart) blocks.push({ start: occStart, end: occEnd, allDay });
+        }
+      } else {
+        const start = event.startDate.toJSDate();
+        let end = event.endDate.toJSDate();
+        if (allDay && end.getTime() <= start.getTime()) end = new Date(start.getTime() + DAY_MS);
+        if (end.getTime() <= start.getTime()) continue; // malformed/zero-length source event — skip
+        if (end >= rangeStart && start <= rangeEnd) blocks.push({ start, end, allDay });
       }
-    } else {
-      const start = event.startDate.toJSDate();
-      let end = event.endDate.toJSDate();
-      if (allDay && end.getTime() <= start.getTime()) end = new Date(start.getTime() + DAY_MS);
-      if (end.getTime() <= start.getTime()) continue; // malformed/zero-length source event — skip
-      if (end >= rangeStart && start <= rangeEnd) blocks.push({ start, end, allDay });
+    } catch (err) {
+      console.error('skipping unparseable vevent:', err instanceof Error ? err.message : err);
+      continue;
     }
   }
   return blocks;

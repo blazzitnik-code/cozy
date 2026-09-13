@@ -317,6 +317,9 @@
     "other": "Other",
     "itemCount": "{n, plural, one {# item} other {# items}}",
     "purchaseList": "Purchases",
+    "manageSectionsBtn": "Manage sections",
+    "sectionsOrderTitle": "Section order",
+    "sectionsOrderHint": "Drag sections into the order you want them to appear on the list.",
     "sections": {
       "zamrznjeno": "🧊 Frozen",
       "mlecni": "🥛 Dairy",

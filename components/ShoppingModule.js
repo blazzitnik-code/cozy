@@ -52,13 +52,29 @@ import {
 
 const STORE_ICONS = ['🟢', '🟣', '🔵', '🟠', '🔴', '🟡', '⚫', '🏪'];
 
+// Mirrors the keys/default order produced by detectCategory() below —
+// "drugo" (catch-all) is excluded on purpose: it always renders last and
+// isn't offered as something to reorder in "Uredi sekcije".
+const DEFAULT_SECTION_KEYS = [
+  'zamrznjeno',
+  'mlecni',
+  'meso',
+  'sadje',
+  'zelenjava',
+  'pekarna',
+  'suho',
+  'pijace',
+  'zivali',
+  'cistila',
+];
+
 const SEARCH_INP =
   'w-full box-border h-12 pr-9.5 pl-9.5 bg-white dark:bg-stone-900 border border-stone-300 dark:border-stone-700 rounded-xl text-stone-900 dark:text-stone-100 placeholder:text-stone-400 outline-none font-medium text-base transition-colors focus:border-orange-500';
 
 // Store selector dropdown (single-select) — mirrors the freezer's FreezerDD so
 // both modules pick their "category" the same way. Footer opens the manage
 // modal (add / edit / delete). `count(id)` returns the unchecked-item count.
-function StoreDD({ stores, activeStore, allCount, count, onSelect, onManage }) {
+function StoreDD({ stores, activeStore, allCount, count, onSelect, onManage, onManageSections }) {
   const t = useTranslations('Shopping');
   const tc = useTranslations('Common');
   const [open, setOpen] = useState(false);
@@ -143,6 +159,20 @@ function StoreDD({ stores, activeStore, allCount, count, onSelect, onManage }) {
             >
               <Pencil className="size-4" /> {t('manageBtn')}
             </button>
+            {onManageSections && (
+              <button
+                onClick={() => {
+                  onManageSections();
+                  setOpen(false);
+                }}
+                className={cx(
+                  'flex w-full items-center gap-2 rounded-xl border-none bg-transparent px-3 py-2.5 text-left text-sm font-semibold text-stone-500 dark:text-stone-400',
+                  ROW_PRESS,
+                )}
+              >
+                <GripVertical className="size-4" /> {t('manageSectionsBtn')}
+              </button>
+            )}
           </div>
         </motion.div>
       )}
@@ -382,6 +412,58 @@ function ShopGroup({ items, shopStores, onPersist, rowProps }) {
   );
 }
 
+// Reorder-only modal for the section (category-group) display order — a
+// deliberately lighter cousin of ShopGroup: no realtime reconciliation
+// needed since this isn't shared live editing state that races with typing,
+// just a household preference a person drags into place and closes. Rows
+// are draggable by the whole row (no grip-handle split like ShopItemRow),
+// since there's no other interactive element inside the row competing for
+// the tap. Persists once per row's own drag end via onReorder, not on every
+// intermediate reorder — dragging one row past three others fires
+// Reorder.Group's onReorder repeatedly, but only the final settled order
+// needs to reach the database.
+function ManageSectionsModal({ open, onClose, order, onReorder }) {
+  const t = useTranslations('Shopping');
+  const tc = useTranslations('Common');
+  const [localOrder, setLocalOrder] = useState(order);
+  const orderRef = useRef(order);
+
+  useEffect(() => {
+    if (!open) return;
+    orderRef.current = order;
+    setLocalOrder(order);
+  }, [open, order]);
+
+  const adopt = (next) => {
+    orderRef.current = next;
+    setLocalOrder(next);
+  };
+
+  return (
+    <Modal open={open} onClose={onClose}>
+      <h3 className="mb-1 text-center font-serif text-xl font-semibold tracking-tight">{t('sectionsOrderTitle')}</h3>
+      <p className="mb-4 text-center text-sm text-stone-500 dark:text-stone-400">{t('sectionsOrderHint')}</p>
+      <Reorder.Group axis="y" values={localOrder} onReorder={adopt} className="mb-4 flex flex-col gap-2">
+        {localOrder.map((key) => (
+          <Reorder.Item
+            key={key}
+            value={key}
+            whileDrag={{ scale: 1.02 }}
+            onDragEnd={() => onReorder(orderRef.current)}
+            className={cx(
+              'flex cursor-grab items-center gap-2.5 rounded-xl border border-stone-200 bg-white px-3.5 py-3 text-sm font-semibold text-stone-700 select-none active:cursor-grabbing dark:border-stone-700 dark:bg-stone-900 dark:text-stone-300',
+            )}
+          >
+            <GripVertical className="size-4 shrink-0 text-stone-400 dark:text-stone-500" />
+            {t('sections.' + key)}
+          </Reorder.Item>
+        ))}
+      </Reorder.Group>
+      <Btn onClick={onClose}>{tc('done')}</Btn>
+    </Modal>
+  );
+}
+
 export default function ShoppingModule({
   shopItems,
   shopLoading,
@@ -398,6 +480,8 @@ export default function ShoppingModule({
   dbAddStore,
   dbUpdateStore,
   dbDeleteStore,
+  shopSections,
+  dbReorderSections,
   onGoHome,
   onOpenSettings,
 }) {
@@ -419,6 +503,7 @@ export default function ShoppingModule({
   const [reAddItem, setReAddItem] = useState(null); // archived row to re-add to the list
   const [shopDetail, setShopDetail] = useState(null);
   const [showManageStores, setShowManageStores] = useState(false);
+  const [showManageSections, setShowManageSections] = useState(false);
   const [showAddStoreForm, setShowAddStoreForm] = useState(false);
   const [newStore, setNewStore] = useState({ name: '', icon: '🔵' });
   const [addingStore, setAddingStore] = useState(false);
@@ -576,6 +661,30 @@ export default function ShoppingModule({
     return [...unchecked.sort(sortFn), ...checked];
   }, [shopVisible]);
 
+  // Household override for section order (see useShoppingSections) — falls
+  // back to detectCategory()'s hardcoded order for any key not customized
+  // yet. "drugo" always sorts last regardless (Infinity), even if a stray
+  // row for it ever existed.
+  const sectionOrderMap = useMemo(() => {
+    const map = new Map();
+    (shopSections || []).forEach((s) => map.set(s.id, s.sort_order));
+    return map;
+  }, [shopSections]);
+  const effectiveOrder = (key, defaultOrder) =>
+    key === 'drugo' ? Infinity : (sectionOrderMap.get(key) ?? defaultOrder);
+
+  // Same override map, applied to the fixed key list for "Uredi sekcije" —
+  // this is what lets the modal open already showing the household's actual
+  // current order, not always the hardcoded default.
+  const orderedSectionKeys = useMemo(
+    () =>
+      [...DEFAULT_SECTION_KEYS].sort(
+        (a, b) =>
+          effectiveOrder(a, DEFAULT_SECTION_KEYS.indexOf(a)) - effectiveOrder(b, DEFAULT_SECTION_KEYS.indexOf(b)),
+      ),
+    [sectionOrderMap],
+  );
+
   // Group by category for the single-store view
   const shopByCategory = useMemo(() => {
     const unchecked = sortedShop.filter((i) => !i.checked);
@@ -583,11 +692,11 @@ export default function ShoppingModule({
     const groups = {};
     unchecked.forEach((item) => {
       const cat = detectCategory(item.name);
-      if (!groups[cat.key]) groups[cat.key] = { key: cat.key, order: cat.order, items: [] };
+      if (!groups[cat.key]) groups[cat.key] = { key: cat.key, order: effectiveOrder(cat.key, cat.order), items: [] };
       groups[cat.key].items.push(item);
     });
     return { groups: Object.values(groups).sort((a, b) => a.order - b.order), checked };
-  }, [sortedShop]);
+  }, [sortedShop, sectionOrderMap]);
 
   async function shopAddItem(name) {
     if (!name.trim()) return;
@@ -1148,6 +1257,7 @@ export default function ShoppingModule({
               if (id !== 'all') setAddStore(id);
             }}
             onManage={() => setShowManageStores(true)}
+            onManageSections={() => setShowManageSections(true)}
           />
           <IconButton onClick={() => setShowShopArchive(true)} aria-label={ta('history')}>
             <History className="size-4.5" />
@@ -1623,6 +1733,14 @@ export default function ShoppingModule({
           )}
         </div>
       </Modal>
+
+      {/* Manage sections modal — drag to reorder the category groups */}
+      <ManageSectionsModal
+        open={showManageSections}
+        onClose={() => setShowManageSections(false)}
+        order={orderedSectionKeys}
+        onReorder={dbReorderSections}
+      />
 
       {/* Checkout modal — optional store + amount for this purchase */}
       <Modal open={!!checkout} onClose={() => setCheckout(null)}>

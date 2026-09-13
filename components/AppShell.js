@@ -9,6 +9,7 @@ import {
   useShoppingArchived,
   useShoppingFavourites,
   useShoppingStores,
+  useShoppingSections,
   useCalendarConnections,
   useCalendarEvents,
   useFreebusySources,
@@ -140,6 +141,7 @@ export default function AppShell({ user, household, members, signOut }) {
     updateStore: dbUpdateStore,
     deleteStore: dbDeleteStore,
   } = useShoppingStores(householdId);
+  const { sections: shopSections, reorderSections: dbReorderSections } = useShoppingSections(householdId);
   const {
     lists: todoLists,
     archivedLists: todoArchivedLists,
@@ -453,6 +455,8 @@ export default function AppShell({ user, household, members, signOut }) {
           dbAddStore={dbAddStore}
           dbUpdateStore={dbUpdateStore}
           dbDeleteStore={dbDeleteStore}
+          shopSections={shopSections}
+          dbReorderSections={dbReorderSections}
           onGoHome={() => navigate('home')}
           onOpenSettings={openSettings}
         />

@@ -317,6 +317,9 @@
     "other": "Ostalo",
     "itemCount": "{n, plural, one {# artikel} two {# artikla} few {# artikli} other {# artiklov}}",
     "purchaseList": "Nakupi",
+    "manageSectionsBtn": "Uredi sekcije",
+    "sectionsOrderTitle": "Vrstni red sekcij",
+    "sectionsOrderHint": "Povleci sekcije v željen vrstni red prikaza na seznamu.",
     "sections": {
       "zamrznjeno": "🧊 Zamrznjeno",
       "mlecni": "🥛 Mlečni izdelki",

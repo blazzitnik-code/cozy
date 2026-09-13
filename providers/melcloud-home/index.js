@@ -80,10 +80,26 @@ export class MelCloudApiError extends Error {}
 // vice versa.
 function makeCookieJar() {
   const byHost = new Map();
+  let warnedNoGetSetCookie = false;
   return {
     store(url, headers) {
       const host = new URL(url).hostname;
-      const setCookies = typeof headers.getSetCookie === 'function' ? headers.getSetCookie() : [];
+      let setCookies = typeof headers.getSetCookie === 'function' ? headers.getSetCookie() : [];
+      if (!setCookies.length && typeof headers.getSetCookie !== 'function') {
+        // Runtime fetch/undici too old for Headers.getSetCookie() — IdentityServer's
+        // login/correlation cookies would silently never be sent back without this
+        // fallback, which breaks the Cognito hop. Best-effort split: works as long as
+        // no cookie in the response uses a comma-bearing Expires attribute (session
+        // cookies here use Max-Age, not Expires, in practice).
+        const raw = headers.get('set-cookie');
+        if (raw) setCookies = raw.split(/,(?=[^;]+?=)/).map((s) => s.trim());
+        if (!warnedNoGetSetCookie) {
+          console.error(
+            'melcloud login(): Headers.getSetCookie() unavailable, using comma-split fallback for Set-Cookie',
+          );
+          warnedNoGetSetCookie = true;
+        }
+      }
       if (!setCookies.length) return;
       const jar = byHost.get(host) || new Map();
       for (const raw of setCookies) {
@@ -165,7 +181,7 @@ async function followRedirects(jar, url, init, maxHops = 10) {
       continue;
     }
     const body = await res.text();
-    return { finalUrl: currentUrl, body, code: extractCode(currentUrl) || extractCode(body) };
+    return { finalUrl: currentUrl, body, code: extractCode(currentUrl) || extractCode(body), status: res.status };
   }
   throw new MelCloudAuthError('Too many redirects while signing in to MELCloud');
 }
@@ -242,6 +258,17 @@ export async function login(email, password) {
   if (!authCode) {
     const host = safeHostname(hop.finalUrl);
     if (!(host && host.endsWith(COGNITO_DOMAIN_SUFFIX) && hop.finalUrl.includes('/login'))) {
+      // Diagnostic only (Vercel Function logs) — the client-facing error stays
+      // generic. hop.finalUrl commonly lands on IdentityServer's own
+      // /ExternalLogin/Challenge?scheme=... controller action (its trigger for
+      // federating to Cognito) rather than the Cognito hosted login page
+      // itself; if that's returning 200 instead of a further 3xx, the body
+      // snippet below shows why (an error view, an auto-submit form we're not
+      // handling, a missing-cookie/correlation failure, ...).
+      console.error(
+        'melcloud login(): unexpected authorize response',
+        JSON.stringify({ url: hop.finalUrl, status: hop.status, bodySnippet: (hop.body || '').slice(0, 1500) }),
+      );
       throw new MelCloudAuthError(`Unexpected MELCloud authorize response (landed on ${hop.finalUrl})`);
     }
 

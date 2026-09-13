@@ -28,7 +28,7 @@ import { useLocaleSwitch } from './IntlProvider';
 import { rpcErrorKey } from '@/lib/intl';
 import { supabase } from '@/lib/supabase';
 import { cx, MEMBER_COLORS, memberColorClass, weatherLocationsOf } from '@/lib/utils';
-import { X, Plus, Trash2, ChevronDown, ChevronUp, Pencil } from 'lucide-react';
+import { X, Plus, Trash2, ChevronDown, ChevronUp, ChevronRight, Pencil } from 'lucide-react';
 import {
   Modal,
   ConfirmModal,
@@ -40,6 +40,7 @@ import {
   Input,
   Label,
   ModalActions,
+  BackBtn,
   PRESS,
   PRESS_SM,
   ROW_FLAT,
@@ -680,378 +681,411 @@ function SettingsBody({
     if (error) notifyError('Errors.settingsSaveFailed');
   };
   const memberColor = (m) => overrides[m.id]?.color ?? m.color;
+  const [showConnections, setShowConnections] = useState(false);
 
   return (
     <>
-      <div className="mb-5 text-center">
-        <div className="mb-2 text-5xl">🏠</div>
-        <h2 className="mb-1 font-serif text-2xl font-semibold tracking-tight">{household.name}</h2>
-        <p className="text-sm text-stone-500 dark:text-stone-400">
-          {t('signedInAs', { name: user.user_metadata?.full_name || user.email })}
-        </p>
-      </div>
+      {!showConnections && (
+        <>
+          <div className="mb-5 text-center">
+            <div className="mb-2 text-5xl">🏠</div>
+            <h2 className="mb-1 font-serif text-2xl font-semibold tracking-tight">{household.name}</h2>
+            <p className="text-sm text-stone-500 dark:text-stone-400">
+              {t('signedInAs', { name: user.user_metadata?.full_name || user.email })}
+            </p>
+          </div>
 
-      {/* LANGUAGE SWITCHER — labels stay in their native language on purpose */}
-      <Segmented
-        className="mb-3"
-        value={locale}
-        onChange={switchLocale}
-        options={[
-          { value: 'sl', label: '🇸🇮 Slovenščina' },
-          { value: 'en', label: '🇬🇧 English' },
-        ]}
-      />
+          {/* LANGUAGE SWITCHER — labels stay in their native language on purpose */}
+          <Segmented
+            className="mb-3"
+            value={locale}
+            onChange={switchLocale}
+            options={[
+              { value: 'sl', label: '🇸🇮 Slovenščina' },
+              { value: 'en', label: '🇬🇧 English' },
+            ]}
+          />
 
-      {/* THEME SWITCHER */}
-      <Segmented
-        className="mb-5"
-        value={theme}
-        onChange={switchTheme}
-        options={[
-          { value: 'dark', label: t('themeDark') },
-          { value: 'light', label: t('themeLight') },
-        ]}
-      />
+          {/* THEME SWITCHER */}
+          <Segmented
+            className="mb-5"
+            value={theme}
+            onChange={switchTheme}
+            options={[
+              { value: 'dark', label: t('themeDark') },
+              { value: 'light', label: t('themeLight') },
+            ]}
+          />
 
-      {/* Join code */}
-      <div className="mb-4 rounded-xl border border-stone-200 bg-stone-50 p-4 text-center dark:border-white/10 dark:bg-stone-950/60">
-        <div className="mb-1.5 text-xs font-bold tracking-[1px] text-orange-600 uppercase dark:text-orange-400">
-          {t('inviteCode')}
-        </div>
-        <div className="text-4xl font-black tracking-[8px] text-stone-900 dark:text-stone-100">
-          {household.join_code}
-        </div>
-        <div className="mt-1 text-xs text-stone-400 dark:text-stone-500">{t('shareCode')}</div>
-      </div>
+          {/* Join code */}
+          <div className="mb-4 rounded-xl border border-stone-200 bg-stone-50 p-4 text-center dark:border-white/10 dark:bg-stone-950/60">
+            <div className="mb-1.5 text-xs font-bold tracking-[1px] text-orange-600 uppercase dark:text-orange-400">
+              {t('inviteCode')}
+            </div>
+            <div className="text-4xl font-black tracking-[8px] text-stone-900 dark:text-stone-100">
+              {household.join_code}
+            </div>
+            <div className="mt-1 text-xs text-stone-400 dark:text-stone-500">{t('shareCode')}</div>
+          </div>
 
-      {/* Members */}
-      <div className="mb-5">
-        <div className="mb-1 text-sm font-bold text-stone-500 dark:text-stone-400">
-          {t('members')} ({members.length})
-        </div>
-        {members.map((m) => (
-          <div key={m.id} className={ROW_FLAT}>
-            <button
-              onClick={() => openMember(m)}
-              aria-label={t('editMember')}
-              className={cx('flex flex-1 items-center gap-3 border-none bg-transparent p-0 text-left', PRESS_SM)}
-            >
-              <div className="relative">
-                <Avatar name={m.display_name} />
-                {memberColor(m) && (
-                  <span
-                    className={cx(
-                      'absolute -right-0.5 -bottom-0.5 size-3 rounded-full border-2 border-white dark:border-stone-900',
-                      memberColorClass(memberColor(m)),
+          {/* Members */}
+          <div className="mb-5">
+            <div className="mb-1 text-sm font-bold text-stone-500 dark:text-stone-400">
+              {t('members')} ({members.length})
+            </div>
+            {members.map((m) => (
+              <div key={m.id} className={ROW_FLAT}>
+                <button
+                  onClick={() => openMember(m)}
+                  aria-label={t('editMember')}
+                  className={cx('flex flex-1 items-center gap-3 border-none bg-transparent p-0 text-left', PRESS_SM)}
+                >
+                  <div className="relative">
+                    <Avatar name={m.display_name} />
+                    {memberColor(m) && (
+                      <span
+                        className={cx(
+                          'absolute -right-0.5 -bottom-0.5 size-3 rounded-full border-2 border-white dark:border-stone-900',
+                          memberColorClass(memberColor(m)),
+                        )}
+                      />
                     )}
-                  />
-                )}
-              </div>
-              <div>
-                <div className="text-sm font-semibold text-stone-900 dark:text-stone-100">
-                  {m.display_name || tc('user')}
-                </div>
-                <div className="text-xs text-stone-400 dark:text-stone-500">
-                  {m.role === 'owner' ? t('owner') : t('member')}
-                </div>
-              </div>
-            </button>
-            {m.user_id === user.id ? (
-              <span className="text-xs font-semibold text-orange-600 dark:text-orange-400">{t('you')}</span>
-            ) : (
-              members.find((x) => x.user_id === user.id)?.role === 'owner' && (
-                <button
-                  aria-label={ta('removeMember')}
-                  onClick={() =>
-                    setConfirmAction({
-                      message: t('removeMember', { name: m.display_name || t('memberFallback') }),
-                      onConfirm: async () => {
-                        const { error } = await supabase.rpc('remove_household_member', { p_member_id: m.id });
-                        if (error) notifyError(rpcErrorKey(error.message) ?? error.message);
-                      },
-                    })
-                  }
-                  className={cx(
-                    'flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border-none bg-red-500/10 text-red-600 dark:text-red-400',
-                    PRESS_SM,
-                  )}
-                >
-                  <X className="size-3.5" />
-                </button>
-              )
-            )}
-          </div>
-        ))}
-      </div>
-
-      {/* Member profile editor */}
-      <Modal open={!!editMember} onClose={() => setEditMember(null)}>
-        {editMember && (
-          <>
-            <h3 className="mb-4 font-serif text-xl font-semibold tracking-tight text-stone-900 dark:text-stone-100">
-              {editMember.display_name || tc('user')}
-            </h3>
-            <Label>{t('birthday')}</Label>
-            <Input
-              type="date"
-              value={mBirthday || ''}
-              onChange={(e) => setMBirthday(e.target.value)}
-              className="mb-4"
-            />
-            <Label>{t('color')}</Label>
-            <div className="mb-5 flex flex-wrap gap-2">
-              {MEMBER_COLORS.map((mc) => (
-                <button
-                  key={mc.t}
-                  aria-label={mc.t}
-                  onClick={() => setMColor(mc.t)}
-                  className={cx(
-                    'size-8 cursor-pointer rounded-full border-2',
-                    mc.c,
-                    mColor === mc.t ? 'border-stone-900 dark:border-stone-100' : 'border-transparent',
-                    PRESS_SM,
-                  )}
-                />
-              ))}
-            </div>
-            <ModalActions onSave={saveMember} onCancel={() => setEditMember(null)} />
-          </>
-        )}
-      </Modal>
-
-      {/* Google Calendar */}
-      <div className="mb-5">
-        <div className="mb-2.5 text-sm font-bold text-stone-500 dark:text-stone-400">{t('googleCalendar')}</div>
-        {calConnected ? (
-          <div className="flex items-center gap-2.5 rounded-xl border border-green-600/20 bg-green-600/8 px-3.5 py-3 dark:border-green-500/20 dark:bg-green-500/10">
-            <div className="flex-1">
-              <div className="text-sm font-bold text-green-700 dark:text-green-400">{t('connected')}</div>
-              <div className="mt-0.5 text-xs text-stone-500 dark:text-stone-400">{calConnection?.google_email}</div>
-            </div>
-            <button
-              onClick={() =>
-                setConfirmAction({
-                  message: t('disconnectConfirm'),
-                  onConfirm: () => removeCalConnection(calConnection.id),
-                })
-              }
-              className={cx(
-                'cursor-pointer rounded-full border-none bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-600 dark:text-red-400',
-                PRESS_SM,
-              )}
-            >
-              {t('disconnect')}
-            </button>
-          </div>
-        ) : (
-          <button
-            onClick={() => {
-              setShowSettings(false);
-              connectCalendar();
-            }}
-            className={cx(
-              'w-full cursor-pointer rounded-full border-none bg-stone-900 p-3.5 text-sm font-bold text-white dark:bg-stone-100 dark:text-stone-900',
-              PRESS,
-            )}
-          >
-            {t('connectCalendar')}
-          </button>
-        )}
-      </div>
-
-      {/* Naprave / MELCloud Home — household-shared, no owner/member split
-          (see providers/melcloud-home + the provider_connections migration) */}
-      <div className="mb-5">
-        <div className="mb-2.5 text-sm font-bold text-stone-500 dark:text-stone-400">{t('devicesSectionTitle')}</div>
-        <MelcloudConnectForm
-          connection={melcloudConnection}
-          busy={melcloudBusy}
-          connect={connectMelcloud}
-          disconnect={disconnectMelcloud}
-          setConfirmAction={setConfirmAction}
-          t={t}
-          te={te}
-        />
-      </div>
-
-      {/* Freebusy sharing (Koledarko phase 2) */}
-      <div className="mb-5">
-        <div className="mb-1 text-sm font-bold text-stone-500 dark:text-stone-400">{t('freebusyTitle')}</div>
-        <p className="mb-2.5 text-xs text-stone-400 dark:text-stone-500">{t('freebusyDescription')}</p>
-
-        {!freebusySourcesLoading && freebusySources.length > 0 && (
-          <div className="mb-2.5 space-y-2">
-            {freebusySources.map((src) => (
-              <div
-                key={src.id}
-                className="flex items-center gap-2.5 rounded-xl border border-stone-200/70 bg-white px-3.5 py-3 dark:border-white/10 dark:bg-stone-900"
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-bold">{src.label || t('icsSource')}</div>
-                  <div className="mt-0.5 text-xs text-stone-500 dark:text-stone-400">
-                    {src.last_error
-                      ? t('freebusyError', { error: src.last_error })
-                      : src.last_synced_at
-                        ? t('freebusySyncedAt', {
-                            date: format.dateTime(new Date(src.last_synced_at), 'dayShort'),
-                            time: format.dateTime(new Date(src.last_synced_at), 'time'),
-                          })
-                        : t('freebusyNotSyncedYet')}
                   </div>
-                </div>
-                <button
-                  onClick={() => {
-                    setEditFreebusySource(src);
-                    setEfLabel(src.label || '');
-                  }}
-                  aria-label={ta('edit')}
-                  className={cx(
-                    'cursor-pointer rounded-full border-none bg-stone-900/5 p-2 text-stone-600 dark:bg-white/10 dark:text-stone-300',
-                    PRESS_SM,
-                  )}
-                >
-                  <Pencil size={16} />
+                  <div>
+                    <div className="text-sm font-semibold text-stone-900 dark:text-stone-100">
+                      {m.display_name || tc('user')}
+                    </div>
+                    <div className="text-xs text-stone-400 dark:text-stone-500">
+                      {m.role === 'owner' ? t('owner') : t('member')}
+                    </div>
+                  </div>
                 </button>
-                <button
-                  onClick={() => removeFreebusySource(src.id)}
-                  aria-label={ta('remove')}
-                  className={cx(
-                    'cursor-pointer rounded-full border-none bg-red-500/10 p-2 text-red-600 dark:text-red-400',
-                    PRESS_SM,
-                  )}
-                >
-                  <Trash2 size={16} />
-                </button>
+                {m.user_id === user.id ? (
+                  <span className="text-xs font-semibold text-orange-600 dark:text-orange-400">{t('you')}</span>
+                ) : (
+                  members.find((x) => x.user_id === user.id)?.role === 'owner' && (
+                    <button
+                      aria-label={ta('removeMember')}
+                      onClick={() =>
+                        setConfirmAction({
+                          message: t('removeMember', { name: m.display_name || t('memberFallback') }),
+                          onConfirm: async () => {
+                            const { error } = await supabase.rpc('remove_household_member', { p_member_id: m.id });
+                            if (error) notifyError(rpcErrorKey(error.message) ?? error.message);
+                          },
+                        })
+                      }
+                      className={cx(
+                        'flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border-none bg-red-500/10 text-red-600 dark:text-red-400',
+                        PRESS_SM,
+                      )}
+                    >
+                      <X className="size-3.5" />
+                    </button>
+                  )
+                )}
               </div>
             ))}
           </div>
-        )}
 
-        {showFreebusyForm ? (
-          <div className="rounded-xl border border-stone-200/70 bg-white p-3.5 dark:border-white/10 dark:bg-stone-900">
-            <Label>{t('freebusyLabel')}</Label>
-            <Input
-              size="xs"
-              className="mb-2.5"
-              value={fbLabel}
-              onChange={(e) => setFbLabel(e.target.value)}
-              placeholder={t('freebusyLabelPlaceholder')}
-            />
-            <Label>{t('icsAddress')}</Label>
-            <Input
-              size="xs"
-              className="mb-3"
-              value={fbUrl}
-              onChange={(e) => setFbUrl(e.target.value)}
-              placeholder="https://…"
-              inputMode="url"
-            />
-            <ModalActions
-              onSave={saveFreebusySource}
-              onCancel={() => {
-                setShowFreebusyForm(false);
-                setFbLabel('');
-                setFbUrl('');
-              }}
-              disabled={!fbUrl.trim() || fbSaving}
-            />
-          </div>
-        ) : (
-          <button
-            onClick={() => setShowFreebusyForm(true)}
-            className={cx(
-              'flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-full border border-stone-300 bg-transparent p-3 text-sm font-bold text-stone-700 dark:border-stone-700 dark:text-stone-300',
-              PRESS,
+          {/* Member profile editor */}
+          <Modal open={!!editMember} onClose={() => setEditMember(null)}>
+            {editMember && (
+              <>
+                <h3 className="mb-4 font-serif text-xl font-semibold tracking-tight text-stone-900 dark:text-stone-100">
+                  {editMember.display_name || tc('user')}
+                </h3>
+                <Label>{t('birthday')}</Label>
+                <Input
+                  type="date"
+                  value={mBirthday || ''}
+                  onChange={(e) => setMBirthday(e.target.value)}
+                  className="mb-4"
+                />
+                <Label>{t('color')}</Label>
+                <div className="mb-5 flex flex-wrap gap-2">
+                  {MEMBER_COLORS.map((mc) => (
+                    <button
+                      key={mc.t}
+                      aria-label={mc.t}
+                      onClick={() => setMColor(mc.t)}
+                      className={cx(
+                        'size-8 cursor-pointer rounded-full border-2',
+                        mc.c,
+                        mColor === mc.t ? 'border-stone-900 dark:border-stone-100' : 'border-transparent',
+                        PRESS_SM,
+                      )}
+                    />
+                  ))}
+                </div>
+                <ModalActions onSave={saveMember} onCancel={() => setEditMember(null)} />
+              </>
             )}
-          >
-            <Plus size={16} />
-            {t('addFreebusySource')}
-          </button>
-        )}
+          </Modal>
 
-        <button
-          onClick={() => setShowFreebusyHelp((v) => !v)}
-          className="mt-2.5 flex items-center gap-1 text-xs font-semibold text-stone-500 dark:text-stone-400"
-        >
-          {showFreebusyHelp ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-          {t('freebusyHelpToggle')}
-        </button>
-        {showFreebusyHelp && (
-          <div className="mt-2 space-y-1.5 rounded-xl bg-stone-100 p-3 text-xs text-stone-500 dark:bg-stone-900 dark:text-stone-400">
-            <p>{t('freebusyHelpGoogle')}</p>
-            <p>{t('freebusyHelpOutlook')}</p>
-          </div>
-        )}
-      </div>
-
-      {/* Rename a freebusy source (label only) */}
-      <Modal open={!!editFreebusySource} onClose={() => setEditFreebusySource(null)}>
-        {editFreebusySource && (
-          <>
-            <h3 className="mb-4 font-serif text-xl font-semibold tracking-tight text-stone-900 dark:text-stone-100">
-              {t('renameFreebusySource')}
-            </h3>
-            <Label>{t('freebusyLabel')}</Label>
-            <Input
-              className="mb-4"
-              value={efLabel}
-              onChange={(e) => setEfLabel(e.target.value)}
-              placeholder={t('freebusyLabelPlaceholder')}
-              autoFocus
-            />
-            <ModalActions onSave={saveFreebusyLabel} onCancel={() => setEditFreebusySource(null)} />
-          </>
-        )}
-      </Modal>
-
-      {/* Notifications */}
-      <div className="mb-5">
-        <div className="mb-2.5 text-sm font-bold text-stone-500 dark:text-stone-400">{t('notifications')}</div>
-        {push.needsInstall ? (
-          <p className="text-xs text-stone-400 dark:text-stone-500">{t('notificationsIosHint')}</p>
-        ) : !push.supported ? (
-          <p className="text-xs text-stone-400 dark:text-stone-500">{t('notificationsUnsupported')}</p>
-        ) : push.permission === 'denied' ? (
-          <p className="text-xs text-stone-400 dark:text-stone-500">{t('notificationsDenied')}</p>
-        ) : push.subscribed ? (
-          <div className="flex items-center gap-2.5 rounded-xl border border-green-600/20 bg-green-600/8 px-3.5 py-3 dark:border-green-500/20 dark:bg-green-500/10">
-            <div className="flex-1 text-sm font-bold text-green-700 dark:text-green-400">
-              {t('notificationsEnabled')}
-            </div>
+          <div className="mb-5">
             <button
-              onClick={push.disable}
-              disabled={push.busy}
-              className={cx(
-                PRESS_SM,
-                'cursor-pointer rounded-full border-none bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-600 dark:text-red-400',
-              )}
+              onClick={() => setShowConnections(true)}
+              className={cx(ROW_FLAT, 'w-full cursor-pointer border-none bg-transparent p-0 text-left', PRESS_SM)}
             >
-              {t('notificationsDisable')}
+              <div className="flex-1">
+                <div className="text-sm font-bold text-stone-900 dark:text-stone-100">{t('connectionsRow')}</div>
+                <div className="text-xs text-stone-400 dark:text-stone-500">{t('connectionsRowHint')}</div>
+              </div>
+              <ChevronRight className="size-4 shrink-0 text-stone-400 dark:text-stone-600" />
             </button>
           </div>
-        ) : (
+        </>
+      )}
+
+      {showConnections && (
+        <>
+          <div className="mb-5 flex items-center gap-3 pt-1">
+            <BackBtn onClick={() => setShowConnections(false)} />
+            <h2 className="font-serif text-2xl font-semibold tracking-tight">{t('connectionsTitle')}</h2>
+          </div>
+
+          {/* Google Calendar */}
+          <div className="mb-5">
+            <div className="mb-2.5 text-sm font-bold text-stone-500 dark:text-stone-400">{t('googleCalendar')}</div>
+            {calConnected ? (
+              <div className="flex items-center gap-2.5 rounded-xl border border-green-600/20 bg-green-600/8 px-3.5 py-3 dark:border-green-500/20 dark:bg-green-500/10">
+                <div className="flex-1">
+                  <div className="text-sm font-bold text-green-700 dark:text-green-400">{t('connected')}</div>
+                  <div className="mt-0.5 text-xs text-stone-500 dark:text-stone-400">{calConnection?.google_email}</div>
+                </div>
+                <button
+                  onClick={() =>
+                    setConfirmAction({
+                      message: t('disconnectConfirm'),
+                      onConfirm: () => removeCalConnection(calConnection.id),
+                    })
+                  }
+                  className={cx(
+                    'cursor-pointer rounded-full border-none bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-600 dark:text-red-400',
+                    PRESS_SM,
+                  )}
+                >
+                  {t('disconnect')}
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => {
+                  setShowSettings(false);
+                  connectCalendar();
+                }}
+                className={cx(
+                  'w-full cursor-pointer rounded-full border-none bg-stone-900 p-3.5 text-sm font-bold text-white dark:bg-stone-100 dark:text-stone-900',
+                  PRESS,
+                )}
+              >
+                {t('connectCalendar')}
+              </button>
+            )}
+          </div>
+
+          {/* Naprave / MELCloud Home — household-shared, no owner/member split
+          (see providers/melcloud-home + the provider_connections migration) */}
+          <div className="mb-5">
+            <div className="mb-2.5 text-sm font-bold text-stone-500 dark:text-stone-400">
+              {t('devicesSectionTitle')}
+            </div>
+            <MelcloudConnectForm
+              connection={melcloudConnection}
+              busy={melcloudBusy}
+              connect={connectMelcloud}
+              disconnect={disconnectMelcloud}
+              setConfirmAction={setConfirmAction}
+              t={t}
+              te={te}
+            />
+          </div>
+
+          {/* Freebusy sharing (Koledarko phase 2) */}
+          <div className="mb-5">
+            <div className="mb-1 text-sm font-bold text-stone-500 dark:text-stone-400">{t('freebusyTitle')}</div>
+            <p className="mb-2.5 text-xs text-stone-400 dark:text-stone-500">{t('freebusyDescription')}</p>
+
+            {!freebusySourcesLoading && freebusySources.length > 0 && (
+              <div className="mb-2.5 space-y-2">
+                {freebusySources.map((src) => (
+                  <div
+                    key={src.id}
+                    className="flex items-center gap-2.5 rounded-xl border border-stone-200/70 bg-white px-3.5 py-3 dark:border-white/10 dark:bg-stone-900"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-sm font-bold">{src.label || t('icsSource')}</div>
+                      <div className="mt-0.5 text-xs text-stone-500 dark:text-stone-400">
+                        {src.last_error
+                          ? t('freebusyError', { error: src.last_error })
+                          : src.last_synced_at
+                            ? t('freebusySyncedAt', {
+                                date: format.dateTime(new Date(src.last_synced_at), 'dayShort'),
+                                time: format.dateTime(new Date(src.last_synced_at), 'time'),
+                              })
+                            : t('freebusyNotSyncedYet')}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setEditFreebusySource(src);
+                        setEfLabel(src.label || '');
+                      }}
+                      aria-label={ta('edit')}
+                      className={cx(
+                        'cursor-pointer rounded-full border-none bg-stone-900/5 p-2 text-stone-600 dark:bg-white/10 dark:text-stone-300',
+                        PRESS_SM,
+                      )}
+                    >
+                      <Pencil size={16} />
+                    </button>
+                    <button
+                      onClick={() => removeFreebusySource(src.id)}
+                      aria-label={ta('remove')}
+                      className={cx(
+                        'cursor-pointer rounded-full border-none bg-red-500/10 p-2 text-red-600 dark:text-red-400',
+                        PRESS_SM,
+                      )}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {showFreebusyForm ? (
+              <div className="rounded-xl border border-stone-200/70 bg-white p-3.5 dark:border-white/10 dark:bg-stone-900">
+                <Label>{t('freebusyLabel')}</Label>
+                <Input
+                  size="xs"
+                  className="mb-2.5"
+                  value={fbLabel}
+                  onChange={(e) => setFbLabel(e.target.value)}
+                  placeholder={t('freebusyLabelPlaceholder')}
+                />
+                <Label>{t('icsAddress')}</Label>
+                <Input
+                  size="xs"
+                  className="mb-3"
+                  value={fbUrl}
+                  onChange={(e) => setFbUrl(e.target.value)}
+                  placeholder="https://…"
+                  inputMode="url"
+                />
+                <ModalActions
+                  onSave={saveFreebusySource}
+                  onCancel={() => {
+                    setShowFreebusyForm(false);
+                    setFbLabel('');
+                    setFbUrl('');
+                  }}
+                  disabled={!fbUrl.trim() || fbSaving}
+                />
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowFreebusyForm(true)}
+                className={cx(
+                  'flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-full border border-stone-300 bg-transparent p-3 text-sm font-bold text-stone-700 dark:border-stone-700 dark:text-stone-300',
+                  PRESS,
+                )}
+              >
+                <Plus size={16} />
+                {t('addFreebusySource')}
+              </button>
+            )}
+
+            <button
+              onClick={() => setShowFreebusyHelp((v) => !v)}
+              className="mt-2.5 flex items-center gap-1 text-xs font-semibold text-stone-500 dark:text-stone-400"
+            >
+              {showFreebusyHelp ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              {t('freebusyHelpToggle')}
+            </button>
+            {showFreebusyHelp && (
+              <div className="mt-2 space-y-1.5 rounded-xl bg-stone-100 p-3 text-xs text-stone-500 dark:bg-stone-900 dark:text-stone-400">
+                <p>{t('freebusyHelpGoogle')}</p>
+                <p>{t('freebusyHelpOutlook')}</p>
+              </div>
+            )}
+          </div>
+
+          {/* Rename a freebusy source (label only) */}
+          <Modal open={!!editFreebusySource} onClose={() => setEditFreebusySource(null)}>
+            {editFreebusySource && (
+              <>
+                <h3 className="mb-4 font-serif text-xl font-semibold tracking-tight text-stone-900 dark:text-stone-100">
+                  {t('renameFreebusySource')}
+                </h3>
+                <Label>{t('freebusyLabel')}</Label>
+                <Input
+                  className="mb-4"
+                  value={efLabel}
+                  onChange={(e) => setEfLabel(e.target.value)}
+                  placeholder={t('freebusyLabelPlaceholder')}
+                  autoFocus
+                />
+                <ModalActions onSave={saveFreebusyLabel} onCancel={() => setEditFreebusySource(null)} />
+              </>
+            )}
+          </Modal>
+        </>
+      )}
+
+      {!showConnections && (
+        <>
+          {/* Notifications */}
+          <div className="mb-5">
+            <div className="mb-2.5 text-sm font-bold text-stone-500 dark:text-stone-400">{t('notifications')}</div>
+            {push.needsInstall ? (
+              <p className="text-xs text-stone-400 dark:text-stone-500">{t('notificationsIosHint')}</p>
+            ) : !push.supported ? (
+              <p className="text-xs text-stone-400 dark:text-stone-500">{t('notificationsUnsupported')}</p>
+            ) : push.permission === 'denied' ? (
+              <p className="text-xs text-stone-400 dark:text-stone-500">{t('notificationsDenied')}</p>
+            ) : push.subscribed ? (
+              <div className="flex items-center gap-2.5 rounded-xl border border-green-600/20 bg-green-600/8 px-3.5 py-3 dark:border-green-500/20 dark:bg-green-500/10">
+                <div className="flex-1 text-sm font-bold text-green-700 dark:text-green-400">
+                  {t('notificationsEnabled')}
+                </div>
+                <button
+                  onClick={push.disable}
+                  disabled={push.busy}
+                  className={cx(
+                    PRESS_SM,
+                    'cursor-pointer rounded-full border-none bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-600 dark:text-red-400',
+                  )}
+                >
+                  {t('notificationsDisable')}
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={push.enable}
+                disabled={push.busy}
+                className={cx(
+                  PRESS,
+                  'w-full cursor-pointer rounded-full border-none bg-stone-900 p-3.5 text-sm font-bold text-white disabled:opacity-50 dark:bg-stone-100 dark:text-stone-900',
+                )}
+              >
+                {t('notificationsEnable')}
+              </button>
+            )}
+          </div>
+
           <button
-            onClick={push.enable}
-            disabled={push.busy}
+            onClick={handleSignOut}
             className={cx(
+              'w-full cursor-pointer rounded-full border border-red-500/25 bg-red-500/10 p-3.5 text-base font-bold text-red-600 dark:text-red-400',
               PRESS,
-              'w-full cursor-pointer rounded-full border-none bg-stone-900 p-3.5 text-sm font-bold text-white disabled:opacity-50 dark:bg-stone-100 dark:text-stone-900',
             )}
           >
-            {t('notificationsEnable')}
+            {tc('signOut')}
           </button>
-        )}
-      </div>
-
-      <button
-        onClick={handleSignOut}
-        className={cx(
-          'w-full cursor-pointer rounded-full border border-red-500/25 bg-red-500/10 p-3.5 text-base font-bold text-red-600 dark:text-red-400',
-          PRESS,
-        )}
-      >
-        {tc('signOut')}
-      </button>
+        </>
+      )}
     </>
   );
 }

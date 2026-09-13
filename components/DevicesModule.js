@@ -1,6 +1,6 @@
 'use client';
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, Minus, Plus, RefreshCw } from 'lucide-react';
+import { ChevronDown, ChevronUp, Minus, Plus, RefreshCw, Settings } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { cx } from '@/lib/utils';
 import {
@@ -10,6 +10,7 @@ import {
   Card,
   EmptyState,
   Modal,
+  IconButton,
   CHIP_ON,
   CHIP_OFF,
   PRESS,
@@ -323,6 +324,7 @@ export default function DevicesModule({
 }) {
   const tMod = useTranslations('Modules');
   const t = useTranslations('Devices');
+  const ta = useTranslations('A11y');
 
   const showReauthBanner = !connectionLoading && connection?.status === 'error';
   const notConnected = !connectionLoading && !connection;
@@ -330,7 +332,11 @@ export default function DevicesModule({
   return (
     <Screen>
       <PageBody key="devices-home">
-        <ModuleHeader title={tMod('devices')} emoji="🔌" onHome={onGoHome} />
+        <ModuleHeader title={tMod('devices')} emoji="🔌" onHome={onGoHome}>
+          <IconButton onClick={onOpenSettings} aria-label={ta('settings')}>
+            <Settings className="size-4.5" />
+          </IconButton>
+        </ModuleHeader>
 
         {showReauthBanner && (
           <button

@@ -171,12 +171,22 @@ async function followRedirects(jar, url, init, maxHops = 10) {
     if ([301, 302, 303, 307, 308].includes(res.status)) {
       const location = res.headers.get('location');
       if (!location) return { finalUrl: currentUrl, body: '', code: null };
-      if (!/^https?:\/\//i.test(location)) {
-        // e.g. melcloudhome://?code=...&state=... — fetch can't follow a
-        // non-http(s) redirect, but the code we need is right there.
+      // IdentityServer issues plain relative Location headers for its own
+      // hops (e.g. "/ExternalLogin/Challenge?scheme=...") — those are NOT
+      // the melcloudhome:// custom-scheme final redirect, just a same-origin
+      // step that still needs resolving (against currentUrl) and following.
+      // Only a non-http(s) *scheme* (melcloudhome://?code=...) is the real
+      // terminal case fetch can't follow itself.
+      let resolved;
+      try {
+        resolved = new URL(location, currentUrl);
+      } catch {
+        resolved = null;
+      }
+      if (!resolved || (resolved.protocol !== 'http:' && resolved.protocol !== 'https:')) {
         return { finalUrl: location, body: '', code: extractCode(location) };
       }
-      currentUrl = location;
+      currentUrl = resolved.toString();
       currentInit = { method: 'GET', headers: { 'User-Agent': USER_AGENT } };
       continue;
     }

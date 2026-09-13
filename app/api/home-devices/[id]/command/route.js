@@ -10,25 +10,39 @@
 // The device-state write after a successful command uses the service role,
 // since home_devices is read-only for clients (see the home_devices
 // migration).
+//
+// Token handling: getValidAccessToken() (lib/melcloud-server.js) resolves
+// the household's stored MELCloud connection to a live bearer token,
+// refreshing it first if it's expired. A command can still race a token
+// that expires mid-flight (real 401 from MELCloud, not just our stored
+// expiry estimate) — on that one case only, refresh once and retry the
+// same command rather than surfacing a spurious failure to the person.
 import { createClient } from '@supabase/supabase-js';
 import * as provider from '../../../../../providers/melcloud-home/index.js';
+import {
+  adminClient,
+  getValidAccessToken,
+  toFriendlyError,
+  markConnectionError,
+} from '../../../../../lib/melcloud-server.js';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-async function applyCommand(device, type, value) {
+const PROVIDER_NAME = 'melcloud_home';
+
+async function applyCommand(accessToken, device, type, value) {
   switch (type) {
     case 'power':
-      return provider.setPower(device.external_id, !!value);
+      return provider.setPower(accessToken, device.external_id, !!value);
     case 'set_temperature':
-      return provider.setTemperature(device.external_id, value);
+      return provider.setTemperature(accessToken, device.external_id, value);
     case 'mode':
-      return provider.setMode(device.external_id, value);
+      return provider.setMode(accessToken, device.external_id, value);
     case 'fan_speed':
-      return provider.setFanSpeed(device.external_id, value);
+      return provider.setFanSpeed(accessToken, device.external_id, value);
     case 'horizontal_vane':
-      return provider.setHorizontalVane(device.external_id, value);
+      return provider.setHorizontalVane(accessToken, device.external_id, value);
     case 'refresh':
       return; // no-op — the point of this command is just the re-fetch below
     default:
@@ -66,19 +80,41 @@ export async function POST(request, { params }) {
     return Response.json({ error: 'bad_request' }, { status: 400 });
   }
 
-  const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
+  const admin = adminClient();
+
+  let accessToken;
+  try {
+    accessToken = await getValidAccessToken(admin, device.household_id, device.provider || PROVIDER_NAME);
+  } catch (err) {
+    const friendly = toFriendlyError(err);
+    return Response.json({ error: friendly.code, message: friendly.message }, { status: 409 });
+  }
 
   try {
-    await applyCommand(device, body.type, body.value);
+    await applyCommand(accessToken, device, body.type, body.value);
   } catch (err) {
-    return Response.json({ error: 'command_failed', message: String(err?.message || err) }, { status: 502 });
+    if (String(err?.message) === 'TOKEN_EXPIRED') {
+      // Our stored expiry said this token was still good, but MELCloud
+      // disagreed (clock skew, or a token revoked out-of-band) — refresh
+      // once and retry the same command before giving up.
+      try {
+        accessToken = await getValidAccessToken(admin, device.household_id, device.provider || PROVIDER_NAME);
+        await applyCommand(accessToken, device, body.type, body.value);
+      } catch (retryErr) {
+        const friendly = toFriendlyError(retryErr);
+        return Response.json({ error: friendly.code, message: friendly.message }, { status: 502 });
+      }
+    } else {
+      const friendly = toFriendlyError(err);
+      return Response.json({ error: friendly.code, message: friendly.message }, { status: 502 });
+    }
   }
 
   // Immediate refresh — re-fetch real state rather than trusting the
   // command call (the real API's control response is 200 with an empty
   // body, so there's nothing to trust anyway).
   try {
-    const fresh = await provider.getDevice(device.external_id);
+    const fresh = await provider.getDevice(accessToken, device.external_id);
     if (fresh) {
       await admin
         .from('home_devices')

@@ -311,14 +311,39 @@ function ComingSoonCard({ icon, title, subtitle }) {
   );
 }
 
-export default function DevicesModule({ devices, loading, sendCommand, refreshDevice, onGoHome }) {
+export default function DevicesModule({
+  devices,
+  loading,
+  sendCommand,
+  refreshDevice,
+  connection,
+  connectionLoading,
+  onGoHome,
+  onOpenSettings,
+}) {
   const tMod = useTranslations('Modules');
   const t = useTranslations('Devices');
+
+  const showReauthBanner = !connectionLoading && connection?.status === 'error';
+  const notConnected = !connectionLoading && !connection;
 
   return (
     <Screen>
       <PageBody key="devices-home">
         <ModuleHeader title={tMod('devices')} emoji="🔌" onHome={onGoHome} />
+
+        {showReauthBanner && (
+          <button
+            onClick={onOpenSettings}
+            className={cx(
+              'mb-3 flex w-full cursor-pointer items-center gap-2.5 rounded-2xl border-none bg-amber-500/10 px-4 py-3 text-left text-amber-700 dark:bg-amber-400/10 dark:text-amber-400',
+              PRESS,
+            )}
+          >
+            <span className="text-lg">⚠️</span>
+            <span className="text-[13px] font-semibold">{t('reconnectBanner')}</span>
+          </button>
+        )}
 
         {loading ? (
           <div className="space-y-3">
@@ -329,6 +354,12 @@ export default function DevicesModule({ devices, loading, sendCommand, refreshDe
               />
             ))}
           </div>
+        ) : devices.length === 0 && notConnected ? (
+          <Card onClick={onOpenSettings} className="py-12 text-center">
+            <div className="mb-3 text-5xl">🔌</div>
+            <div className="mb-1 text-sm text-stone-400 dark:text-stone-500">{t('empty')}</div>
+            <div className="text-xs font-bold text-stone-900 dark:text-stone-100">{t('connectCta')}</div>
+          </Card>
         ) : devices.length === 0 ? (
           <EmptyState icon="🔌">{t('empty')}</EmptyState>
         ) : (

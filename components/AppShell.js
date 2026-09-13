@@ -14,6 +14,7 @@ import {
   useFreebusySources,
   useBusyBlocks,
   useHomeDevices,
+  useProviderConnection,
   useTodoLists,
   useTodoItems,
   useHomeSettings,
@@ -224,13 +225,20 @@ export default function AppShell({ user, household, members, signOut }) {
     busyBlocksRange.end,
   );
 
-  // ─── NAPRAVE (home devices — Mitsubishi AC via MELCloud Home, mocked for now) ───
+  // ─── NAPRAVE (home devices — Mitsubishi AC via MELCloud Home) ───
   const {
     devices: homeDevices,
     loading: homeDevicesLoading,
     sendCommand: sendDeviceCommand,
     refreshDevice,
   } = useHomeDevices(householdId);
+  const {
+    connection: melcloudConnection,
+    loading: melcloudConnLoading,
+    busy: melcloudBusy,
+    connect: connectMelcloud,
+    disconnect: disconnectMelcloud,
+  } = useProviderConnection(householdId, 'melcloud_home');
 
   // ─── SETTINGS ───
   const [showSettings, setShowSettings] = useState(false);
@@ -329,6 +337,10 @@ export default function AppShell({ user, household, members, signOut }) {
           calConnection={calConnection}
           removeCalConnection={removeCalConnection}
           connectCalendar={connectCalendar}
+          melcloudConnection={melcloudConnection}
+          melcloudBusy={melcloudBusy}
+          connectMelcloud={connectMelcloud}
+          disconnectMelcloud={disconnectMelcloud}
           freebusySources={freebusySources}
           freebusySourcesLoading={freebusySourcesLoading}
           addFreebusySource={addFreebusySource}
@@ -418,7 +430,10 @@ export default function AppShell({ user, household, members, signOut }) {
           loading={homeDevicesLoading}
           sendCommand={sendDeviceCommand}
           refreshDevice={refreshDevice}
+          connection={melcloudConnection}
+          connectionLoading={melcloudConnLoading}
           onGoHome={() => navigate('home')}
+          onOpenSettings={openSettings}
         />
       )}
       {mode === 'shopping' && (
@@ -472,6 +487,111 @@ export default function AppShell({ user, household, members, signOut }) {
 // survives AppShell re-renders (every realtime update) instead of being
 // remounted each render (which also re-registered the Segmented layoutId
 // thumbs). Its Modal shell stays inside `chrome` with a stable element type.
+// Household-level MELCloud Home connect/disconnect form — no OAuth popup is
+// possible here (see providers/melcloud-home/index.js's header comment: the
+// provider has no third-party app registration), so this collects the
+// household's own MELCloud email+password once and posts it straight to
+// /api/home-devices/connect, which performs the real Cognito login
+// server-side and returns only success/failure — the password itself never
+// comes back to the client and is never written to our DB.
+function MelcloudConnectForm({ connection, busy, connect, disconnect, setConfirmAction, t, te }) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState(null);
+
+  const ERROR_KEYS = {
+    invalid_credentials: 'melcloudInvalidCredentials',
+    unavailable: 'melcloudUnavailable',
+    reauth_needed: 'melcloudReauthNeeded',
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError(null);
+    const result = await connect(email, password);
+    if (result.ok) {
+      setEmail('');
+      setPassword('');
+    } else {
+      setError(te(ERROR_KEYS[result.error] || 'melcloudConnectFailed'));
+    }
+  };
+
+  const isConnected = connection?.status === 'connected';
+  const needsReauth = connection?.status === 'error';
+
+  if (isConnected) {
+    return (
+      <div className="flex items-center gap-2.5 rounded-xl border border-green-600/20 bg-green-600/8 px-3.5 py-3 dark:border-green-500/20 dark:bg-green-500/10">
+        <div className="flex-1">
+          <div className="text-sm font-bold text-green-700 dark:text-green-400">{t('connected')}</div>
+          <div className="mt-0.5 text-xs text-stone-500 dark:text-stone-400">{connection?.account_email}</div>
+        </div>
+        <button
+          onClick={() =>
+            setConfirmAction({
+              message: t('melcloudDisconnectConfirm'),
+              onConfirm: () => disconnect(),
+            })
+          }
+          className={cx(
+            'cursor-pointer rounded-full border-none bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-600 dark:text-red-400',
+            PRESS_SM,
+          )}
+        >
+          {t('disconnect')}
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-2.5">
+      {needsReauth && (
+        <div className="rounded-xl border border-amber-600/20 bg-amber-600/8 px-3.5 py-2.5 text-xs font-semibold text-amber-700 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-400">
+          {t('melcloudNeedsReauth')}
+        </div>
+      )}
+      <div>
+        <Label>{t('melcloudEmailLabel')}</Label>
+        <Input
+          type="email"
+          size="xs"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder={t('melcloudEmailPlaceholder')}
+          required
+          autoComplete="username"
+        />
+      </div>
+      <div>
+        <Label>{t('melcloudPasswordLabel')}</Label>
+        <Input
+          type="password"
+          size="xs"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder={t('melcloudPasswordPlaceholder')}
+          required
+          autoComplete="current-password"
+        />
+      </div>
+      {error && <div className="text-xs font-semibold text-red-600 dark:text-red-400">{error}</div>}
+      <p className="text-xs text-stone-400 dark:text-stone-500">{t('melcloudHelp')}</p>
+      <button
+        type="submit"
+        disabled={busy}
+        className={cx(
+          'w-full cursor-pointer rounded-full border-none bg-stone-900 p-3.5 text-sm font-bold text-white disabled:opacity-50 dark:bg-stone-100 dark:text-stone-900',
+          PRESS,
+        )}
+      >
+        {busy ? t('melcloudConnecting') : t('connectMelcloud')}
+      </button>
+    </form>
+  );
+}
+
 function SettingsBody({
   user,
   household,
@@ -483,6 +603,10 @@ function SettingsBody({
   calConnection,
   removeCalConnection,
   connectCalendar,
+  melcloudConnection,
+  melcloudBusy,
+  connectMelcloud,
+  disconnectMelcloud,
   freebusySources,
   freebusySourcesLoading,
   addFreebusySource,
@@ -495,6 +619,7 @@ function SettingsBody({
   const t = useTranslations('Settings');
   const tc = useTranslations('Common');
   const ta = useTranslations('A11y');
+  const te = useTranslations('Errors');
   const format = useFormatter();
   const { locale, switchLocale } = useLocaleSwitch();
 
@@ -722,6 +847,21 @@ function SettingsBody({
             {t('connectCalendar')}
           </button>
         )}
+      </div>
+
+      {/* Naprave / MELCloud Home — household-shared, no owner/member split
+          (see providers/melcloud-home + the provider_connections migration) */}
+      <div className="mb-5">
+        <div className="mb-2.5 text-sm font-bold text-stone-500 dark:text-stone-400">{t('devicesSectionTitle')}</div>
+        <MelcloudConnectForm
+          connection={melcloudConnection}
+          busy={melcloudBusy}
+          connect={connectMelcloud}
+          disconnect={disconnectMelcloud}
+          setConfirmAction={setConfirmAction}
+          t={t}
+          te={te}
+        />
       </div>
 
       {/* Freebusy sharing (Koledarko phase 2) */}

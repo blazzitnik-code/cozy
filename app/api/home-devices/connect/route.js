@@ -1,7 +1,7 @@
-// Connects a household to a home-device provider (currently only
-// 'melcloud_home'). Takes the household's own account email+password once,
-// submits it straight to the provider's real login (never to our own DB),
-// and stores only the resulting bearer tokens — see
+// Connects a household to a home-device provider ('melcloud_home' or
+// 'vaillant' — see lib/providers.js). Takes the household's own account
+// email+password once, submits it straight to the provider's real login
+// (never to our own DB), and stores only the resulting bearer tokens — see
 // supabase/migrations/20260913125400_provider_connections.sql for why the
 // tokens live in a service-role-only table rather than Vault.
 //
@@ -11,18 +11,15 @@
 // `households` is what actually proves household membership — app code
 // never re-derives that itself.
 import { createClient } from '@supabase/supabase-js';
-import * as provider from '../../../../providers/melcloud-home/index.js';
-import { adminClient, toFriendlyError, markConnectionOk } from '../../../../lib/melcloud-server.js';
+import { getProvider, PROVIDERS } from '../../../../lib/providers.js';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-const PROVIDER_NAME = 'melcloud_home';
-
-function toHomeDeviceRow(householdId, d) {
+function toHomeDeviceRow(householdId, providerName, d) {
   return {
     household_id: householdId,
-    provider: PROVIDER_NAME,
+    provider: providerName,
     device_type: d.type,
     external_id: d.externalId,
     name: d.name,
@@ -43,11 +40,13 @@ export async function POST(request) {
 
   const body = await request.json().catch(() => null);
   const householdId = body?.householdId;
+  const providerName = body?.provider;
   const email = body?.email;
   const password = body?.password;
-  if (!householdId || !email || !password) {
+  if (!householdId || !providerName || !email || !password || !PROVIDERS[providerName]) {
     return Response.json({ error: 'bad_request' }, { status: 400 });
   }
+  const { client: provider, server } = getProvider(providerName);
 
   const userClient = createClient(SUPABASE_URL, ANON_KEY, {
     global: { headers: { Authorization: `Bearer ${token}` } },
@@ -68,15 +67,15 @@ export async function POST(request) {
   } catch (err) {
     // Logged raw (not just the friendly code) — the friendly message shown
     // to the person is deliberately generic, but this is the only place the
-    // real MELCloud/Cognito failure reason (a changed login page, an
-    // unexpected redirect, ...) ever surfaces.
-    console.error('melcloud login() failed', err?.message || err, err?.stack);
-    const friendly = toFriendlyError(err);
+    // real provider/IdP failure reason (a changed login page, an unexpected
+    // redirect, ...) ever surfaces.
+    console.error(`${providerName} login() failed`, err?.message || err, err?.stack);
+    const friendly = server.toFriendlyError(err);
     const status = friendly.code === 'invalid_credentials' ? 401 : 502;
     return Response.json({ error: friendly.code, message: friendly.message }, { status });
   }
 
-  const admin = adminClient();
+  const admin = server.adminClient();
 
   // Upsert the display-safe row first (so a later failure fetching devices
   // still leaves a real, working connection behind) and grab its id.
@@ -85,7 +84,7 @@ export async function POST(request) {
     .upsert(
       {
         household_id: householdId,
-        provider: PROVIDER_NAME,
+        provider: providerName,
         status: 'connected',
         account_email: email,
         connected_at: new Date().toISOString(),
@@ -114,19 +113,19 @@ export async function POST(request) {
     return Response.json({ error: 'unknown', message: 'Žetonov ni bilo mogoče shraniti.' }, { status: 500 });
   }
 
-  // Populate home_devices immediately rather than waiting up to 10 min for
-  // the next cron sync — this is what makes the Devices tab show the AC
-  // right after connecting.
+  // Populate home_devices immediately rather than waiting for the next cron
+  // sync — this is what makes the Devices tab show the device right after
+  // connecting.
   let deviceSyncError = null;
   try {
     const devices = await provider.getDevices(tokens.accessToken);
     for (const d of devices) {
       const { error } = await admin
         .from('home_devices')
-        .upsert(toHomeDeviceRow(householdId, d), { onConflict: 'household_id,provider,external_id' });
+        .upsert(toHomeDeviceRow(householdId, providerName, d), { onConflict: 'household_id,provider,external_id' });
       if (error) throw error;
     }
-    await markConnectionOk(admin, connection.id);
+    await server.markConnectionOk(admin, connection.id);
   } catch (err) {
     // The connection itself is good (login succeeded) — a device-list
     // hiccup right after is a soft error, surfaced but not fatal. The next

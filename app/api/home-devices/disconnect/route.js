@@ -1,13 +1,12 @@
 // Disconnects a household's home-device provider — deletes the connection
 // (its secret row cascades) and the devices that came from it, so a stale
-// AC card doesn't linger in the Devices tab after disconnecting.
+// device card doesn't linger in the Devices tab after disconnecting.
 import { createClient } from '@supabase/supabase-js';
+import { PROVIDERS } from '../../../../lib/providers.js';
 import { adminClient } from '../../../../lib/melcloud-server.js';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-const PROVIDER_NAME = 'melcloud_home';
 
 export async function POST(request) {
   const authHeader = request.headers.get('authorization') || '';
@@ -18,7 +17,8 @@ export async function POST(request) {
 
   const body = await request.json().catch(() => null);
   const householdId = body?.householdId;
-  if (!householdId) {
+  const providerName = body?.provider;
+  if (!householdId || !providerName || !PROVIDERS[providerName]) {
     return Response.json({ error: 'bad_request' }, { status: 400 });
   }
 
@@ -37,8 +37,8 @@ export async function POST(request) {
 
   const admin = adminClient();
 
-  await admin.from('home_devices').delete().eq('household_id', householdId).eq('provider', PROVIDER_NAME);
-  await admin.from('provider_connections').delete().eq('household_id', householdId).eq('provider', PROVIDER_NAME);
+  await admin.from('home_devices').delete().eq('household_id', householdId).eq('provider', providerName);
+  await admin.from('provider_connections').delete().eq('household_id', householdId).eq('provider', providerName);
 
   return Response.json({ ok: true });
 }

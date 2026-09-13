@@ -702,7 +702,18 @@ function TodoListScreen({
 // ShoppingModule.js. Order lives in local state during the drag; sort_order
 // is persisted once on drag end via onPersist. Done items don't get this —
 // they're rendered as a plain list further down, no reordering needed.
-function TodoItemGroup({ items, members, assignPicker, getMember, onPersist, onToggle, onDelete, onTap, onPickerOpen, onAssign }) {
+function TodoItemGroup({
+  items,
+  members,
+  assignPicker,
+  getMember,
+  onPersist,
+  onToggle,
+  onDelete,
+  onTap,
+  onPickerOpen,
+  onAssign,
+}) {
   const [order, setOrder] = useState(items);
   const orderRef = useRef(items);
   const dragging = useRef(false);
@@ -826,10 +837,7 @@ const TodoItemRow = memo(function TodoItemRow({
           )}
         >
           {item.important && (
-            <Star
-              aria-hidden="true"
-              className="size-3 shrink-0 fill-current text-orange-600 dark:text-orange-400"
-            />
+            <Star aria-hidden="true" className="size-3 shrink-0 fill-current text-orange-600 dark:text-orange-400" />
           )}
           <span className="min-w-0 truncate">{item.title}</span>
         </div>

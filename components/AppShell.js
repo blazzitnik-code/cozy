@@ -244,6 +244,13 @@ export default function AppShell({ user, household, members, signOut }) {
     connect: connectMelcloud,
     disconnect: disconnectMelcloud,
   } = useProviderConnection(householdId, 'melcloud_home');
+  const {
+    connection: vaillantConnection,
+    loading: vaillantConnLoading,
+    busy: vaillantBusy,
+    connect: connectVaillant,
+    disconnect: disconnectVaillant,
+  } = useProviderConnection(householdId, 'vaillant');
 
   // ─── SETTINGS ───
   const [showSettings, setShowSettings] = useState(false);
@@ -346,6 +353,10 @@ export default function AppShell({ user, household, members, signOut }) {
           melcloudBusy={melcloudBusy}
           connectMelcloud={connectMelcloud}
           disconnectMelcloud={disconnectMelcloud}
+          vaillantConnection={vaillantConnection}
+          vaillantBusy={vaillantBusy}
+          connectVaillant={connectVaillant}
+          disconnectVaillant={disconnectVaillant}
           freebusySources={freebusySources}
           freebusySourcesLoading={freebusySourcesLoading}
           addFreebusySource={addFreebusySource}
@@ -437,8 +448,8 @@ export default function AppShell({ user, household, members, signOut }) {
           loading={homeDevicesLoading}
           sendCommand={sendDeviceCommand}
           refreshDevice={refreshDevice}
-          connection={melcloudConnection}
-          connectionLoading={melcloudConnLoading}
+          connections={[melcloudConnection, vaillantConnection]}
+          connectionsLoading={melcloudConnLoading || vaillantConnLoading}
           onGoHome={() => navigate('home')}
           onOpenSettings={openSettings}
         />
@@ -607,6 +618,111 @@ function MelcloudConnectForm({ connection, busy, connect, disconnect, setConfirm
   );
 }
 
+// Household-level Vaillant (myVAILLANT) connect/disconnect form — same
+// shape as MelcloudConnectForm above (see providers/vaillant/index.js's
+// header comment: myVAILLANT has no third-party OAuth app registration
+// either), just against /api/home-devices/connect with provider:'vaillant'.
+function VaillantConnectForm({ connection, busy, connect, disconnect, setConfirmAction, t, te }) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState(null);
+
+  const ERROR_KEYS = {
+    invalid_credentials: 'vaillantInvalidCredentials',
+    unavailable: 'vaillantUnavailable',
+    reauth_needed: 'vaillantReauthNeeded',
+    unsupported_controller: 'vaillantUnsupportedController',
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError(null);
+    const result = await connect(email, password);
+    if (result.ok) {
+      setEmail('');
+      setPassword('');
+    } else {
+      const known = ERROR_KEYS[result.error];
+      const detail = !known && result.message ? ` (${result.message})` : '';
+      setError(te(known || 'vaillantConnectFailed') + detail);
+    }
+  };
+
+  const isConnected = connection?.status === 'connected';
+  const needsReauth = connection?.status === 'error';
+
+  if (isConnected) {
+    return (
+      <div className="flex items-center gap-2.5 rounded-xl border border-green-600/20 bg-green-600/8 px-3.5 py-3 dark:border-green-500/20 dark:bg-green-500/10">
+        <div className="flex-1">
+          <div className="text-sm font-bold text-green-700 dark:text-green-400">{t('connected')}</div>
+          <div className="mt-0.5 text-xs text-stone-500 dark:text-stone-400">{connection?.account_email}</div>
+        </div>
+        <button
+          onClick={() =>
+            setConfirmAction({
+              message: t('vaillantDisconnectConfirm'),
+              onConfirm: () => disconnect(),
+            })
+          }
+          className={cx(
+            'cursor-pointer rounded-full border-none bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-600 dark:text-red-400',
+            PRESS_SM,
+          )}
+        >
+          {t('disconnect')}
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-2.5">
+      {needsReauth && (
+        <div className="rounded-xl border border-amber-600/20 bg-amber-600/8 px-3.5 py-2.5 text-xs font-semibold text-amber-700 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-400">
+          {t('vaillantNeedsReauth')}
+        </div>
+      )}
+      <div>
+        <Label>{t('vaillantEmailLabel')}</Label>
+        <Input
+          type="email"
+          size="xs"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder={t('vaillantEmailPlaceholder')}
+          required
+          autoComplete="username"
+        />
+      </div>
+      <div>
+        <Label>{t('vaillantPasswordLabel')}</Label>
+        <Input
+          type="password"
+          size="xs"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder={t('vaillantPasswordPlaceholder')}
+          required
+          autoComplete="current-password"
+        />
+      </div>
+      {error && <div className="text-xs font-semibold text-red-600 dark:text-red-400">{error}</div>}
+      <p className="text-xs text-stone-400 dark:text-stone-500">{t('vaillantHelp')}</p>
+      <button
+        type="submit"
+        disabled={busy}
+        className={cx(
+          'w-full cursor-pointer rounded-full border-none bg-stone-900 p-3.5 text-sm font-bold text-white disabled:opacity-50 dark:bg-stone-100 dark:text-stone-900',
+          PRESS,
+        )}
+      >
+        {busy ? t('vaillantConnecting') : t('connectVaillant')}
+      </button>
+    </form>
+  );
+}
+
 function SettingsBody({
   user,
   household,
@@ -622,6 +738,10 @@ function SettingsBody({
   melcloudBusy,
   connectMelcloud,
   disconnectMelcloud,
+  vaillantConnection,
+  vaillantBusy,
+  connectVaillant,
+  disconnectVaillant,
   freebusySources,
   freebusySourcesLoading,
   addFreebusySource,
@@ -902,6 +1022,23 @@ function SettingsBody({
               busy={melcloudBusy}
               connect={connectMelcloud}
               disconnect={disconnectMelcloud}
+              setConfirmAction={setConfirmAction}
+              t={t}
+              te={te}
+            />
+          </div>
+
+          {/* Naprave / Vaillant myVAILLANT — same shape as MELCloud above,
+          see providers/vaillant + the provider_connections migration */}
+          <div className="mb-5">
+            <div className="mb-2.5 text-sm font-bold text-stone-500 dark:text-stone-400">
+              {t('vaillantSectionTitle')}
+            </div>
+            <VaillantConnectForm
+              connection={vaillantConnection}
+              busy={vaillantBusy}
+              connect={connectVaillant}
+              disconnect={disconnectVaillant}
               setConfirmAction={setConfirmAction}
               t={t}
               te={te}

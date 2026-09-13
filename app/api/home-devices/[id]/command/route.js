@@ -1,5 +1,5 @@
-// Server-side command endpoint for home devices — the client never calls
-// MELCloud (or any future provider) directly, only this route. See
+// Server-side command endpoint for home devices — the client never calls a
+// provider (MELCloud, Vaillant, ...) directly, only this route. See
 // NAPRAVKO_MELCLOUD_IMPLEMENTATION.md § security.
 //
 // Auth: no @supabase/ssr in this project (auth is entirely client-managed
@@ -11,27 +11,20 @@
 // since home_devices is read-only for clients (see the home_devices
 // migration).
 //
-// Token handling: getValidAccessToken() (lib/melcloud-server.js) resolves
-// the household's stored MELCloud connection to a live bearer token,
-// refreshing it first if it's expired. A command can still race a token
-// that expires mid-flight (real 401 from MELCloud, not just our stored
-// expiry estimate) — on that one case only, refresh once and retry the
-// same command rather than surfacing a spurious failure to the person.
+// Token handling: getValidAccessToken() (lib/<provider>-server.js) resolves
+// the household's stored connection for device.provider to a live bearer
+// token, refreshing it first if it's expired. A command can still race a
+// token that expires mid-flight (real 401, not just our stored expiry
+// estimate) — on that one case only, refresh once and retry the same
+// command rather than surfacing a spurious failure to the person.
 import { createClient } from '@supabase/supabase-js';
-import * as provider from '../../../../../providers/melcloud-home/index.js';
-import {
-  adminClient,
-  getValidAccessToken,
-  toFriendlyError,
-  markConnectionError,
-} from '../../../../../lib/melcloud-server.js';
+import { getProvider } from '../../../../../lib/providers.js';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-const PROVIDER_NAME = 'melcloud_home';
-
-async function applyCommand(accessToken, device, type, value) {
+// MELCloud Home commands — one air-conditioner unit per device row.
+async function applyMelcloudCommand(provider, accessToken, device, type, value) {
   switch (type) {
     case 'power':
       return provider.setPower(accessToken, device.external_id, !!value);
@@ -46,8 +39,52 @@ async function applyCommand(accessToken, device, type, value) {
     case 'refresh':
       return; // no-op — the point of this command is just the re-fetch below
     default:
-      throw new Error(`unknown command type: ${type}`);
+      throw new Error(`unknown melcloud_home command type: ${type}`);
   }
+}
+
+// Vaillant commands — split by device_type since a heating zone and a
+// domestic-hot-water tank take different commands.
+async function applyVaillantCommand(provider, accessToken, device, type, value) {
+  if (device.device_type === 'heating_zone') {
+    switch (type) {
+      case 'zone_mode':
+        return provider.setZoneMode(accessToken, device.external_id, value);
+      case 'zone_setpoint':
+        return provider.setZoneSetpoint(accessToken, device.external_id, value);
+      case 'quick_veto':
+        return provider.quickVetoZone(accessToken, device.external_id, value);
+      case 'cancel_quick_veto':
+        return provider.cancelQuickVetoZone(accessToken, device.external_id);
+      case 'refresh':
+        return;
+      default:
+        throw new Error(`unknown vaillant heating_zone command type: ${type}`);
+    }
+  }
+  if (device.device_type === 'domestic_hot_water') {
+    switch (type) {
+      case 'dhw_mode':
+        return provider.setDhwMode(accessToken, device.external_id, value);
+      case 'dhw_setpoint':
+        return provider.setDhwSetpoint(accessToken, device.external_id, value);
+      case 'dhw_boost':
+        return provider.boostDhw(accessToken, device.external_id);
+      case 'dhw_cancel_boost':
+        return provider.cancelDhwBoost(accessToken, device.external_id);
+      case 'refresh':
+        return;
+      default:
+        throw new Error(`unknown vaillant domestic_hot_water command type: ${type}`);
+    }
+  }
+  throw new Error(`unknown vaillant device_type: ${device.device_type}`);
+}
+
+async function applyCommand(providerName, providerClient, accessToken, device, type, value) {
+  if (providerName === 'melcloud_home') return applyMelcloudCommand(providerClient, accessToken, device, type, value);
+  if (providerName === 'vaillant') return applyVaillantCommand(providerClient, accessToken, device, type, value);
+  throw new Error(`unknown provider: ${providerName}`);
 }
 
 export async function POST(request, { params }) {
@@ -65,7 +102,7 @@ export async function POST(request, { params }) {
 
   const { data: device, error: readErr } = await userClient
     .from('home_devices')
-    .select('id, household_id, provider, external_id')
+    .select('id, household_id, provider, device_type, external_id')
     .eq('id', id)
     .maybeSingle();
 
@@ -80,44 +117,52 @@ export async function POST(request, { params }) {
     return Response.json({ error: 'bad_request' }, { status: 400 });
   }
 
-  const admin = adminClient();
+  let providerName, providerClient, server;
+  try {
+    ({ client: providerClient, server } = getProvider(device.provider));
+    providerName = device.provider;
+  } catch (err) {
+    return Response.json({ error: 'unknown', message: String(err?.message || err) }, { status: 500 });
+  }
+
+  const admin = server.adminClient();
 
   let accessToken;
   try {
-    accessToken = await getValidAccessToken(admin, device.household_id, device.provider || PROVIDER_NAME);
+    accessToken = await server.getValidAccessToken(admin, device.household_id, device.provider);
   } catch (err) {
     console.error('getValidAccessToken() failed', err?.message || err, err?.stack);
-    const friendly = toFriendlyError(err);
+    const friendly = server.toFriendlyError(err);
     return Response.json({ error: friendly.code, message: friendly.message }, { status: 409 });
   }
 
   try {
-    await applyCommand(accessToken, device, body.type, body.value);
+    await applyCommand(providerName, providerClient, accessToken, device, body.type, body.value);
   } catch (err) {
     if (String(err?.message) === 'TOKEN_EXPIRED') {
-      // Our stored expiry said this token was still good, but MELCloud
+      // Our stored expiry said this token was still good, but the provider
       // disagreed (clock skew, or a token revoked out-of-band) — refresh
       // once and retry the same command before giving up.
       try {
-        accessToken = await getValidAccessToken(admin, device.household_id, device.provider || PROVIDER_NAME);
-        await applyCommand(accessToken, device, body.type, body.value);
+        accessToken = await server.getValidAccessToken(admin, device.household_id, device.provider);
+        await applyCommand(providerName, providerClient, accessToken, device, body.type, body.value);
       } catch (retryErr) {
         console.error('command retry after TOKEN_EXPIRED failed', retryErr?.message || retryErr, retryErr?.stack);
-        const friendly = toFriendlyError(retryErr);
+        const friendly = server.toFriendlyError(retryErr);
         return Response.json({ error: friendly.code, message: friendly.message }, { status: 502 });
       }
     } else {
       console.error('applyCommand() failed', err?.message || err, err?.stack);
-      const friendly = toFriendlyError(err);
+      const friendly = server.toFriendlyError(err);
       return Response.json({ error: friendly.code, message: friendly.message }, { status: 502 });
     }
   }
 
   // Immediate refresh — re-fetch real state rather than trusting the
-  // command call (the real API's control response is 200 with an empty
-  // body, so there's nothing to trust anyway).
+  // command call (most providers' control responses have nothing useful to
+  // trust anyway).
   try {
-    const fresh = await provider.getDevice(accessToken, device.external_id);
+    const fresh = await providerClient.getDevice(accessToken, device.external_id);
     if (fresh) {
       await admin
         .from('home_devices')

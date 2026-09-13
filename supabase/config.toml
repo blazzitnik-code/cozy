@@ -438,3 +438,9 @@ verify_jwt = false
 # check ever ran.
 [functions.sync-home-devices]
 verify_jwt = false
+
+# sync-vaillant-devices — same shape as sync-home-devices above, separate
+# function/cron/secret so a Vaillant-side incident can't take down the
+# MELCloud sync (or vice versa).
+[functions.sync-vaillant-devices]
+verify_jwt = false

@@ -14,6 +14,10 @@
 -- optional {sourceId} body, added for bisecting this very issue); this
 -- migration is what makes both the cron job and a manual "Sync now" go
 -- through that same one-call-per-source path by default.
+-- Return type is changing (bigint -> integer), which create or replace
+-- can't do in place — drop first.
+drop function if exists public.trigger_freebusy_sync(uuid);
+
 create or replace function public.trigger_freebusy_sync(p_source_id uuid default null)
 returns integer
 language plpgsql

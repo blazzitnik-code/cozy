@@ -62,6 +62,7 @@ const DEFAULT_SECTION_KEYS = [
   'sadje',
   'zelenjava',
   'pekarna',
+  'sladkarice',
   'suho',
   'pijace',
   'zivali',
@@ -635,21 +636,23 @@ export default function ShoppingModule({
       return { key: 'zelenjava', order: 5 };
     if (/kruh|žemlja|burek|pica|torta|kolač|pecivo|rogljič|bread|pizza|cake|pastry|croissant|\bbun\b|bagel/.test(n))
       return { key: 'pekarna', order: 6 };
+    if (/čips|piškot|keks|čokolad|bombon|sladkarij|prigrizk|chips|cookie|biscuit|chocolat|candy|\bsnack/.test(n))
+      return { key: 'sladkarice', order: 7 };
     if (
       /riž|testenin|moka|sladkor|sol|olje|kis|začimb|poper|kava|čaj|konzerv|rice|pasta|flour|sugar|salt|\bpepper\b|spice|\boil\b|vinegar|coffee|\btea\b|canned|cereal/.test(
         n,
       )
     )
-      return { key: 'suho', order: 7 };
+      return { key: 'suho', order: 8 };
     if (/pivo|vino|sok|voda|pijač|beer|wine|juice|water|soda|drink|cola|lemonade/.test(n))
-      return { key: 'pijace', order: 8 };
-    if (/pes|mačk|pasja|mačja|hrana za|\bdog\b|\bcat\b|pet food/.test(n)) return { key: 'zivali', order: 9 };
+      return { key: 'pijace', order: 9 };
+    if (/pes|mačk|pasja|mačja|hrana za|\bdog\b|\bcat\b|pet food/.test(n)) return { key: 'zivali', order: 10 };
     if (
       /pralni|detergent|gobic|toaletni|wc|šampon|gel|milo|zobna|krema|dezodor|laundry|toilet|shampoo|soap|toothpaste|deodorant|sponge|cleaner|\bdish\b/.test(
         n,
       )
     )
-      return { key: 'cistila', order: 10 };
+      return { key: 'cistila', order: 11 };
     return { key: 'drugo', order: 99 };
   };
 

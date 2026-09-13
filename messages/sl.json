@@ -76,13 +76,15 @@
     "freezer": "Zmrzko",
     "shopping": "Trgovko",
     "calendar": "Koledarko",
-    "todo": "Listko"
+    "todo": "Listko",
+    "devices": "Naprave"
   },
   "Modules": {
     "freezer": "Zmrzko",
     "shopping": "Trgovko",
     "calendar": "Koledarko",
-    "todo": "Listko"
+    "todo": "Listko",
+    "devices": "Naprave"
   },
   "Weather": {
     "clear": "jasno",
@@ -421,6 +423,7 @@
     "today": "Danes",
     "allDay": "Ves dan",
     "todos": "Listko",
+    "todosEmpty": "Še ni seznamov",
     "comingSoon": "Prihaja kmalu",
     "soon": "Kmalu",
     "mealPlan": "Jedilnik",
@@ -481,6 +484,7 @@
     "settingsSaveFailed": "Shranjevanje nastavitev ni uspelo",
     "pushSubscribeFailed": "Vklop obvestil ni uspel",
     "pushUnsubscribeFailed": "Izklop obvestil ni uspel",
+    "deviceCommandFailed": "Pošiljanje ukaza napravi ni uspelo",
     "rpc": {
       "invalidCode": "Neveljavna koda",
       "memberMissing": "Član ne obstaja",
@@ -490,5 +494,42 @@
       "wrongUserJoin": "Ne moreš pridružiti drugega uporabnika"
     },
     "calendarSync": "Sinhronizacija koledarja ne dela — preveri Google nastavitve."
+  },
+  "Devices": {
+    "connected": "Povezano",
+    "offline": "Brez povezave",
+    "target": "Cilj",
+    "power": "Vklopljeno",
+    "chooseMode": "Izberi način",
+    "modeCool": "Hlajenje",
+    "modeHeat": "Ogrevanje",
+    "modeAuto": "Samodejno",
+    "modeDry": "Sušenje",
+    "modeFan": "Ventilator",
+    "advanced": "Napredno",
+    "fanSpeed": "Hitrost ventilatorja",
+    "fanAuto": "Auto",
+    "vane": "Smer pihanja",
+    "vaneLeft": "Levo",
+    "vaneBoth": "Oboje",
+    "vaneRight": "Desno",
+    "wifiSignal": "Wi-Fi signal",
+    "wifiGood": "Dobra povezava",
+    "wifiFair": "Srednja povezava",
+    "wifiPoor": "Šibka povezava",
+    "wifiUnknown": "Neznano",
+    "outdoorTemp": "Zunanja temperatura",
+    "error": "Napaka",
+    "noError": "Ni napak",
+    "syncedJustNow": "Sinhronizirano pravkar",
+    "syncedMinutesAgo": "Sinhronizirano pred {n} min",
+    "syncedHoursAgo": "Sinhronizirano pred {n} h",
+    "neverSynced": "Še ni sinhronizirano",
+    "empty": "Ni še povezanih naprav",
+    "soonSectionLabel": "Kmalu na voljo",
+    "soonQuickActions": "Hitre akcije",
+    "soonQuickActionsDesc": "\"Prihajam domov\", \"Grem spat\" …",
+    "soonSolar": "Fotovoltaika",
+    "soonTag": "Kmalu"
   }
 }

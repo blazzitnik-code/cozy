@@ -76,13 +76,15 @@
     "freezer": "Freezer",
     "shopping": "Shop",
     "calendar": "Cal",
-    "todo": "Task"
+    "todo": "Task",
+    "devices": "Devices"
   },
   "Modules": {
     "freezer": "Freezer",
     "shopping": "Shop",
     "calendar": "Cal",
-    "todo": "Task"
+    "todo": "Task",
+    "devices": "Devices"
   },
   "Weather": {
     "clear": "clear",
@@ -421,6 +423,7 @@
     "today": "Today",
     "allDay": "All day",
     "todos": "Task",
+    "todosEmpty": "No lists yet",
     "comingSoon": "Coming soon",
     "soon": "Soon",
     "mealPlan": "Meal plan",
@@ -481,6 +484,7 @@
     "settingsSaveFailed": "Saving settings failed",
     "pushSubscribeFailed": "Enabling notifications failed",
     "pushUnsubscribeFailed": "Disabling notifications failed",
+    "deviceCommandFailed": "Sending the command to the device failed",
     "rpc": {
       "invalidCode": "Invalid code",
       "memberMissing": "Member does not exist",
@@ -490,5 +494,42 @@
       "wrongUserJoin": "You cannot join on behalf of another user"
     },
     "calendarSync": "Calendar sync is failing — check the Google settings."
+  },
+  "Devices": {
+    "connected": "Connected",
+    "offline": "Offline",
+    "target": "Target",
+    "power": "Power",
+    "chooseMode": "Choose mode",
+    "modeCool": "Cool",
+    "modeHeat": "Heat",
+    "modeAuto": "Auto",
+    "modeDry": "Dry",
+    "modeFan": "Fan",
+    "advanced": "Advanced",
+    "fanSpeed": "Fan speed",
+    "fanAuto": "Auto",
+    "vane": "Air direction",
+    "vaneLeft": "Left",
+    "vaneBoth": "Both",
+    "vaneRight": "Right",
+    "wifiSignal": "Wi-Fi signal",
+    "wifiGood": "Good",
+    "wifiFair": "Fair",
+    "wifiPoor": "Poor",
+    "wifiUnknown": "Unknown",
+    "outdoorTemp": "Outdoor temperature",
+    "error": "Error",
+    "noError": "No errors",
+    "syncedJustNow": "Synced just now",
+    "syncedMinutesAgo": "Synced {n} min ago",
+    "syncedHoursAgo": "Synced {n}h ago",
+    "neverSynced": "Not synced yet",
+    "empty": "No devices connected yet",
+    "soonSectionLabel": "Coming soon",
+    "soonQuickActions": "Quick actions",
+    "soonQuickActionsDesc": "\"Coming home\", \"Going to bed\" …",
+    "soonSolar": "Solar",
+    "soonTag": "Soon"
   }
 }

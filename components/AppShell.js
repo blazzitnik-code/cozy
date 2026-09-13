@@ -13,6 +13,7 @@ import {
   useCalendarEvents,
   useFreebusySources,
   useBusyBlocks,
+  useHomeDevices,
   useTodoLists,
   useTodoItems,
   useHomeSettings,
@@ -43,6 +44,7 @@ import {
 } from './ui';
 import { notifyError } from '@/lib/notify';
 import TodoApp from './TodoApp';
+import DevicesModule from './DevicesModule';
 import HomeScreen from './HomeScreen';
 import FreezerModule from './FreezerModule';
 import ShoppingModule from './ShoppingModule';
@@ -54,7 +56,7 @@ import CalendarModule from './CalendarModule';
 // orchestration and the settings modal; modules get data via props.
 // Language lives in IntlProvider (next-intl); modules read it via hooks.
 // ═══════════════════════════
-const VALID_TABS = ['home', 'freezer', 'shopping', 'calendar', 'todo'];
+const VALID_TABS = ['home', 'freezer', 'shopping', 'calendar', 'todo', 'devices'];
 
 export default function AppShell({ user, household, members, signOut }) {
   const householdId = household?.id;
@@ -221,6 +223,14 @@ export default function AppShell({ user, household, members, signOut }) {
     busyBlocksRange.start,
     busyBlocksRange.end,
   );
+
+  // ─── NAPRAVE (home devices — Mitsubishi AC via MELCloud Home, mocked for now) ───
+  const {
+    devices: homeDevices,
+    loading: homeDevicesLoading,
+    sendCommand: sendDeviceCommand,
+    refreshDevice,
+  } = useHomeDevices(householdId);
 
   // ─── SETTINGS ───
   const [showSettings, setShowSettings] = useState(false);
@@ -399,6 +409,15 @@ export default function AppShell({ user, household, members, signOut }) {
           deleteItem={dbDeleteTodoItem}
           toggleItem={dbToggleTodoItem}
           onOpenSettings={openSettings}
+          onGoHome={() => navigate('home')}
+        />
+      )}
+      {mode === 'devices' && (
+        <DevicesModule
+          devices={homeDevices}
+          loading={homeDevicesLoading}
+          sendCommand={sendDeviceCommand}
+          refreshDevice={refreshDevice}
           onGoHome={() => navigate('home')}
         />
       )}

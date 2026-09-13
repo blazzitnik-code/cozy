@@ -14,8 +14,8 @@ import {
   CalendarDays,
   ChevronLeft,
   House,
-  ListChecks,
   LoaderCircle,
+  Plug,
   Plus,
   ShoppingCart,
   Snowflake,
@@ -796,7 +796,7 @@ const NAV_TABS = [
   { id: 'freezer', Icon: Snowflake },
   { id: 'shopping', Icon: ShoppingCart },
   { id: 'calendar', Icon: CalendarDays },
-  { id: 'todo', Icon: ListChecks },
+  { id: 'devices', Icon: Plug },
 ];
 
 // Active-tab chip: gradient squircle + glass shine. Deliberate, scoped accent

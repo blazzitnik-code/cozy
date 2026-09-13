@@ -200,12 +200,28 @@ Deno.serve(async (req) => {
     return new Response('unauthorized', { status: 401 });
   }
 
-  const { data: sources, error } = await supabase.from('calendar_freebusy_sources').select('*');
+  // Optional { sourceId } body — lets a manual trigger target just one
+  // source (see trigger_freebusy_sync(p_source_id) in
+  // supabase/migrations/20260913160311_freebusy_sync_rpc_source_filter.sql),
+  // for bisecting which source is behind the CPU Time exceeded crash
+  // without having to guess from logs that don't survive a hard kill.
+  // Absent body / no sourceId = the normal "sync everything" cron path.
+  let sourceId: string | null = null;
+  try {
+    const body = await req.json();
+    sourceId = body?.sourceId ?? null;
+  } catch {
+    // no body, or not JSON — fine, means "sync everything"
+  }
+
+  let query = supabase.from('calendar_freebusy_sources').select('*');
+  if (sourceId) query = query.eq('id', sourceId);
+  const { data: sources, error } = await query;
   if (error) {
     console.error('failed to list freebusy sources', error);
     return new Response('internal error', { status: 500 });
   }
-  console.log(`sync-freebusy: syncing ${sources?.length ?? 0} source(s)`);
+  console.log(`sync-freebusy: syncing ${sources?.length ?? 0} source(s)${sourceId ? ` (filtered to ${sourceId})` : ''}`);
 
   // Respond 202 immediately (pg_net times out at 3 s for the trigger path;
   // this job also sets a generous 25 s timeout on the caller side) and

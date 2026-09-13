@@ -160,15 +160,15 @@ function DeviceCard({ device, sendCommand, refreshDevice }) {
           aria-checked={state.power}
           onClick={() => sendCommand(device.id, 'power', !state.power, { power: !state.power })}
           className={cx(
-            'relative h-6 w-10 cursor-pointer rounded-full border-none transition-colors',
+            'relative h-8 w-14 cursor-pointer rounded-full border-none transition-colors',
             state.power ? 'bg-stone-900 dark:bg-stone-100' : 'bg-stone-300 dark:bg-stone-700',
             PRESS_SM,
           )}
         >
           <span
             className={cx(
-              'absolute top-0.75 size-4.5 rounded-full bg-white shadow-sm transition-[left] dark:bg-stone-900',
-              state.power ? 'left-[calc(100%-20px)]' : 'left-0.75',
+              'absolute top-1 size-6 rounded-full bg-white shadow-sm transition-[left] dark:bg-stone-900',
+              state.power ? 'left-[calc(100%-28px)]' : 'left-1',
             )}
           />
         </button>

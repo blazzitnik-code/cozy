@@ -1,0 +1,42 @@
+-- ═══════════════════════════════════════════════════════════════
+-- One-time Shelly sync setup per environment — run MANUALLY, this is NOT
+-- a migration (the values differ between local and prod, and secrets are
+-- data, not schema). Same shape as setup-vaillant-vault.sql.
+--
+-- Without these two Vault secrets the cozy-shelly-devices-sync cron job
+-- silently no-ops (see the WHERE EXISTS guard in
+-- supabase/migrations/20260914080000_shelly_devices.sql).
+--
+-- The secret value of `shelly_fn_secret` must match the SHELLY_FN_SECRET
+-- env of the sync-shelly-devices edge function (supabase/functions/.env
+-- locally, `npx supabase secrets set` in prod).
+-- ═══════════════════════════════════════════════════════════════
+
+-- LOCAL (SQL editor on http://127.0.0.1:55323 or `psql`):
+select vault.create_secret(
+  'http://host.docker.internal:55321/functions/v1/sync-shelly-devices',
+  'shelly_fn_url'
+);
+
+-- PROD (SQL editor in the Supabase dashboard) — use this url instead:
+-- select vault.create_secret(
+--   'https://<project-ref>.supabase.co/functions/v1/sync-shelly-devices',
+--   'shelly_fn_url'
+-- );
+
+-- BOTH environments — generate a random shared secret (32+ chars), e.g.
+-- `openssl rand -hex 32`, and use the SAME value for SHELLY_FN_SECRET.
+-- Can reuse a different value than the other providers' fn secrets — no
+-- need to share it.
+select vault.create_secret('<random-32+-chars>', 'shelly_fn_secret');
+
+-- To change a value later: update via vault.update_secret(id, new_secret)
+-- (find the id with: select id, name from vault.secrets;)
+
+-- To sync immediately instead of waiting up to 10 min, call the function
+-- directly (replace url/secret with your values):
+-- select net.http_post(
+--   url := 'http://host.docker.internal:55321/functions/v1/sync-shelly-devices',
+--   headers := jsonb_build_object('x-sync-secret', '<your shelly_fn_secret>'),
+--   body := '{}'::jsonb
+-- );

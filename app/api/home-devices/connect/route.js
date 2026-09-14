@@ -54,7 +54,21 @@ export async function POST(request) {
   const providerName = body?.provider;
   const email = body?.email;
   const password = body?.password;
-  if (!householdId || !providerName || !email || !password || !PROVIDERS[providerName]) {
+  // Shelly has no email+password login (see providers/shelly/index.js's
+  // header comment) — the household pastes an already-generated auth_key
+  // + their account's server host, plus the fixed device roster, instead.
+  const isShelly = providerName === 'shelly';
+  const authKey = body?.authKey;
+  const shellyServerHost = body?.server;
+  const shellyDevices = body?.devices;
+  if (!householdId || !providerName || !PROVIDERS[providerName]) {
+    return Response.json({ error: 'bad_request' }, { status: 400 });
+  }
+  if (isShelly) {
+    if (!authKey || !shellyServerHost || !Array.isArray(shellyDevices) || !shellyDevices.length) {
+      return Response.json({ error: 'bad_request' }, { status: 400 });
+    }
+  } else if (!email || !password) {
     return Response.json({ error: 'bad_request' }, { status: 400 });
   }
   const { client: provider, server } = getProvider(providerName);
@@ -74,7 +88,9 @@ export async function POST(request) {
 
   let tokens;
   try {
-    tokens = await provider.login(email, password);
+    tokens = isShelly
+      ? await provider.connect(authKey, shellyServerHost, shellyDevices)
+      : await provider.login(email, password);
   } catch (err) {
     // Logged raw (not just the friendly code) — the friendly message shown
     // to the person is deliberately generic, but this is the only place the
@@ -97,7 +113,8 @@ export async function POST(request) {
         household_id: householdId,
         provider: providerName,
         status: 'connected',
-        account_email: email,
+        account_email: isShelly ? null : email,
+        config: isShelly ? tokens.config : null,
         connected_at: new Date().toISOString(),
         last_error: null,
         updated_at: new Date().toISOString(),
@@ -114,8 +131,8 @@ export async function POST(request) {
     {
       connection_id: connection.id,
       access_token: tokens.accessToken,
-      refresh_token: tokens.refreshToken,
-      token_expires_at: new Date(tokens.expiresAt).toISOString(),
+      refresh_token: tokens.refreshToken ?? null,
+      token_expires_at: tokens.expiresAt ? new Date(tokens.expiresAt).toISOString() : null,
       updated_at: new Date().toISOString(),
     },
     { onConflict: 'connection_id' },
@@ -129,7 +146,9 @@ export async function POST(request) {
   // connecting.
   let deviceSyncError = null;
   try {
-    const devices = await provider.getDevices(tokens.accessToken);
+    const devices = isShelly
+      ? await provider.getDevices(tokens.accessToken, tokens.config.devices)
+      : await provider.getDevices(tokens.accessToken);
     for (const d of devices) {
       const { error } = await admin
         .from('home_devices')

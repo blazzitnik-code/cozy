@@ -444,3 +444,8 @@ verify_jwt = false
 # MELCloud sync (or vice versa).
 [functions.sync-vaillant-devices]
 verify_jwt = false
+
+# sync-shelly-devices — same shape, separate again so a Shelly-side
+# incident can't take down either of the other two providers' sync.
+[functions.sync-shelly-devices]
+verify_jwt = false

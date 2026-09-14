@@ -20,7 +20,14 @@ import {
 
 // device_type → icon shown next to the device name. Falls back to a plug for
 // any future device type this module doesn't know about yet.
-const DEVICE_ICONS = { air_conditioner: '❄️', heating_zone: '🔥', domestic_hot_water: '🚿' };
+const DEVICE_ICONS = {
+  air_conditioner: '❄️',
+  heating_zone: '🔥',
+  domestic_hot_water: '🚿',
+  shelly_switch: '💡',
+  shelly_dimmer: '🔆',
+  shelly_cover: '🪟',
+};
 
 const MODE_META = {
   cool: { emoji: '❄️', key: 'modeCool' },
@@ -568,6 +575,195 @@ function VaillantDhwCard({ device, sendCommand, refreshDevice }) {
   );
 }
 
+// Shelly cards are deliberately much simpler than the AC/Vaillant ones —
+// a switch/dimmer/cover has no modes or schedules to show, just the one
+// control it actually has. All three share the same header (icon, name,
+// online badge, refresh) so only the body differs.
+function ShellyDeviceHeader({ device, onRefresh, refreshing }) {
+  const t = useTranslations('Devices');
+  const online = device.state?.online;
+  return (
+    <div className="mb-2.5 flex items-start justify-between gap-2">
+      <div className="min-w-0">
+        <div className="truncate text-sm font-bold text-stone-900 dark:text-stone-100">
+          {DEVICE_ICONS[device.device_type] || '🔌'} {device.name}
+        </div>
+        <div className="mt-0.5 truncate text-xs text-stone-400 dark:text-stone-500">Shelly</div>
+      </div>
+      <button
+        onClick={onRefresh}
+        className={cx(
+          'inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-full py-1.5 pr-2.5 pl-2 text-xs font-semibold',
+          online
+            ? 'bg-green-600/10 text-green-700 dark:bg-green-400/10 dark:text-green-400'
+            : 'bg-stone-500/10 text-stone-500 dark:bg-stone-400/10 dark:text-stone-400',
+          PRESS_SM,
+        )}
+      >
+        <span
+          className={cx(
+            'size-1.5 shrink-0 rounded-full',
+            online ? 'bg-green-600 dark:bg-green-400' : 'bg-stone-400 dark:bg-stone-500',
+          )}
+        />
+        {online ? t('connected') : t('shellyOffline')}
+        <RefreshCw className={cx('size-3 opacity-75', refreshing && 'animate-spin')} />
+      </button>
+    </div>
+  );
+}
+
+function ShellySwitchCard({ device, sendCommand, refreshDevice }) {
+  const t = useTranslations('Devices');
+  const [refreshing, setRefreshing] = useState(false);
+  const syncedLabel = useSyncedLabel(device.last_synced_at);
+  const { state } = device;
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await refreshDevice(device.id);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  return (
+    <Card className="p-4">
+      <ShellyDeviceHeader device={device} onRefresh={handleRefresh} refreshing={refreshing} />
+      <div className="mt-1 flex items-center justify-between">
+        <div className="text-[13px] font-semibold text-stone-900 dark:text-stone-100">{t('shellyPower')}</div>
+        <button
+          role="switch"
+          aria-checked={!!state.on}
+          onClick={() => sendCommand(device.id, 'power', !state.on, { on: !state.on })}
+          className={cx(
+            'relative h-8 w-14 cursor-pointer rounded-full border-none transition-colors',
+            state.on ? 'bg-stone-900 dark:bg-stone-100' : 'bg-stone-300 dark:bg-stone-700',
+            PRESS_SM,
+          )}
+        >
+          <span
+            className={cx(
+              'absolute top-1 size-6 rounded-full bg-white shadow-sm transition-[left] dark:bg-stone-900',
+              state.on ? 'left-[calc(100%-28px)]' : 'left-1',
+            )}
+          />
+        </button>
+      </div>
+      <div className="mt-3 text-center text-[10.5px] text-stone-400 dark:text-stone-500">{syncedLabel}</div>
+    </Card>
+  );
+}
+
+function ShellyDimmerCard({ device, sendCommand, refreshDevice }) {
+  const t = useTranslations('Devices');
+  const [refreshing, setRefreshing] = useState(false);
+  const syncedLabel = useSyncedLabel(device.last_synced_at);
+  const { state } = device;
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await refreshDevice(device.id);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  return (
+    <Card className="p-4">
+      <ShellyDeviceHeader device={device} onRefresh={handleRefresh} refreshing={refreshing} />
+      <div className="mt-1 flex items-center justify-between">
+        <div className="text-[13px] font-semibold text-stone-900 dark:text-stone-100">{t('shellyPower')}</div>
+        <button
+          role="switch"
+          aria-checked={!!state.on}
+          onClick={() => sendCommand(device.id, 'power', !state.on, { on: !state.on })}
+          className={cx(
+            'relative h-8 w-14 cursor-pointer rounded-full border-none transition-colors',
+            state.on ? 'bg-stone-900 dark:bg-stone-100' : 'bg-stone-300 dark:bg-stone-700',
+            PRESS_SM,
+          )}
+        >
+          <span
+            className={cx(
+              'absolute top-1 size-6 rounded-full bg-white shadow-sm transition-[left] dark:bg-stone-900',
+              state.on ? 'left-[calc(100%-28px)]' : 'left-1',
+            )}
+          />
+        </button>
+      </div>
+      <div className="mt-3.5">
+        <div className="mb-1.5 flex items-center justify-between text-[13px] font-semibold text-stone-900 dark:text-stone-100">
+          <span>{t('shellyBrightness')}</span>
+          <span className="text-stone-500 tabular-nums dark:text-stone-400">
+            {state.brightness != null ? `${state.brightness}%` : '—'}
+          </span>
+        </div>
+        <input
+          type="range"
+          min={1}
+          max={100}
+          value={state.brightness ?? 100}
+          disabled={!state.on}
+          onChange={(e) => {
+            const value = Number(e.target.value);
+            sendCommand(device.id, 'brightness', value, { brightness: value, on: true });
+          }}
+          className="w-full accent-stone-900 disabled:opacity-40 dark:accent-stone-100"
+        />
+      </div>
+      <div className="mt-3 text-center text-[10.5px] text-stone-400 dark:text-stone-500">{syncedLabel}</div>
+    </Card>
+  );
+}
+
+const COVER_ACTIONS = ['open', 'stop', 'close'];
+const COVER_ACTION_KEYS = { open: 'shellyCoverOpen', stop: 'shellyCoverStop', close: 'shellyCoverClose' };
+
+function ShellyCoverCard({ device, sendCommand, refreshDevice }) {
+  const t = useTranslations('Devices');
+  const [refreshing, setRefreshing] = useState(false);
+  const syncedLabel = useSyncedLabel(device.last_synced_at);
+  const { state } = device;
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await refreshDevice(device.id);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  return (
+    <Card className="p-4">
+      <ShellyDeviceHeader device={device} onRefresh={handleRefresh} refreshing={refreshing} />
+      <div className="my-2.5 text-center">
+        <div className="font-serif text-5xl font-medium text-stone-900 tabular-nums dark:text-stone-100">
+          {state.position != null ? `${state.position}%` : '—'}
+        </div>
+        {state.moving && (
+          <div className="mt-1 text-xs font-semibold text-stone-500 dark:text-stone-400">{t('shellyCoverMoving')}</div>
+        )}
+      </div>
+      <div className="mb-1 flex flex-wrap justify-center gap-1.5">
+        {COVER_ACTIONS.map((action) => (
+          <button
+            key={action}
+            onClick={() => sendCommand(device.id, 'cover_action', action, { moving: action !== 'stop' })}
+            className={cx('cursor-pointer rounded-full border px-3 py-1.5 text-xs font-semibold', CHIP_OFF, PRESS_SM)}
+          >
+            {t(COVER_ACTION_KEYS[action])}
+          </button>
+        ))}
+      </div>
+      <div className="mt-3 text-center text-[10.5px] text-stone-400 dark:text-stone-500">{syncedLabel}</div>
+    </Card>
+  );
+}
+
 function ComingSoonCard({ icon, title, subtitle }) {
   const t = useTranslations('Devices');
   return (
@@ -658,6 +854,36 @@ export default function DevicesModule({
               if (device.provider === 'vaillant' && device.device_type === 'domestic_hot_water') {
                 return (
                   <VaillantDhwCard
+                    key={device.id}
+                    device={device}
+                    sendCommand={sendCommand}
+                    refreshDevice={refreshDevice}
+                  />
+                );
+              }
+              if (device.provider === 'shelly' && device.device_type === 'shelly_switch') {
+                return (
+                  <ShellySwitchCard
+                    key={device.id}
+                    device={device}
+                    sendCommand={sendCommand}
+                    refreshDevice={refreshDevice}
+                  />
+                );
+              }
+              if (device.provider === 'shelly' && device.device_type === 'shelly_dimmer') {
+                return (
+                  <ShellyDimmerCard
+                    key={device.id}
+                    device={device}
+                    sendCommand={sendCommand}
+                    refreshDevice={refreshDevice}
+                  />
+                );
+              }
+              if (device.provider === 'shelly' && device.device_type === 'shelly_cover') {
+                return (
+                  <ShellyCoverCard
                     key={device.id}
                     device={device}
                     sendCommand={sendCommand}

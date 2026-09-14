@@ -251,6 +251,13 @@ export default function AppShell({ user, household, members, signOut }) {
     connect: connectVaillant,
     disconnect: disconnectVaillant,
   } = useProviderConnection(householdId, 'vaillant');
+  const {
+    connection: shellyConnection,
+    loading: shellyConnLoading,
+    busy: shellyBusy,
+    connect: connectShelly,
+    disconnect: disconnectShelly,
+  } = useProviderConnection(householdId, 'shelly');
 
   // ─── SETTINGS ───
   const [showSettings, setShowSettings] = useState(false);
@@ -357,6 +364,10 @@ export default function AppShell({ user, household, members, signOut }) {
           vaillantBusy={vaillantBusy}
           connectVaillant={connectVaillant}
           disconnectVaillant={disconnectVaillant}
+          shellyConnection={shellyConnection}
+          shellyBusy={shellyBusy}
+          connectShelly={connectShelly}
+          disconnectShelly={disconnectShelly}
           freebusySources={freebusySources}
           freebusySourcesLoading={freebusySourcesLoading}
           addFreebusySource={addFreebusySource}
@@ -448,8 +459,8 @@ export default function AppShell({ user, household, members, signOut }) {
           loading={homeDevicesLoading}
           sendCommand={sendDeviceCommand}
           refreshDevice={refreshDevice}
-          connections={[melcloudConnection, vaillantConnection]}
-          connectionsLoading={melcloudConnLoading || vaillantConnLoading}
+          connections={[melcloudConnection, vaillantConnection, shellyConnection]}
+          connectionsLoading={melcloudConnLoading || vaillantConnLoading || shellyConnLoading}
           onGoHome={() => navigate('home')}
           onOpenSettings={openSettings}
         />
@@ -528,7 +539,7 @@ function MelcloudConnectForm({ connection, busy, connect, disconnect, setConfirm
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
-    const result = await connect(email, password);
+    const result = await connect({ email, password });
     if (result.ok) {
       setEmail('');
       setPassword('');
@@ -638,7 +649,7 @@ function VaillantConnectForm({ connection, busy, connect, disconnect, setConfirm
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
-    const result = await connect(email, password);
+    const result = await connect({ email, password });
     if (result.ok) {
       setEmail('');
       setPassword('');
@@ -724,6 +735,147 @@ function VaillantConnectForm({ connection, busy, connect, disconnect, setConfirm
   );
 }
 
+// Household-level Shelly Cloud connect/disconnect form. Unlike MELCloud/
+// Vaillant, there's no interactive login (see providers/shelly/index.js's
+// header comment) — the household pastes an auth key + server they already
+// generated in the Shelly app, plus a one-line-per-device roster (Shelly
+// has no "list my devices" API, so this *is* how new devices get added).
+// Roster line format: "device id, display name, type" where type is one
+// of switch / dimmer / cover — matches the models B actually has (Shelly
+// 1/Plus 1 -> switch, Shelly Dimmer 2 -> dimmer, Shelly Plus 2PM -> cover).
+function ShellyConnectForm({ connection, busy, connect, disconnect, setConfirmAction, t, te }) {
+  const [authKey, setAuthKey] = useState('');
+  const [server, setServer] = useState('');
+  const [devicesText, setDevicesText] = useState('');
+  const [error, setError] = useState(null);
+
+  const ERROR_KEYS = {
+    invalid_credentials: 'shellyInvalidCredentials',
+    unknown: 'shellyConnectFailed',
+  };
+
+  const parseDevices = () => {
+    const lines = devicesText
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean);
+    const devices = [];
+    for (const line of lines) {
+      const [id, name, type] = line.split(',').map((part) => part.trim());
+      if (!id || !name || !['switch', 'dimmer', 'cover'].includes(type)) return null;
+      devices.push({ id, name, type });
+    }
+    return devices.length ? devices : null;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError(null);
+    const devices = parseDevices();
+    if (!devices) {
+      setError(te('shellyDevicesInvalid'));
+      return;
+    }
+    const result = await connect({ authKey, server, devices });
+    if (result.ok) {
+      setAuthKey('');
+      setServer('');
+      setDevicesText('');
+    } else {
+      const known = ERROR_KEYS[result.error];
+      const detail = !known && result.message ? ` (${result.message})` : '';
+      setError(te(known || 'shellyConnectFailed') + detail);
+    }
+  };
+
+  const isConnected = connection?.status === 'connected';
+  const needsReauth = connection?.status === 'error';
+  const deviceCount = connection?.config?.devices?.length || 0;
+
+  if (isConnected) {
+    return (
+      <div className="flex items-center gap-2.5 rounded-xl border border-green-600/20 bg-green-600/8 px-3.5 py-3 dark:border-green-500/20 dark:bg-green-500/10">
+        <div className="flex-1">
+          <div className="text-sm font-bold text-green-700 dark:text-green-400">{t('connected')}</div>
+          <div className="mt-0.5 text-xs text-stone-500 dark:text-stone-400">
+            {te('shellyDeviceCount', { count: deviceCount })}
+          </div>
+        </div>
+        <button
+          onClick={() =>
+            setConfirmAction({
+              message: t('shellyDisconnectConfirm'),
+              onConfirm: () => disconnect(),
+            })
+          }
+          className={cx(
+            'cursor-pointer rounded-full border-none bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-600 dark:text-red-400',
+            PRESS_SM,
+          )}
+        >
+          {t('disconnect')}
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-2.5">
+      {needsReauth && (
+        <div className="rounded-xl border border-amber-600/20 bg-amber-600/8 px-3.5 py-2.5 text-xs font-semibold text-amber-700 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-400">
+          {t('shellyNeedsReauth')}
+        </div>
+      )}
+      <div>
+        <Label>{t('shellyServerLabel')}</Label>
+        <Input
+          type="text"
+          size="xs"
+          value={server}
+          onChange={(e) => setServer(e.target.value)}
+          placeholder={t('shellyServerPlaceholder')}
+          required
+        />
+      </div>
+      <div>
+        <Label>{t('shellyAuthKeyLabel')}</Label>
+        <Input
+          type="password"
+          size="xs"
+          value={authKey}
+          onChange={(e) => setAuthKey(e.target.value)}
+          placeholder={t('shellyAuthKeyPlaceholder')}
+          required
+          autoComplete="off"
+        />
+      </div>
+      <div>
+        <Label>{t('shellyDevicesLabel')}</Label>
+        <textarea
+          value={devicesText}
+          onChange={(e) => setDevicesText(e.target.value)}
+          placeholder={t('shellyDevicesPlaceholder')}
+          required
+          rows={4}
+          className="w-full rounded-xl border border-stone-200 bg-white px-3 py-2 font-mono text-xs text-stone-900 outline-none dark:border-stone-700 dark:bg-stone-800 dark:text-stone-100"
+        />
+      </div>
+      {error && <div className="text-xs font-semibold text-red-600 dark:text-red-400">{error}</div>}
+      <p className="text-xs text-stone-400 dark:text-stone-500">{t('shellyHelp')}</p>
+      <button
+        type="submit"
+        disabled={busy}
+        className={cx(
+          'w-full cursor-pointer rounded-full border-none bg-stone-900 p-3.5 text-sm font-bold text-white disabled:opacity-50 dark:bg-stone-100 dark:text-stone-900',
+          PRESS,
+        )}
+      >
+        {busy ? t('shellyConnecting') : t('connectShelly')}
+      </button>
+    </form>
+  );
+}
+
 function SettingsBody({
   user,
   household,
@@ -743,6 +895,10 @@ function SettingsBody({
   vaillantBusy,
   connectVaillant,
   disconnectVaillant,
+  shellyConnection,
+  shellyBusy,
+  connectShelly,
+  disconnectShelly,
   freebusySources,
   freebusySourcesLoading,
   addFreebusySource,
@@ -1040,6 +1196,22 @@ function SettingsBody({
               busy={vaillantBusy}
               connect={connectVaillant}
               disconnect={disconnectVaillant}
+              setConfirmAction={setConfirmAction}
+              t={t}
+              te={te}
+            />
+          </div>
+
+          {/* Naprave / Shelly Cloud — same shape as MELCloud/Vaillant above,
+          but auth is a pasted key + fixed device roster rather than an
+          interactive login (see providers/shelly/index.js's header comment) */}
+          <div className="mb-5">
+            <div className="mb-2.5 text-sm font-bold text-stone-500 dark:text-stone-400">{t('shellySectionTitle')}</div>
+            <ShellyConnectForm
+              connection={shellyConnection}
+              busy={shellyBusy}
+              connect={connectShelly}
+              disconnect={disconnectShelly}
               setConfirmAction={setConfirmAction}
               t={t}
               te={te}

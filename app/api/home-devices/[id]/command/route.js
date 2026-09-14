@@ -81,9 +81,52 @@ async function applyVaillantCommand(provider, accessToken, device, type, value) 
   throw new Error(`unknown vaillant device_type: ${device.device_type}`);
 }
 
+// Shelly commands — split by device_type since a switch, dimmer, and
+// cover each take different parameters. device_type values are
+// 'shelly_switch' / 'shelly_dimmer' / 'shelly_cover' (see
+// providers/shelly/index.js's toSwitchDevice/toDimmerDevice/toCoverDevice).
+async function applyShellyCommand(provider, accessToken, device, type, value) {
+  if (device.device_type === 'shelly_switch') {
+    switch (type) {
+      case 'power':
+        return provider.setSwitch(accessToken, device.external_id, !!value);
+      case 'refresh':
+        return;
+      default:
+        throw new Error(`unknown shelly_switch command type: ${type}`);
+    }
+  }
+  if (device.device_type === 'shelly_dimmer') {
+    switch (type) {
+      case 'power':
+        return provider.setDimmer(accessToken, device.external_id, { on: !!value });
+      case 'brightness':
+        return provider.setDimmer(accessToken, device.external_id, { on: true, brightness: value });
+      case 'refresh':
+        return;
+      default:
+        throw new Error(`unknown shelly_dimmer command type: ${type}`);
+    }
+  }
+  if (device.device_type === 'shelly_cover') {
+    switch (type) {
+      case 'cover_action':
+        return provider.setCoverAction(accessToken, device.external_id, value);
+      case 'cover_position':
+        return provider.setCoverPosition(accessToken, device.external_id, value);
+      case 'refresh':
+        return;
+      default:
+        throw new Error(`unknown shelly_cover command type: ${type}`);
+    }
+  }
+  throw new Error(`unknown shelly device_type: ${device.device_type}`);
+}
+
 async function applyCommand(providerName, providerClient, accessToken, device, type, value) {
   if (providerName === 'melcloud_home') return applyMelcloudCommand(providerClient, accessToken, device, type, value);
   if (providerName === 'vaillant') return applyVaillantCommand(providerClient, accessToken, device, type, value);
+  if (providerName === 'shelly') return applyShellyCommand(providerClient, accessToken, device, type, value);
   throw new Error(`unknown provider: ${providerName}`);
 }
 
@@ -162,7 +205,13 @@ export async function POST(request, { params }) {
   // command call (most providers' control responses have nothing useful to
   // trust anyway).
   try {
-    const fresh = await providerClient.getDevice(accessToken, device.external_id);
+    // Shelly's getDevice() needs the device_type too (a bare externalId
+    // doesn't say whether to parse it as a switch/dimmer/cover status) —
+    // see providers/shelly/index.js's getDevice() doc comment.
+    const fresh =
+      providerName === 'shelly'
+        ? await providerClient.getDevice(accessToken, device.external_id, device.device_type)
+        : await providerClient.getDevice(accessToken, device.external_id);
     if (fresh) {
       await admin
         .from('home_devices')

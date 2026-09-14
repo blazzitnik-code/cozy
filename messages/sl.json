@@ -600,6 +600,16 @@
     "soonQuickActions": "Hitre akcije",
     "soonQuickActionsDesc": "\"Prihajam domov\", \"Grem spat\" …",
     "soonSolar": "Fotovoltaika",
-    "soonTag": "Kmalu"
+    "soonTag": "Kmalu",
+    "favoritesTitle": "Bližnjice",
+    "editFavorites": "Uredi",
+    "favoritesPickTitle": "Izberi bližnjice",
+    "favoritesPickHint": "Izberi do 3 naprave, ki naj se prikažejo kot bližnjice.",
+    "favoritesCount": "Izbranih {n}/3",
+    "roomsLabel": "Prostori",
+    "otherDevices": "Druge naprave",
+    "stateOn": "Vklopljeno",
+    "stateOff": "Izklopljeno",
+    "roomOnCount": "{on}/{total} prižgani"
   }
 }

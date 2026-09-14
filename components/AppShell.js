@@ -461,6 +461,7 @@ export default function AppShell({ user, household, members, signOut }) {
           refreshDevice={refreshDevice}
           connections={[melcloudConnection, vaillantConnection, shellyConnection]}
           connectionsLoading={melcloudConnLoading || vaillantConnLoading || shellyConnLoading}
+          householdId={householdId}
           onGoHome={() => navigate('home')}
           onOpenSettings={openSettings}
         />

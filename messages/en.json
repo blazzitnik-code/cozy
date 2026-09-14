@@ -600,6 +600,16 @@
     "soonQuickActions": "Quick actions",
     "soonQuickActionsDesc": "\"Coming home\", \"Going to bed\" …",
     "soonSolar": "Solar",
-    "soonTag": "Soon"
+    "soonTag": "Soon",
+    "favoritesTitle": "Shortcuts",
+    "editFavorites": "Edit",
+    "favoritesPickTitle": "Choose shortcuts",
+    "favoritesPickHint": "Choose up to 3 devices to show as shortcuts.",
+    "favoritesCount": "{n}/3 selected",
+    "roomsLabel": "Rooms",
+    "otherDevices": "Other devices",
+    "stateOn": "On",
+    "stateOff": "Off",
+    "roomOnCount": "{on}/{total} on"
   }
 }

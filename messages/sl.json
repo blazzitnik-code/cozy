@@ -313,6 +313,7 @@
     "stores": "Trgovine",
     "manageBtn": "Uredi trgovine",
     "deleteStoreConfirm": "Izbriši trgovino {name}?",
+    "deletePurchaseConfirm": "Izbriši nakup z dne {date} ({amount})?",
     "newStoreBtn": "+ Nova trgovina",
     "newStore": "Nova trgovina",
     "storePlaceholder": "npr. Hofer, Spar...",
@@ -363,7 +364,15 @@
   },
   "Calendar": {
     "title": "📅 Koledar",
-    "dow": ["Ne", "Po", "To", "Sr", "Če", "Pe", "So"],
+    "dow": [
+      "Ne",
+      "Po",
+      "To",
+      "Sr",
+      "Če",
+      "Pe",
+      "So"
+    ],
     "noTitle": "Brez naslova",
     "connectTitle": "Poveži Google Koledar",
     "connectHint": "Poveži v nastavitvah",

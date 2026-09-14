@@ -313,6 +313,7 @@
     "stores": "Stores",
     "manageBtn": "Manage stores",
     "deleteStoreConfirm": "Delete store {name}?",
+    "deletePurchaseConfirm": "Delete the purchase from {date} ({amount})?",
     "newStoreBtn": "+ New store",
     "newStore": "New store",
     "storePlaceholder": "e.g. Hofer, Spar...",
@@ -363,7 +364,15 @@
   },
   "Calendar": {
     "title": "📅 Calendar",
-    "dow": ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"],
+    "dow": [
+      "Su",
+      "Mo",
+      "Tu",
+      "We",
+      "Th",
+      "Fr",
+      "Sa"
+    ],
     "noTitle": "Untitled",
     "connectTitle": "Connect Google Calendar",
     "connectHint": "Connect in settings",

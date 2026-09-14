@@ -134,6 +134,7 @@ export default function AppShell({ user, household, members, signOut }) {
     loading: shopArchiveLoading,
     archiveChecked: dbShopArchiveChecked,
     updatePurchaseAmount: dbUpdatePurchaseAmount,
+    deletePurchase: dbDeletePurchase,
   } = useShoppingArchived(householdId);
   const { favourites: shopFavourites, toggleFavourite: dbShopToggleFav } = useShoppingFavourites(householdId);
   const {
@@ -477,6 +478,7 @@ export default function AppShell({ user, household, members, signOut }) {
           shopArchive={shopArchive}
           dbShopArchiveChecked={dbShopArchiveChecked}
           dbUpdatePurchaseAmount={dbUpdatePurchaseAmount}
+          dbDeletePurchase={dbDeletePurchase}
           shopFavourites={shopFavourites}
           dbShopToggleFav={dbShopToggleFav}
           shopStores={shopStores}

@@ -475,6 +475,7 @@ export default function ShoppingModule({
   shopArchive,
   dbShopArchiveChecked,
   dbUpdatePurchaseAmount,
+  dbDeletePurchase,
   shopFavourites,
   dbShopToggleFav,
   shopStores,
@@ -1137,12 +1138,32 @@ export default function ShoppingModule({
                     <h3 className="min-w-0 truncate text-sm font-bold text-stone-700 capitalize dark:text-stone-200">
                       {format.dateTime(d.date, 'fullDate')}
                     </h3>
-                    <div className="flex shrink-0 items-baseline gap-2">
+                    <div className="flex shrink-0 items-center gap-2">
                       {d.stores.length > 0 && (
                         <span className="text-xs text-stone-500 dark:text-stone-400">{d.stores.join(', ')}</span>
                       )}
                       {d.hasAmount && (
                         <span className="text-sm font-bold text-stone-900 dark:text-stone-100">{eur(d.amount)}</span>
+                      )}
+                      {dbDeletePurchase && (
+                        <button
+                          aria-label={ta('delete')}
+                          onClick={() =>
+                            setConfirmAction({
+                              message: t('deletePurchaseConfirm', {
+                                date: format.dateTime(d.date, 'fullDate'),
+                                amount: d.hasAmount ? eur(d.amount) : '—',
+                              }),
+                              onConfirm: () => dbDeletePurchase(d.items.map((it) => it.id)),
+                            })
+                          }
+                          className={cx(
+                            'flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-md border-none bg-transparent text-stone-400 dark:text-stone-500',
+                            PRESS_SM,
+                          )}
+                        >
+                          <Trash2 className="size-3.5" />
+                        </button>
                       )}
                     </div>
                   </div>
@@ -1234,6 +1255,8 @@ export default function ShoppingModule({
             </>
           )}
         </Modal>
+
+        <ConfirmModal action={confirmAction} onClose={() => setConfirmAction(null)} />
       </Screen>
     );
   }

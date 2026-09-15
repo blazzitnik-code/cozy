@@ -134,20 +134,30 @@ async function syncConnection(connection: { id: string; household_id: string }) 
   }
 
   let accessToken = secret.access_token as string;
+  let currentRefreshToken = secret.refresh_token as string;
+
+  // Shared so both the proactive (expiry-based) refresh below and the
+  // reactive (Netatmo said 401/403 despite our stored expiry) retry further
+  // down go through the same persist step — see its call sites.
+  async function refreshAndPersist() {
+    const refreshed = await refreshAccessToken(currentRefreshToken);
+    accessToken = refreshed.accessToken;
+    currentRefreshToken = refreshed.refreshToken;
+    await supabase
+      .from('provider_connection_secrets')
+      .update({
+        access_token: refreshed.accessToken,
+        refresh_token: refreshed.refreshToken,
+        token_expires_at: new Date(refreshed.expiresAt).toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('connection_id', connection.id);
+  }
+
   const expiresAt = new Date(secret.token_expires_at).getTime();
   if (!Number.isFinite(expiresAt) || expiresAt - Date.now() <= 60_000) {
     try {
-      const refreshed = await refreshAccessToken(secret.refresh_token);
-      accessToken = refreshed.accessToken;
-      await supabase
-        .from('provider_connection_secrets')
-        .update({
-          access_token: refreshed.accessToken,
-          refresh_token: refreshed.refreshToken,
-          token_expires_at: new Date(refreshed.expiresAt).toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .eq('connection_id', connection.id);
+      await refreshAndPersist();
     } catch (err) {
       console.error('refresh failed for connection', connection.id, err);
       await supabase
@@ -158,16 +168,46 @@ async function syncConnection(connection: { id: string; household_id: string }) 
     }
   }
 
+  // Real reconnect (status: 'error', which the app shows as "needs
+  // reconnect" and only clears via a fresh OAuth login) is reserved for
+  // genuine auth failures — a rejected refresh token, above, or Netatmo
+  // outright rejecting the access token below even right after a refresh.
+  // A transient getDevices() failure (rate limit, momentary 5xx, network
+  // blip) must NOT flip status to 'error': the stored tokens are still
+  // fine, and forcing the household through the OAuth flow for a hiccup
+  // that the next cron tick (10 min later) would likely clear on its own
+  // is exactly the "why do I keep having to reconnect?" complaint this
+  // fixes. We still record last_error for visibility, just without
+  // touching status.
   let devices;
   try {
     devices = await getDevices(accessToken);
   } catch (err) {
-    console.error('getDevices failed for connection', connection.id, err);
-    await supabase
-      .from('provider_connections')
-      .update({ status: 'error', last_error: String((err as Error)?.message || err), updated_at: new Date().toISOString() })
-      .eq('id', connection.id);
-    return;
+    if (err instanceof NetatmoAuthError) {
+      // Our stored expiry said this token was still good, but Netatmo
+      // disagreed (clock skew, or a token revoked/rotated out-of-band by a
+      // concurrent refresh) — refresh once and retry before giving up,
+      // same pattern as the command route's post-command TOKEN_EXPIRED
+      // handling (app/api/home-devices/[id]/command/route.js).
+      try {
+        await refreshAndPersist();
+        devices = await getDevices(accessToken);
+      } catch (retryErr) {
+        console.error('retry after TOKEN_EXPIRED failed for connection', connection.id, retryErr);
+        await supabase
+          .from('provider_connections')
+          .update({ status: 'error', last_error: 'refresh_rejected', updated_at: new Date().toISOString() })
+          .eq('id', connection.id);
+        return;
+      }
+    } else {
+      console.error('getDevices failed for connection (transient, not forcing reconnect)', connection.id, err);
+      await supabase
+        .from('provider_connections')
+        .update({ last_error: String((err as Error)?.message || err), updated_at: new Date().toISOString() })
+        .eq('id', connection.id);
+      return;
+    }
   }
 
   for (const d of devices) {

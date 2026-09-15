@@ -187,11 +187,6 @@
     "netatmoDisconnectConfirm": "Odklopi Netatmo?",
     "netatmoHelp": "Odpre Netatmov prijavni zaslon — geslo se ne vnaša tukaj in se ne shrani v Cožy.",
     "netatmoNeedsReauth": "Povezavo je treba obnoviti — poveži znova.",
-    "netatmoHumidity": "Vlaga",
-    "netatmoCo2": "CO2",
-    "netatmoNoise": "Hrup",
-    "netatmoPressure": "Tlak",
-    "netatmoBattery": "Baterija",
     "freebusyTitle": "🔒 Deli zasedenost",
     "syncNow": "Osveži",
     "freebusyDescription": "Partner bo videl samo kdaj si zaseden/a, ne kaj počneš.",
@@ -633,6 +628,15 @@
     "otherDevices": "Druge naprave",
     "stateOn": "Vklopljeno",
     "stateOff": "Izklopljeno",
-    "roomOnCount": "{on}/{total} prižgani"
+    "roomOnCount": "{on}/{total} prižgani",
+    "netatmoHumidity": "Vlaga",
+    "netatmoCo2": "CO2",
+    "netatmoNoise": "Hrup",
+    "netatmoPressure": "Tlak",
+    "netatmoBattery": "Baterija",
+    "weatherStationsLabel": "Vremenske postaje",
+    "netatmoIndoorLabel": "Notranja enota",
+    "netatmoOutdoorLabel": "Zunanja enota",
+    "netatmoLocationSummary": "{indoor}° · zunaj {outdoor}°"
   }
 }

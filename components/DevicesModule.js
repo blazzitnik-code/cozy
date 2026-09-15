@@ -47,6 +47,16 @@ const ROOM_ICONS = {
   Terasa: '⛱️', // outdoor deck/balcony at the house
 };
 
+// Netatmo Weather Station pairs are grouped by physical location (backfilled
+// onto home_devices.room, same mechanism as the Shelly room backfill — see
+// supabase/migrations/20260915110000_netatmo_room_backfill.sql), not by
+// device_type — B has 2 stations (indoor+outdoor module each) at 2 real
+// locations. Any location name not listed here still renders with 🌡️.
+const NETATMO_LOCATION_ICONS = {
+  Orlova: '🏠',
+  Golte: '🏔️',
+};
+
 const MODE_META = {
   cool: { emoji: '❄️', key: 'modeCool' },
   heat: { emoji: '🔥', key: 'modeHeat' },
@@ -616,43 +626,67 @@ function VaillantDhwCard({ device, open, onToggle, sendCommand, refreshDevice })
 // Two device_types share this one component (netatmo_indoor has more
 // fields than netatmo_outdoor) rather than splitting into two components,
 // since the only difference is which stat rows apply.
-function NetatmoStatRow({ label, value }) {
+function NetatmoStatRow({ label, value, warn }) {
   if (value == null) return null;
   return (
     <div className="flex items-center justify-between border-b border-stone-100 py-2 text-sm last:border-0 dark:border-white/5">
       <span className="text-stone-500 dark:text-stone-400">{label}</span>
-      <span className="font-semibold text-stone-900 dark:text-stone-100">{value}</span>
+      <span className={cx('font-semibold', warn ? 'text-amber-600 dark:text-amber-400' : 'text-stone-900 dark:text-stone-100')}>
+        {warn ? `${value} ⚠️` : value}
+      </span>
     </div>
   );
 }
 
-function NetatmoStationCard({ device, open, onToggle, refreshDevice }) {
+// One location = one card, showing its indoor module (temperature front and
+// center, plus CO2/noise/pressure) and its outdoor module (temperature plus
+// battery) stacked inside a single accordion — B asked for the 4 raw
+// Netatmo devices to read as 2 real places, not 4 flat sensor cards, and to
+// sit under Prostori rather than above Klima (see the "Vremenske postaje"
+// mock at claude.ai/artifact/EeYUgnwzQ5Y7WZMhxkQ9rj). One Refresh pill for
+// the pair — refreshDevice is called for both device ids at once — since
+// there's no real reason to refresh only one module of the same station.
+function NetatmoLocationCard({ location, group, open, onToggle, refreshDevice }) {
   const t = useTranslations('Devices');
   const [refreshing, setRefreshing] = useState(false);
-  const syncedLabel = useSyncedLabel(device.last_synced_at);
-  const { state } = device;
-  const isIndoor = device.device_type === 'netatmo_indoor';
+  const indoor = group.find((d) => d.device_type === 'netatmo_indoor');
+  const outdoor = group.find((d) => d.device_type === 'netatmo_outdoor');
+  const latestSync = [indoor, outdoor]
+    .filter(Boolean)
+    .map((d) => d.last_synced_at)
+    .sort()
+    .pop();
+  const syncedLabel = useSyncedLabel(latestSync);
+  const online = [indoor, outdoor].filter(Boolean).every((d) => d.state.online);
 
   const handleRefresh = async (e) => {
     e.stopPropagation();
     setRefreshing(true);
     try {
-      await refreshDevice(device.id);
+      await Promise.all([indoor, outdoor].filter(Boolean).map((d) => refreshDevice(d.id)));
     } finally {
       setRefreshing(false);
     }
   };
 
-  const temp = state.temperature != null ? `${state.temperature}°` : '—';
-  const summary = isIndoor
-    ? [temp, state.co2 != null ? `${state.co2} ppm CO2` : null].filter(Boolean).join(' · ')
-    : [temp, state.humidity != null ? `${state.humidity}%` : null].filter(Boolean).join(' · ');
+  const indoorTemp = indoor?.state?.temperature;
+  const outdoorTemp = outdoor?.state?.temperature;
+  const summary =
+    indoorTemp != null && outdoorTemp != null
+      ? t('netatmoLocationSummary', { indoor: indoorTemp, outdoor: outdoorTemp })
+      : indoorTemp != null
+        ? `${indoorTemp}°`
+        : outdoorTemp != null
+          ? `${outdoorTemp}°`
+          : null;
+
+  const lowBattery = outdoor?.state?.batteryPercent != null && outdoor.state.batteryPercent <= 25;
 
   return (
     <AccordionCard
-      anchorId={`device-${device.id}`}
-      icon={DEVICE_ICONS[device.device_type]}
-      title={device.name}
+      anchorId={`netatmo-${location}`}
+      icon={NETATMO_LOCATION_ICONS[location] || '🌡️'}
+      title={location}
       summary={summary}
       open={open}
       onToggle={onToggle}
@@ -663,32 +697,58 @@ function NetatmoStationCard({ device, open, onToggle, refreshDevice }) {
           className={cx(
             'inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-full py-1.5 pr-2.5 pl-2 text-xs font-semibold',
             PRESS_SM,
-            state.online
+            online
               ? 'bg-green-600/10 text-green-700 dark:bg-green-400/10 dark:text-green-400'
               : 'bg-stone-200 text-stone-500 dark:bg-stone-800 dark:text-stone-400',
           )}
         >
-          <span
-            className={cx('size-1.5 shrink-0 rounded-full', state.online ? 'bg-green-600 dark:bg-green-400' : 'bg-stone-400')}
-          />
-          {state.online ? t('connected') : t('offline')}
+          <span className={cx('size-1.5 shrink-0 rounded-full', online ? 'bg-green-600 dark:bg-green-400' : 'bg-stone-400')} />
+          {online ? t('connected') : t('offline')}
           <RefreshCw className={cx('size-3 opacity-75', refreshing && 'animate-spin')} />
         </button>
       </div>
 
-      <div className="my-1 text-center">
-        <div className="font-serif text-5xl font-medium text-stone-900 tabular-nums dark:text-stone-100">{temp}</div>
-      </div>
+      {indoor && (
+        <div>
+          <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold tracking-wide text-stone-400 uppercase dark:text-stone-500">
+            <span>{DEVICE_ICONS.netatmo_indoor}</span> {t('netatmoIndoorLabel')}
+          </div>
+          <div className="my-1 text-center">
+            <div className="font-serif text-4xl font-medium text-stone-900 tabular-nums dark:text-stone-100">
+              {indoor.state.temperature != null ? `${indoor.state.temperature}°` : '—'}
+            </div>
+          </div>
+          <div className="mt-1.5">
+            <NetatmoStatRow label={t('netatmoHumidity')} value={indoor.state.humidity != null ? `${indoor.state.humidity}%` : null} />
+            <NetatmoStatRow label={t('netatmoCo2')} value={indoor.state.co2 != null ? `${indoor.state.co2} ppm` : null} />
+            <NetatmoStatRow label={t('netatmoNoise')} value={indoor.state.noise != null ? `${indoor.state.noise} dB` : null} />
+            <NetatmoStatRow label={t('netatmoPressure')} value={indoor.state.pressure != null ? `${indoor.state.pressure} mbar` : null} />
+          </div>
+        </div>
+      )}
 
-      <div className="mt-2.5">
-        <NetatmoStatRow label={t('netatmoHumidity')} value={state.humidity != null ? `${state.humidity}%` : null} />
-        {isIndoor && <NetatmoStatRow label={t('netatmoCo2')} value={state.co2 != null ? `${state.co2} ppm` : null} />}
-        {isIndoor && <NetatmoStatRow label={t('netatmoNoise')} value={state.noise != null ? `${state.noise} dB` : null} />}
-        {isIndoor && <NetatmoStatRow label={t('netatmoPressure')} value={state.pressure != null ? `${state.pressure} mbar` : null} />}
-        {!isIndoor && (
-          <NetatmoStatRow label={t('netatmoBattery')} value={state.batteryPercent != null ? `${state.batteryPercent}%` : null} />
-        )}
-      </div>
+      {indoor && outdoor && <div className="my-3.5 h-px bg-stone-100 dark:bg-white/5" />}
+
+      {outdoor && (
+        <div>
+          <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold tracking-wide text-stone-400 uppercase dark:text-stone-500">
+            <span>{DEVICE_ICONS.netatmo_outdoor}</span> {t('netatmoOutdoorLabel')}
+          </div>
+          <div className="my-1 text-center">
+            <div className="font-serif text-4xl font-medium text-stone-900 tabular-nums dark:text-stone-100">
+              {outdoor.state.temperature != null ? `${outdoor.state.temperature}°` : '—'}
+            </div>
+          </div>
+          <div className="mt-1.5">
+            <NetatmoStatRow label={t('netatmoHumidity')} value={outdoor.state.humidity != null ? `${outdoor.state.humidity}%` : null} />
+            <NetatmoStatRow
+              label={t('netatmoBattery')}
+              value={outdoor.state.batteryPercent != null ? `${outdoor.state.batteryPercent}%` : null}
+              warn={lowBattery}
+            />
+          </div>
+        </div>
+      )}
 
       <div className="mt-3 text-center text-[10.5px] text-stone-400 dark:text-stone-500">{syncedLabel}</div>
     </AccordionCard>
@@ -907,6 +967,7 @@ export default function DevicesModule({
   const [favCoverTarget, setFavCoverTarget] = useState(null);
   const [openTop, setOpenTop] = useState({}); // deviceId -> bool (klima/vaillant accordions)
   const [openRooms, setOpenRooms] = useState({}); // room key -> bool
+  const [openNetatmo, setOpenNetatmo] = useState({}); // location name -> bool
 
   const showReauthBanner = !connectionsLoading && (connections || []).some((c) => c?.status === 'error');
   const notConnected = !connectionsLoading && (connections || []).every((c) => !c);
@@ -944,8 +1005,9 @@ export default function DevicesModule({
 
   const favCoverDevice = favCoverTarget ? devices.find((d) => d.id === favCoverTarget) : null;
 
-  const nonShellyDevices = devices.filter((d) => d.provider !== 'shelly');
+  const nonShellyDevices = devices.filter((d) => d.provider !== 'shelly' && d.provider !== 'netatmo');
   const shellyDevices = devices.filter((d) => d.provider === 'shelly');
+  const netatmoDevices = devices.filter((d) => d.provider === 'netatmo');
 
   const roomGroups = useMemo(() => {
     const map = new Map();
@@ -956,6 +1018,20 @@ export default function DevicesModule({
     }
     return Array.from(map.entries());
   }, [shellyDevices]);
+
+  // Grouped by home_devices.room (backfilled per-location, see
+  // supabase/migrations/20260915110000_netatmo_room_backfill.sql) rather
+  // than by device_type — 2 stations (indoor + outdoor module each) at 2
+  // real places, shown as 2 cards, not 4.
+  const netatmoGroups = useMemo(() => {
+    const map = new Map();
+    for (const d of netatmoDevices) {
+      const key = d.room || '__other__';
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(d);
+    }
+    return Array.from(map.entries());
+  }, [netatmoDevices]);
 
   // Covers/žaluzije don't have a meaningful "on" state (100% closed isn't
   // "on") and don't consume standby energy the way lights do, so they're
@@ -1071,11 +1147,6 @@ export default function DevicesModule({
                     <VaillantDhwCard key={device.id} device={device} open={open} onToggle={onToggle} sendCommand={sendCommand} refreshDevice={refreshDevice} />
                   );
                 }
-                if (device.provider === 'netatmo') {
-                  return (
-                    <NetatmoStationCard key={device.id} device={device} open={open} onToggle={onToggle} refreshDevice={refreshDevice} />
-                  );
-                }
                 return (
                   <DeviceCard key={device.id} device={device} open={open} onToggle={onToggle} sendCommand={sendCommand} refreshDevice={refreshDevice} />
                 );
@@ -1109,6 +1180,26 @@ export default function DevicesModule({
                       </AccordionCard>
                     );
                   })}
+                </div>
+              </>
+            )}
+
+            {netatmoGroups.length > 0 && (
+              <>
+                <div className="mt-6 mb-2.5">
+                  <SectionHeader className="mb-0">{t('weatherStationsLabel')}</SectionHeader>
+                </div>
+                <div className="space-y-3">
+                  {netatmoGroups.map(([location, group]) => (
+                    <NetatmoLocationCard
+                      key={location}
+                      location={location}
+                      group={group}
+                      open={!!openNetatmo[location]}
+                      onToggle={() => setOpenNetatmo((prev) => ({ ...prev, [location]: !prev[location] }))}
+                      refreshDevice={refreshDevice}
+                    />
+                  ))}
                 </div>
               </>
             )}

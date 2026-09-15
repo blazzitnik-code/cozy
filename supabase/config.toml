@@ -449,3 +449,8 @@ verify_jwt = false
 # incident can't take down either of the other two providers' sync.
 [functions.sync-shelly-devices]
 verify_jwt = false
+
+# sync-netatmo-devices — same shape, separate again so a Netatmo-side
+# incident can't take down any of the other providers' sync.
+[functions.sync-netatmo-devices]
+verify_jwt = false

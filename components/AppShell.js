@@ -259,6 +259,55 @@ export default function AppShell({ user, household, members, signOut }) {
     connect: connectShelly,
     disconnect: disconnectShelly,
   } = useProviderConnection(householdId, 'shelly');
+  const {
+    connection: netatmoConnection,
+    loading: netatmoConnLoading,
+    busy: netatmoBusy,
+    disconnect: disconnectNetatmo,
+  } = useProviderConnection(householdId, 'netatmo');
+
+  // Netatmo has no email/password or pasted-key form (see providers/netatmo/
+  // index.js's header comment) — it's a real OAuth2 redirect through
+  // Netatmo's own login+consent page, so "connect" means leaving the app
+  // entirely rather than submitting a form in place. netatmo-authorize just
+  // proves household membership and hands back the URL to redirect to; the
+  // household id survives the round trip via netatmo-callback's signed
+  // `state` (see lib/netatmo-server.js), not a Bearer header.
+  const startNetatmoConnect = useCallback(async () => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (!session) return { ok: false, error: 'unauthorized' };
+    try {
+      const res = await fetch('/api/home-devices/netatmo-authorize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ householdId }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok || !body?.url) return { ok: false, error: body?.error || 'unknown' };
+      window.location.href = body.url;
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: 'unknown', message: String(err?.message || err) };
+    }
+  }, [householdId]);
+
+  // Netatmo's callback route (a plain server redirect, not a fetch our own
+  // code controls) reports success/failure via ?netatmo=connected|error on
+  // the way back in — surface the error case as a toast (the success case
+  // needs no announcement, the new device cards just appear via realtime)
+  // and strip the query string either way so a refresh doesn't re-trigger it.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has('netatmo')) return;
+    if (params.get('netatmo') === 'error') notifyError('Errors.netatmoConnectFailed');
+    params.delete('netatmo');
+    params.delete('reason');
+    const query = params.toString();
+    history.replaceState(null, '', window.location.pathname + (query ? `?${query}` : '') + window.location.hash);
+  }, []);
 
   // ─── SETTINGS ───
   const [showSettings, setShowSettings] = useState(false);
@@ -369,6 +418,10 @@ export default function AppShell({ user, household, members, signOut }) {
           shellyBusy={shellyBusy}
           connectShelly={connectShelly}
           disconnectShelly={disconnectShelly}
+          netatmoConnection={netatmoConnection}
+          netatmoBusy={netatmoBusy}
+          startNetatmoConnect={startNetatmoConnect}
+          disconnectNetatmo={disconnectNetatmo}
           freebusySources={freebusySources}
           freebusySourcesLoading={freebusySourcesLoading}
           addFreebusySource={addFreebusySource}
@@ -460,8 +513,8 @@ export default function AppShell({ user, household, members, signOut }) {
           loading={homeDevicesLoading}
           sendCommand={sendDeviceCommand}
           refreshDevice={refreshDevice}
-          connections={[melcloudConnection, vaillantConnection, shellyConnection]}
-          connectionsLoading={melcloudConnLoading || vaillantConnLoading || shellyConnLoading}
+          connections={[melcloudConnection, vaillantConnection, shellyConnection, netatmoConnection]}
+          connectionsLoading={melcloudConnLoading || vaillantConnLoading || shellyConnLoading || netatmoConnLoading}
           householdId={householdId}
           onGoHome={() => navigate('home')}
           onOpenSettings={openSettings}
@@ -879,6 +932,84 @@ function ShellyConnectForm({ connection, busy, connect, disconnect, setConfirmAc
   );
 }
 
+// Household-level Netatmo Weather Station connect/disconnect. Real third-
+// party OAuth2 (see providers/netatmo/index.js's header comment) — there's
+// no form to fill in here, "connect" just leaves the app for Netatmo's own
+// login+consent page (startNetatmoConnect, from AppShell) and comes back
+// through /api/home-devices/netatmo-callback.
+function NetatmoConnectForm({ connection, busy, startConnect, disconnect, setConfirmAction, t, te }) {
+  const [error, setError] = useState(null);
+  // Own busy flag rather than the hook's `busy` (which only tracks
+  // connect()/disconnect() calls it makes itself — startConnect lives
+  // outside the hook since it ends in a full-page navigation, not a
+  // fetch the hook completes).
+  const [connecting, setConnecting] = useState(false);
+
+  const handleConnect = async () => {
+    setError(null);
+    setConnecting(true);
+    const result = await startConnect();
+    // On success the browser is already navigating away to Netatmo — no
+    // further UI update needed here. On failure (not a member, network
+    // error, ...) it never left this page, so show something.
+    if (!result.ok) {
+      setConnecting(false);
+      const detail = result.message ? ` (${result.message})` : '';
+      setError(te('netatmoConnectFailed') + detail);
+    }
+  };
+
+  const isConnected = connection?.status === 'connected';
+  const needsReauth = connection?.status === 'error';
+
+  if (isConnected) {
+    return (
+      <div className="flex items-center gap-2.5 rounded-xl border border-green-600/20 bg-green-600/8 px-3.5 py-3 dark:border-green-500/20 dark:bg-green-500/10">
+        <div className="flex-1">
+          <div className="text-sm font-bold text-green-700 dark:text-green-400">{t('connected')}</div>
+        </div>
+        <button
+          onClick={() =>
+            setConfirmAction({
+              message: t('netatmoDisconnectConfirm'),
+              onConfirm: () => disconnect(),
+            })
+          }
+          className={cx(
+            'cursor-pointer rounded-full border-none bg-red-500/10 px-3 py-1.5 text-xs font-semibold text-red-600 dark:text-red-400',
+            PRESS_SM,
+          )}
+        >
+          {t('disconnect')}
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2.5">
+      {needsReauth && (
+        <div className="rounded-xl border border-amber-600/20 bg-amber-600/8 px-3.5 py-2.5 text-xs font-semibold text-amber-700 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-400">
+          {t('netatmoNeedsReauth')}
+        </div>
+      )}
+      {error && <div className="text-xs font-semibold text-red-600 dark:text-red-400">{error}</div>}
+      <p className="text-xs text-stone-400 dark:text-stone-500">{t('netatmoHelp')}</p>
+      <button
+        type="button"
+        onClick={handleConnect}
+        disabled={connecting || busy}
+        className={cx(
+          'w-full cursor-pointer rounded-full border-none bg-stone-900 p-3.5 text-sm font-bold text-white disabled:opacity-50 dark:bg-stone-100 dark:text-stone-900',
+          PRESS,
+        )}
+      >
+        {connecting ? t('netatmoConnecting') : t('connectNetatmo')}
+      </button>
+    </div>
+  );
+}
+
 function SettingsBody({
   user,
   household,
@@ -902,6 +1033,10 @@ function SettingsBody({
   shellyBusy,
   connectShelly,
   disconnectShelly,
+  netatmoConnection,
+  netatmoBusy,
+  startNetatmoConnect,
+  disconnectNetatmo,
   freebusySources,
   freebusySourcesLoading,
   addFreebusySource,
@@ -1215,6 +1350,22 @@ function SettingsBody({
               busy={shellyBusy}
               connect={connectShelly}
               disconnect={disconnectShelly}
+              setConfirmAction={setConfirmAction}
+              t={t}
+              te={te}
+            />
+          </div>
+
+          {/* Naprave / Netatmo Weather Station — read-only sensor provider,
+          real OAuth2 redirect through Netatmo's own login (see
+          providers/netatmo/index.js's header comment) rather than a form */}
+          <div className="mb-5">
+            <div className="mb-2.5 text-sm font-bold text-stone-500 dark:text-stone-400">{t('netatmoSectionTitle')}</div>
+            <NetatmoConnectForm
+              connection={netatmoConnection}
+              busy={netatmoBusy}
+              startConnect={startNetatmoConnect}
+              disconnect={disconnectNetatmo}
               setConfirmAction={setConfirmAction}
               t={t}
               te={te}

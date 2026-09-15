@@ -33,6 +33,8 @@ const DEVICE_ICONS = {
   shelly_switch: '💡',
   shelly_dimmer: '🔆',
   shelly_cover: '🪟',
+  netatmo_indoor: '🌡️',
+  netatmo_outdoor: '🌤️',
 };
 
 // Known rooms get a nicer icon than the generic fallback — purely cosmetic,
@@ -608,6 +610,91 @@ function VaillantDhwCard({ device, open, onToggle, sendCommand, refreshDevice })
   );
 }
 
+// Netatmo Weather Station card — read-only sensors, no control of any
+// kind (unlike every other card here), so this is just AccordionCard +
+// a Refresh pill + a small stat grid, no adjust buttons/toggles/sliders.
+// Two device_types share this one component (netatmo_indoor has more
+// fields than netatmo_outdoor) rather than splitting into two components,
+// since the only difference is which stat rows apply.
+function NetatmoStatRow({ label, value }) {
+  if (value == null) return null;
+  return (
+    <div className="flex items-center justify-between border-b border-stone-100 py-2 text-sm last:border-0 dark:border-white/5">
+      <span className="text-stone-500 dark:text-stone-400">{label}</span>
+      <span className="font-semibold text-stone-900 dark:text-stone-100">{value}</span>
+    </div>
+  );
+}
+
+function NetatmoStationCard({ device, open, onToggle, refreshDevice }) {
+  const t = useTranslations('Devices');
+  const [refreshing, setRefreshing] = useState(false);
+  const syncedLabel = useSyncedLabel(device.last_synced_at);
+  const { state } = device;
+  const isIndoor = device.device_type === 'netatmo_indoor';
+
+  const handleRefresh = async (e) => {
+    e.stopPropagation();
+    setRefreshing(true);
+    try {
+      await refreshDevice(device.id);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const temp = state.temperature != null ? `${state.temperature}°` : '—';
+  const summary = isIndoor
+    ? [temp, state.co2 != null ? `${state.co2} ppm CO2` : null].filter(Boolean).join(' · ')
+    : [temp, state.humidity != null ? `${state.humidity}%` : null].filter(Boolean).join(' · ');
+
+  return (
+    <AccordionCard
+      anchorId={`device-${device.id}`}
+      icon={DEVICE_ICONS[device.device_type]}
+      title={device.name}
+      summary={summary}
+      open={open}
+      onToggle={onToggle}
+    >
+      <div className="mb-2.5 flex items-center justify-end">
+        <button
+          onClick={handleRefresh}
+          className={cx(
+            'inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-full py-1.5 pr-2.5 pl-2 text-xs font-semibold',
+            PRESS_SM,
+            state.online
+              ? 'bg-green-600/10 text-green-700 dark:bg-green-400/10 dark:text-green-400'
+              : 'bg-stone-200 text-stone-500 dark:bg-stone-800 dark:text-stone-400',
+          )}
+        >
+          <span
+            className={cx('size-1.5 shrink-0 rounded-full', state.online ? 'bg-green-600 dark:bg-green-400' : 'bg-stone-400')}
+          />
+          {state.online ? t('connected') : t('offline')}
+          <RefreshCw className={cx('size-3 opacity-75', refreshing && 'animate-spin')} />
+        </button>
+      </div>
+
+      <div className="my-1 text-center">
+        <div className="font-serif text-5xl font-medium text-stone-900 tabular-nums dark:text-stone-100">{temp}</div>
+      </div>
+
+      <div className="mt-2.5">
+        <NetatmoStatRow label={t('netatmoHumidity')} value={state.humidity != null ? `${state.humidity}%` : null} />
+        {isIndoor && <NetatmoStatRow label={t('netatmoCo2')} value={state.co2 != null ? `${state.co2} ppm` : null} />}
+        {isIndoor && <NetatmoStatRow label={t('netatmoNoise')} value={state.noise != null ? `${state.noise} dB` : null} />}
+        {isIndoor && <NetatmoStatRow label={t('netatmoPressure')} value={state.pressure != null ? `${state.pressure} mbar` : null} />}
+        {!isIndoor && (
+          <NetatmoStatRow label={t('netatmoBattery')} value={state.batteryPercent != null ? `${state.batteryPercent}%` : null} />
+        )}
+      </div>
+
+      <div className="mt-3 text-center text-[10.5px] text-stone-400 dark:text-stone-500">{syncedLabel}</div>
+    </AccordionCard>
+  );
+}
+
 // One row inside a room's accordion — no card/header of its own (the room
 // AccordionCard supplies that), just the SliderButton (+ Odpri/Stop/Zapri
 // for a cover) matching the given device's control shape.
@@ -982,6 +1069,11 @@ export default function DevicesModule({
                 if (device.provider === 'vaillant' && device.device_type === 'domestic_hot_water') {
                   return (
                     <VaillantDhwCard key={device.id} device={device} open={open} onToggle={onToggle} sendCommand={sendCommand} refreshDevice={refreshDevice} />
+                  );
+                }
+                if (device.provider === 'netatmo') {
+                  return (
+                    <NetatmoStationCard key={device.id} device={device} open={open} onToggle={onToggle} refreshDevice={refreshDevice} />
                   );
                 }
                 return (

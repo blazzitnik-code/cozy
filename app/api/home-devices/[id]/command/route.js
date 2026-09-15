@@ -123,10 +123,21 @@ async function applyShellyCommand(provider, accessToken, device, type, value) {
   throw new Error(`unknown shelly device_type: ${device.device_type}`);
 }
 
+// Netatmo commands — read-only sensors, no control at all. 'refresh' is
+// the only command the UI ever sends (its Refresh pill, same as every
+// other provider's card), and the actual re-fetch happens generically
+// below via providerClient.getDevice(), same as the no-op 'refresh' cases
+// in every other provider's switch above.
+async function applyNetatmoCommand(provider, accessToken, device, type) {
+  if (type === 'refresh') return;
+  throw new Error(`unknown netatmo command type: ${type}`);
+}
+
 async function applyCommand(providerName, providerClient, accessToken, device, type, value) {
   if (providerName === 'melcloud_home') return applyMelcloudCommand(providerClient, accessToken, device, type, value);
   if (providerName === 'vaillant') return applyVaillantCommand(providerClient, accessToken, device, type, value);
   if (providerName === 'shelly') return applyShellyCommand(providerClient, accessToken, device, type, value);
+  if (providerName === 'netatmo') return applyNetatmoCommand(providerClient, accessToken, device, type, value);
   throw new Error(`unknown provider: ${providerName}`);
 }
 

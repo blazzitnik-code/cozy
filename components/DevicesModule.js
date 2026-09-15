@@ -41,8 +41,8 @@ const DEVICE_ICONS = {
 const ROOM_ICONS = {
   Spalnica: '🛏️',
   'Dnevna soba': '🛋️',
-  Galerija: '🖼️',
-  Terasa: '🌿',
+  Galerija: '🪜', // gallery/mezzanine — the two-level part of the house
+  Terasa: '⛱️', // outdoor deck/balcony at the house
 };
 
 const MODE_META = {

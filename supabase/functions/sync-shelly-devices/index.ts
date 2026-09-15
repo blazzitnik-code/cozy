@@ -77,7 +77,6 @@ function toDevice(cfg: any, deviceStatus: any, online: boolean) {
       type: 'shelly_cover',
       externalId: cfg.id,
       name: cfg.name,
-      room: null,
       state: {
         online,
         moving: comp?.state === 'opening' || comp?.state === 'closing',
@@ -93,7 +92,6 @@ function toDevice(cfg: any, deviceStatus: any, online: boolean) {
       type: 'shelly_dimmer',
       externalId: cfg.id,
       name: cfg.name,
-      room: null,
       state: {
         online,
         on: comp?.output ?? comp?.ison ?? null,
@@ -108,7 +106,6 @@ function toDevice(cfg: any, deviceStatus: any, online: boolean) {
     type: 'shelly_switch',
     externalId: cfg.id,
     name: cfg.name,
-    room: null,
     state: { online, on: comp?.output ?? comp?.ison ?? null, error: null },
     capabilities: {},
   };
@@ -126,8 +123,7 @@ async function getDevices(server: string, authKey: string, devicesConfig: any[])
         type: `shelly_${cfg.type}`,
         externalId: cfg.id,
         name: cfg.name,
-        room: null,
-        state: { online: false, error: String((err as Error)?.message || err) },
+          state: { online: false, error: String((err as Error)?.message || err) },
         capabilities: {},
       });
       await sleep(REQUEST_SPACING_MS);
@@ -184,6 +180,14 @@ async function syncConnection(connection: { id: string; household_id: string; co
   }
 
   for (const d of devices) {
+    // room deliberately omitted: Shelly's /device/status never reports a
+    // room (there's nothing to sync there — see providers/shelly/index.js's
+    // header comment), and this upsert's Prefer: resolution=merge-duplicates
+    // only touches columns present in the payload. Including room: null
+    // here silently reverted every manually-assigned room back to null on
+    // the very next 10-min poll (found 2026-09-15 — production showed every
+    // Shelly device dumped into "Druge naprave" despite a one-off backfill
+    // migration having set them correctly).
     const { error } = await supabase.from('home_devices').upsert(
       {
         household_id: connection.household_id,
@@ -191,7 +195,6 @@ async function syncConnection(connection: { id: string; household_id: string; co
         device_type: d.type,
         external_id: d.externalId,
         name: d.name,
-        room: d.room,
         state: d.state,
         capabilities: d.capabilities,
         last_synced_at: new Date().toISOString(),

@@ -116,7 +116,6 @@ function toZoneDevice(systemId: string, zone: any) {
     type: 'heating_zone',
     externalId: `${systemId}:zone:${zone.index}`,
     name: zone.general?.name || `Cona ${zone.index + 1}`,
-    room: null,
     state: {
       online: true,
       mode: (heating.operationModeHeating || 'MANUAL').toLowerCase(),
@@ -138,7 +137,6 @@ function toDhwDevice(systemId: string, dhw: any) {
     type: 'domestic_hot_water',
     externalId: `${systemId}:dhw:${dhw.index}`,
     name: 'Sanitarna voda',
-    room: null,
     state: {
       online: true,
       mode: (dhw.operationModeDhw || 'MANUAL').toLowerCase(),
@@ -244,6 +242,10 @@ async function syncConnection(connection: { id: string; household_id: string }) 
   }
 
   for (const d of devices) {
+    // room deliberately omitted — same fix as sync-shelly-devices (see its
+    // comment): this provider never reports a room either, and the
+    // merge-duplicates upsert only touches columns present in the payload,
+    // so leaving room out means a manually-assigned room is never reverted.
     const { error } = await supabase.from('home_devices').upsert(
       {
         household_id: connection.household_id,
@@ -251,7 +253,6 @@ async function syncConnection(connection: { id: string; household_id: string }) 
         device_type: d.type,
         external_id: d.externalId,
         name: d.name,
-        room: d.room,
         state: d.state,
         capabilities: d.capabilities,
         last_synced_at: new Date().toISOString(),

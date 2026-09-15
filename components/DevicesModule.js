@@ -706,7 +706,7 @@ function favoriteStateLabel(device, t) {
   if (kind === 'switch') return state.on ? t('stateOn') : t('stateOff');
   if (kind === 'dimmer') return state.on ? `${state.brightness ?? 100}%` : t('stateOff');
   if (kind === 'cover') return `${state.position ?? 0}%`;
-  if (device.device_type === 'air_conditioner') return `${state.currentTemperature}°`;
+  if (device.device_type === 'air_conditioner') return state.power ? `${state.currentTemperature}°` : t('stateOff');
   return state.targetTemperature != null ? `${state.targetTemperature}°` : '—';
 }
 
@@ -859,12 +859,18 @@ export default function DevicesModule({
     return Array.from(map.entries());
   }, [shellyDevices]);
 
+  // Covers/žaluzije don't have a meaningful "on" state (100% closed isn't
+  // "on") and don't consume standby energy the way lights do, so they're
+  // excluded from the on-count entirely — only switches/dimmers count
+  // toward "X/Y prižgani". A room made up only of covers falls back to
+  // showing that cover's position instead.
   const roomSummary = (group) => {
-    if (group.length === 1 && group[0].device_type === 'shelly_cover') {
+    const lights = group.filter((d) => d.device_type !== 'shelly_cover');
+    if (lights.length === 0) {
       return `${group[0].state.position ?? 0}%`;
     }
-    const onCount = group.filter((d) => (d.device_type === 'shelly_cover' ? (d.state.position ?? 0) > 0 : !!d.state.on)).length;
-    return t('roomOnCount', { on: onCount, total: group.length });
+    const onCount = lights.filter((d) => !!d.state.on).length;
+    return t('roomOnCount', { on: onCount, total: lights.length });
   };
 
   return (

@@ -580,6 +580,8 @@
     "shellyPower": "On",
     "shellyBrightness": "Brightness",
     "shellyCoverMoving": "Moving …",
+    "coverOpen": "Open",
+    "coverClosed": "Closed",
     "shellyCoverOpen": "Open",
     "shellyCoverStop": "Stop",
     "shellyCoverClose": "Close",

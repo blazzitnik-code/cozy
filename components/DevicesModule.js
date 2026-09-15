@@ -644,7 +644,7 @@ function ShellyDeviceRow({ device, sendCommand }) {
           onChange={(pct) => sendCommand(device.id, 'cover_position', pct, { position: pct })}
           icon={DEVICE_ICONS.shelly_cover}
           label={device.name}
-          valueText={state.moving ? t('shellyCoverMoving') : `${state.position ?? 0}%`}
+          valueText={state.moving ? t('shellyCoverMoving') : coverPositionLabel(state.position, t)}
         />
         <div className="mt-2 grid grid-cols-3 gap-2">
           {COVER_ACTIONS.map((action) => (
@@ -693,6 +693,17 @@ function ComingSoonCard({ icon, title, subtitle }) {
 // kinds act directly (switch/dimmer toggle in place, cover opens the shared
 // mini control panel below the grid — there's no sensible single tap action
 // for "open to what position?").
+// Shared label for a cover's position: fully open/closed reads as a word
+// (matches how B thinks about žaluzije — "open"/"closed", not a number),
+// anything in between still shows the percentage. Used on the device row,
+// the Bližnjice tile, and a room summary that's covers-only.
+function coverPositionLabel(position, t) {
+  const pos = position ?? 0;
+  if (pos >= 100) return t('coverOpen');
+  if (pos <= 0) return t('coverClosed');
+  return `${pos}%`;
+}
+
 function favoriteKind(device) {
   if (device.device_type === 'shelly_switch') return 'switch';
   if (device.device_type === 'shelly_dimmer') return 'dimmer';
@@ -705,7 +716,7 @@ function favoriteStateLabel(device, t) {
   const { state } = device;
   if (kind === 'switch') return state.on ? t('stateOn') : t('stateOff');
   if (kind === 'dimmer') return state.on ? `${state.brightness ?? 100}%` : t('stateOff');
-  if (kind === 'cover') return `${state.position ?? 0}%`;
+  if (kind === 'cover') return coverPositionLabel(state.position, t);
   if (device.device_type === 'air_conditioner') return state.power ? `${state.currentTemperature}°` : t('stateOff');
   return state.targetTemperature != null ? `${state.targetTemperature}°` : '—';
 }
@@ -867,7 +878,7 @@ export default function DevicesModule({
   const roomSummary = (group) => {
     const lights = group.filter((d) => d.device_type !== 'shelly_cover');
     if (lights.length === 0) {
-      return `${group[0].state.position ?? 0}%`;
+      return coverPositionLabel(group[0].state.position, t);
     }
     const onCount = lights.filter((d) => !!d.state.on).length;
     return t('roomOnCount', { on: onCount, total: lights.length });

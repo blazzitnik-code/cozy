@@ -580,6 +580,8 @@
     "shellyPower": "Vklopljeno",
     "shellyBrightness": "Svetlost",
     "shellyCoverMoving": "Se premika …",
+    "coverOpen": "Odprto",
+    "coverClosed": "Zaprto",
     "shellyCoverOpen": "Odpri",
     "shellyCoverStop": "Stop",
     "shellyCoverClose": "Zapri",

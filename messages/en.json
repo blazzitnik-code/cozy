@@ -637,6 +637,7 @@
     "weatherStationsLabel": "Weather stations",
     "netatmoIndoorLabel": "Indoor module",
     "netatmoOutdoorLabel": "Outdoor module",
-    "netatmoLocationSummary": "{indoor}° · outside {outdoor}°"
+    "netatmoLocationSummary": "{indoor}° · outside {outdoor}°",
+    "netatmoModuleUnreachable": "Module unreachable"
   }
 }

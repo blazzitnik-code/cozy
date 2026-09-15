@@ -637,6 +637,7 @@
     "weatherStationsLabel": "Vremenske postaje",
     "netatmoIndoorLabel": "Notranja enota",
     "netatmoOutdoorLabel": "Zunanja enota",
-    "netatmoLocationSummary": "{indoor}° · zunaj {outdoor}°"
+    "netatmoLocationSummary": "{indoor}° · zunaj {outdoor}°",
+    "netatmoModuleUnreachable": "Modul ni dosegljiv"
   }
 }

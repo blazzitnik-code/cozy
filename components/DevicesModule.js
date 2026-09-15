@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
-import { Check, ChevronDown, ChevronUp, Minus, Pencil, Plus, RefreshCw, Settings } from 'lucide-react';
+import { AlertTriangle, Check, ChevronDown, ChevronUp, Minus, Pencil, Plus, RefreshCw, Settings } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { cx } from '@/lib/utils';
 import { useNapraveFavorites } from '@/lib/hooks';
@@ -94,7 +94,7 @@ function useSyncedLabel(lastSyncedAt) {
 // expanded cards — open state is owned by the parent (not local) so a tap
 // on a Bližnjice favorite can open the right one and scroll it into view.
 // ---------------------------------------------------------------------
-function AccordionCard({ anchorId, icon, title, subtitle, summary, open, onToggle, children }) {
+function AccordionCard({ anchorId, icon, title, subtitle, summary, warn, open, onToggle, children }) {
   return (
     <div id={anchorId}>
       <Card className="overflow-hidden p-0">
@@ -104,8 +104,9 @@ function AccordionCard({ anchorId, icon, title, subtitle, summary, open, onToggl
           className={cx('flex w-full cursor-pointer items-center gap-3 border-none bg-transparent p-4 text-left', ROW_PRESS)}
         >
           <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-bold text-stone-900 dark:text-stone-100">
+            <div className="flex items-center gap-1.5 truncate text-sm font-bold text-stone-900 dark:text-stone-100">
               {icon} {title}
+              {warn && <AlertTriangle className="size-3.5 shrink-0 text-amber-500 dark:text-amber-400" />}
             </div>
             {subtitle && <div className="mt-0.5 truncate text-xs text-stone-400 dark:text-stone-500">{subtitle}</div>}
           </div>
@@ -658,6 +659,7 @@ function NetatmoLocationCard({ location, group, open, onToggle, refreshDevice })
     .pop();
   const syncedLabel = useSyncedLabel(latestSync);
   const online = [indoor, outdoor].filter(Boolean).every((d) => d.state.online);
+  const hasError = [indoor, outdoor].filter(Boolean).some((d) => d.last_error || d.state?.online === false);
 
   const handleRefresh = async (e) => {
     e.stopPropagation();
@@ -688,6 +690,7 @@ function NetatmoLocationCard({ location, group, open, onToggle, refreshDevice })
       icon={NETATMO_LOCATION_ICONS[location] || '🌡️'}
       title={location}
       summary={summary}
+      warn={hasError}
       open={open}
       onToggle={onToggle}
     >
@@ -707,6 +710,12 @@ function NetatmoLocationCard({ location, group, open, onToggle, refreshDevice })
           <RefreshCw className={cx('size-3 opacity-75', refreshing && 'animate-spin')} />
         </button>
       </div>
+
+      {hasError && (
+        <div className="mb-3 rounded-xl bg-amber-500/10 px-3 py-2 text-[12.5px] font-semibold text-amber-700 dark:bg-amber-400/10 dark:text-amber-400">
+          {[indoor, outdoor].filter(Boolean).find((d) => d.last_error)?.last_error || t('netatmoModuleUnreachable')}
+        </div>
+      )}
 
       {indoor && (
         <div>

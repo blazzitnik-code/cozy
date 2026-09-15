@@ -537,18 +537,11 @@ export default function HomeScreen({
           userId={user.id}
         />
 
-        {/* Coming soon modules */}
-        <SectionHeader>{t('comingSoon')}</SectionHeader>
-        <Card className="mb-2 flex items-center gap-3.5 px-4 py-3.5 opacity-65">
-          <span className="text-3xl">🍽️</span>
-          <div className="flex-1">
-            <div className="text-sm font-bold text-stone-900 dark:text-stone-100">{t('mealPlan')}</div>
-            <div className="text-xs text-stone-500 dark:text-stone-400">{t('mealPlanDesc')}</div>
-          </div>
-          <div className="rounded-full border border-stone-300 bg-stone-200/60 px-2.5 py-1 text-xs font-bold whitespace-nowrap text-stone-500 dark:border-stone-700 dark:bg-stone-800 dark:text-stone-400">
-            {t('soon')}
-          </div>
-        </Card>
+        {/* "Coming soon" Jedilnik (meal plan) card hidden 2026-09-15 (B:
+            keep unfinished-feature stubs off the home page, but keep the
+            idea on the backlog). Re-add the SectionHeader+Card block above
+            (comingSoon/mealPlan/mealPlanDesc/soon i18n keys still exist)
+            once meal planning is actually being built. */}
       </PageBody>
     </Screen>
   );

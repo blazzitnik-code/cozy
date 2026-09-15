@@ -1023,9 +1023,13 @@ export default function DevicesModule({
           </>
         )}
 
-        <div className="mt-6 mb-2.5 text-xs font-bold tracking-[0.5px] text-stone-400 uppercase dark:text-stone-500">{t('soonSectionLabel')}</div>
-        <ComingSoonCard icon="⚡" title={t('soonQuickActions')} subtitle={t('soonQuickActionsDesc')} />
-        <ComingSoonCard icon="☀️" title={t('soonSolar')} />
+        {/* Hitre akcije / Fotovoltaika "coming soon" cards hidden 2026-09-15
+            (B: keep them on the backlog, don't show unfinished stubs) —
+            both still on the backlog, see project overview. Re-add these
+            two ComingSoonCard lines (icon="⚡"/title={t('soonQuickActions')}/
+            subtitle={t('soonQuickActionsDesc')}, and icon="☀️"/
+            title={t('soonSolar')}) plus the soonSectionLabel header above
+            them once either ships enough to preview. */}
 
         <FavoritesEditModal
           open={editOpen}

@@ -106,7 +106,10 @@
     "manualEntry": "Ročni vnos",
     "placeName": "Ime kraja",
     "latPlaceholder": "Zemljepisna širina",
-    "lngPlaceholder": "Zemljepisna dolžina"
+    "lngPlaceholder": "Zemljepisna dolžina",
+    "co2Alert": "🫧 CO2 previsok — {location}, notri",
+    "humidityAlert": "💧 Prevlažno — {location}, notri",
+    "batteryAlert": "🔋 Nizka baterija — {location}, zunaj"
   },
   "Board": {
     "title": "📌 Deska",
@@ -638,6 +641,7 @@
     "netatmoIndoorLabel": "Notranja enota",
     "netatmoOutdoorLabel": "Zunanja enota",
     "netatmoLocationSummary": "{indoor}° · zunaj {outdoor}°",
-    "netatmoModuleUnreachable": "Modul ni dosegljiv"
+    "netatmoModuleUnreachable": "Modul ni dosegljiv",
+    "netatmoFrostWarning": "Zmrzal — {temp}° zunaj, preveri ogrevanje/cevi"
   }
 }

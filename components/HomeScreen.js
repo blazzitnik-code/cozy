@@ -422,6 +422,7 @@ export default function HomeScreen({
   unarchiveNote,
   deleteNote,
   weather,
+  devices,
   navigate,
   onOpenSettings,
 }) {
@@ -450,7 +451,7 @@ export default function HomeScreen({
         </div>
 
         {/* Weather */}
-        <WeatherWidget weather={weather} settings={homeSettings} saveSettings={saveHomeSettings} />
+        <WeatherWidget weather={weather} settings={homeSettings} saveSettings={saveHomeSettings} devices={devices} />
 
         {/* Up next (calendar) */}
         <UpNextCard calEvents={calEvents} members={members} navigate={navigate} />

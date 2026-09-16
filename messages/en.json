@@ -106,7 +106,10 @@
     "manualEntry": "Manual entry",
     "placeName": "Place name",
     "latPlaceholder": "Latitude",
-    "lngPlaceholder": "Longitude"
+    "lngPlaceholder": "Longitude",
+    "co2Alert": "🫧 CO2 too high — {location}, indoor",
+    "humidityAlert": "💧 Too humid — {location}, indoor",
+    "batteryAlert": "🔋 Low battery — {location}, outdoor"
   },
   "Board": {
     "title": "📌 Board",
@@ -638,6 +641,7 @@
     "netatmoIndoorLabel": "Indoor module",
     "netatmoOutdoorLabel": "Outdoor module",
     "netatmoLocationSummary": "{indoor}° · outside {outdoor}°",
-    "netatmoModuleUnreachable": "Module unreachable"
+    "netatmoModuleUnreachable": "Module unreachable",
+    "netatmoFrostWarning": "Frost — {temp}° outside, check heating/pipes"
   }
 }

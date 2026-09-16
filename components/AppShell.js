@@ -466,6 +466,7 @@ export default function AppShell({ user, household, members, signOut }) {
           unarchiveNote={dbUnarchiveNote}
           deleteNote={dbDeleteNote}
           weather={weather}
+          devices={homeDevices}
           navigate={navigate}
           onOpenSettings={openSettings}
         />

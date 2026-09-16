@@ -1,11 +1,47 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { motion } from 'motion/react';
 import { useTranslations, useFormatter } from 'next-intl';
 import { ArrowUp, ArrowDown, ChevronRight, House, Pencil, Plus, Wind, Droplets, X } from 'lucide-react';
 import { cx, weatherInfo, weatherLocationsOf, localDateFromStr } from '@/lib/utils';
 import { fetchWeatherOnce, geocodeLocation } from '@/lib/hooks';
+import { co2Tier, humidityTier, LOW_BATTERY_PERCENT } from '@/lib/netatmo-thresholds';
 import { Card, Modal, Input, SectionHeader, POPOVER, POPOVER_POP, ROW_PRESS, PRESS_SM } from './ui';
+
+// Netatmo "something needs a look" lines shown under the home-screen
+// weather card — only CO2/vlaga going into the 🔴 tier, or a module
+// battery going low, are worth a line here; frost and pressure/rain stay
+// card-only (frost) or backlog (pressure), see lib/netatmo-thresholds.js's
+// header comment and the "Vremenske postaje" mock. Grouped by
+// home_devices.room (the same per-location backfill DevicesModule.js's
+// Naprave card reads), so one bad reading yields one line per location,
+// not per raw device.
+function useNetatmoAlerts(devices) {
+  const tw = useTranslations('Weather');
+  return useMemo(() => {
+    const byLocation = new Map();
+    for (const d of devices || []) {
+      if (d.provider !== 'netatmo' || !d.room) continue;
+      if (!byLocation.has(d.room)) byLocation.set(d.room, []);
+      byLocation.get(d.room).push(d);
+    }
+    const alerts = [];
+    for (const [location, group] of byLocation) {
+      const indoor = group.find((d) => d.device_type === 'netatmo_indoor');
+      const outdoor = group.find((d) => d.device_type === 'netatmo_outdoor');
+      if (co2Tier(indoor?.state?.co2) === 'bad') {
+        alerts.push({ key: `${location}-co2`, text: tw('co2Alert', { location }) });
+      }
+      if (humidityTier(indoor?.state?.humidity) === 'bad') {
+        alerts.push({ key: `${location}-humidity`, text: tw('humidityAlert', { location }) });
+      }
+      if (outdoor?.state?.batteryPercent != null && outdoor.state.batteryPercent <= LOW_BATTERY_PERCENT) {
+        alerts.push({ key: `${location}-battery`, text: tw('batteryAlert', { location }) });
+      }
+    }
+    return alerts;
+  }, [devices, tw]);
+}
 
 // Warm/cool color-coded high/low pair with directional arrows — used on the
 // home card, in the current-conditions block, and (color-only, no icons —
@@ -442,9 +478,10 @@ function WeatherModal({ open, onClose, locations, onSetMain, onRemove, onAdd, ma
 // ─── HOME CARD (Open-Meteo) ───
 // Always occupies the same height (skeleton while the API resolves) so the
 // cards below it never shift when the data lands — CLS stays flat.
-export default function WeatherWidget({ weather, settings, saveSettings }) {
+export default function WeatherWidget({ weather, settings, saveSettings, devices }) {
   const tw = useTranslations('Weather');
   const ready = weather?.current;
+  const netatmoAlerts = useNetatmoAlerts(devices);
   const [open, setOpen] = useState(false);
   // Local-first so add/reorder/remove show instantly (per project convention)
   // instead of waiting on the settings round-trip. `settings` itself loads
@@ -479,10 +516,8 @@ export default function WeatherWidget({ weather, settings, saveSettings }) {
 
   return (
     <>
-      <Card
-        onClick={() => setOpen(true)}
-        className="mb-2.5 flex h-[84px] items-center justify-between rounded-2xl px-3.5"
-      >
+      <Card onClick={() => setOpen(true)} className="mb-2.5 rounded-2xl px-3.5 py-3">
+        <div className="flex min-h-[60px] items-center justify-between">
         {ready ? (
           <>
             <div className="min-w-0">
@@ -519,6 +554,16 @@ export default function WeatherWidget({ weather, settings, saveSettings }) {
             </div>
             <div className="size-9 rounded-full bg-stone-200 dark:bg-stone-800" />
           </>
+        )}
+        </div>
+        {netatmoAlerts.length > 0 && (
+          <div className="mt-2 flex flex-col gap-1 border-t border-stone-100 pt-2 dark:border-white/5">
+            {netatmoAlerts.map((a) => (
+              <div key={a.key} className="text-xs font-semibold text-red-600 dark:text-red-400">
+                {a.text}
+              </div>
+            ))}
+          </div>
         )}
       </Card>
 

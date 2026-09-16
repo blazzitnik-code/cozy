@@ -5,6 +5,7 @@ import { AlertTriangle, Check, ChevronDown, ChevronUp, Minus, Pencil, Plus, Refr
 import { useTranslations } from 'next-intl';
 import { cx } from '@/lib/utils';
 import { useNapraveFavorites } from '@/lib/hooks';
+import { co2Tier, humidityTier, LOW_BATTERY_PERCENT, FROST_TEMP_C } from '@/lib/netatmo-thresholds';
 import { SliderButton } from './SliderButton';
 import {
   Screen,
@@ -627,13 +628,19 @@ function VaillantDhwCard({ device, open, onToggle, sendCommand, refreshDevice })
 // Two device_types share this one component (netatmo_indoor has more
 // fields than netatmo_outdoor) rather than splitting into two components,
 // since the only difference is which stat rows apply.
-function NetatmoStatRow({ label, value, warn }) {
+const TIER_COLORS = {
+  good: 'text-green-600 dark:text-green-400',
+  mid: 'text-amber-600 dark:text-amber-400',
+  bad: 'text-red-600 dark:text-red-400',
+};
+
+function NetatmoStatRow({ label, value, tier, warnIcon }) {
   if (value == null) return null;
   return (
     <div className="flex items-center justify-between border-b border-stone-100 py-2 text-sm last:border-0 dark:border-white/5">
       <span className="text-stone-500 dark:text-stone-400">{label}</span>
-      <span className={cx('font-semibold', warn ? 'text-amber-600 dark:text-amber-400' : 'text-stone-900 dark:text-stone-100')}>
-        {warn ? `${value} ⚠️` : value}
+      <span className={cx('font-semibold', tier ? TIER_COLORS[tier] : 'text-stone-900 dark:text-stone-100')}>
+        {warnIcon ? `${value} ⚠️` : value}
       </span>
     </div>
   );
@@ -682,7 +689,8 @@ function NetatmoLocationCard({ location, group, open, onToggle, refreshDevice })
           ? `${outdoorTemp}°`
           : null;
 
-  const lowBattery = outdoor?.state?.batteryPercent != null && outdoor.state.batteryPercent <= 25;
+  const lowBattery = outdoor?.state?.batteryPercent != null && outdoor.state.batteryPercent <= LOW_BATTERY_PERCENT;
+  const frostRisk = outdoor?.state?.temperature != null && outdoor.state.temperature <= FROST_TEMP_C;
 
   return (
     <AccordionCard
@@ -728,8 +736,16 @@ function NetatmoLocationCard({ location, group, open, onToggle, refreshDevice })
             </div>
           </div>
           <div className="mt-1.5">
-            <NetatmoStatRow label={t('netatmoHumidity')} value={indoor.state.humidity != null ? `${indoor.state.humidity}%` : null} />
-            <NetatmoStatRow label={t('netatmoCo2')} value={indoor.state.co2 != null ? `${indoor.state.co2} ppm` : null} />
+            <NetatmoStatRow
+              label={t('netatmoHumidity')}
+              value={indoor.state.humidity != null ? `${indoor.state.humidity}%` : null}
+              tier={humidityTier(indoor.state.humidity)}
+            />
+            <NetatmoStatRow
+              label={t('netatmoCo2')}
+              value={indoor.state.co2 != null ? `${indoor.state.co2} ppm` : null}
+              tier={co2Tier(indoor.state.co2)}
+            />
             <NetatmoStatRow label={t('netatmoNoise')} value={indoor.state.noise != null ? `${indoor.state.noise} dB` : null} />
             <NetatmoStatRow label={t('netatmoPressure')} value={indoor.state.pressure != null ? `${indoor.state.pressure} mbar` : null} />
           </div>
@@ -753,9 +769,16 @@ function NetatmoLocationCard({ location, group, open, onToggle, refreshDevice })
             <NetatmoStatRow
               label={t('netatmoBattery')}
               value={outdoor.state.batteryPercent != null ? `${outdoor.state.batteryPercent}%` : null}
-              warn={lowBattery}
+              tier={lowBattery ? 'bad' : null}
+              warnIcon={lowBattery}
             />
           </div>
+          {frostRisk && (
+            <div className="mt-2.5 flex items-center gap-2 rounded-xl bg-sky-500/10 px-3 py-2 text-[12.5px] font-semibold text-sky-700 dark:bg-sky-400/10 dark:text-sky-400">
+              <span className="text-base">❄️</span>
+              {t('netatmoFrostWarning', { temp: outdoor.state.temperature })}
+            </div>
+          )}
         </div>
       )}
 

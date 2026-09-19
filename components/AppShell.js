@@ -27,7 +27,7 @@ import { useTranslations, useFormatter } from 'next-intl';
 import { useLocaleSwitch } from './IntlProvider';
 import { rpcErrorKey } from '@/lib/intl';
 import { supabase } from '@/lib/supabase';
-import { cx, MEMBER_COLORS, memberColorClass, weatherLocationsOf } from '@/lib/utils';
+import { cx, MEMBER_COLORS, memberColorClass, memberColorToken, weatherLocationsOf } from '@/lib/utils';
 import { X, Plus, Trash2, ChevronDown, ChevronUp, ChevronRight, Pencil, RefreshCw } from 'lucide-react';
 import {
   Modal,
@@ -1104,6 +1104,7 @@ function SettingsBody({
     if (error) notifyError('Errors.settingsSaveFailed');
   };
   const memberColor = (m) => overrides[m.id]?.color ?? m.color;
+  const memberColorResolved = (m) => memberColorToken(members, { id: m.id, color: memberColor(m) });
   const [showConnections, setShowConnections] = useState(false);
 
   return (
@@ -1165,14 +1166,12 @@ function SettingsBody({
                 >
                   <div className="relative">
                     <Avatar name={m.display_name} />
-                    {memberColor(m) && (
-                      <span
-                        className={cx(
-                          'absolute -right-0.5 -bottom-0.5 size-3 rounded-full border-2 border-white dark:border-stone-900',
-                          memberColorClass(memberColor(m)),
-                        )}
-                      />
-                    )}
+                    <span
+                      className={cx(
+                        'absolute -right-0.5 -bottom-0.5 size-3 rounded-full border-2 border-white dark:border-stone-900',
+                        memberColorClass(memberColorResolved(m)) || 'bg-stone-400 dark:bg-stone-500',
+                      )}
+                    />
                   </div>
                   <div>
                     <div className="text-sm font-semibold text-stone-900 dark:text-stone-100">

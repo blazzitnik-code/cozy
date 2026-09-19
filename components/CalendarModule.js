@@ -3,7 +3,7 @@ import { useState, useMemo } from 'react';
 import { motion } from 'motion/react';
 import { useTranslations, useFormatter } from 'next-intl';
 import { Filter, Settings, ChevronLeft, ChevronRight, Plus, Repeat, Lock, Users } from 'lucide-react';
-import { cx, localDateStr, localDateFromStr, memberColorClass } from '@/lib/utils';
+import { cx, localDateStr, localDateFromStr, memberColorClass, memberColorToken } from '@/lib/utils';
 import {
   EVENT_TYPES,
   EVENT_TYPE_KEYS,
@@ -157,7 +157,7 @@ function EventForm({ event, members, user, onSave, onDelete, onSkip }) {
             onClick={() => setPerson(m.user_id)}
             className={cx(chipCx(person === m.user_id), 'flex items-center gap-1.5')}
           >
-            <span className={cx('h-2 w-2 rounded-full', memberColorClass(m.color) || 'bg-stone-400')} />
+            <span className={cx('h-2 w-2 rounded-full', memberColorClass(memberColorToken(members, m)) || 'bg-stone-400')} />
             {m.display_name || tc('user')}
           </button>
         ))}
@@ -186,7 +186,7 @@ function EventForm({ event, members, user, onSave, onDelete, onSkip }) {
               onClick={() => setDelegatedTo(m.user_id)}
               className={cx(chipCx(delegatedTo === m.user_id), 'flex items-center gap-1.5')}
             >
-              <span className={cx('h-2 w-2 rounded-full', memberColorClass(m.color) || 'bg-stone-400')} />
+              <span className={cx('h-2 w-2 rounded-full', memberColorClass(memberColorToken(members, m)) || 'bg-stone-400')} />
               {m.display_name || tc('user')}
             </button>
           ))}
@@ -338,7 +338,7 @@ function DelegateSheet({ event, members, onPick, onClear, onClose }) {
             onClick={() => onPick(m.user_id)}
             className={cx(chipCx(event.delegated_to === m.user_id), 'flex items-center gap-1.5')}
           >
-            <span className={cx('h-2 w-2 rounded-full', memberColorClass(m.color) || 'bg-stone-400')} />
+            <span className={cx('h-2 w-2 rounded-full', memberColorClass(memberColorToken(members, m)) || 'bg-stone-400')} />
             {m.display_name || '?'}
           </button>
         ))}
@@ -395,10 +395,12 @@ export default function CalendarModule({
   const todayStr = localDateStr(today);
 
   const memberByUid = useMemo(() => new Map(members.map((m) => [m.user_id, m])), [members]);
-  const colorFor = (uid) =>
-    uid
-      ? memberColorClass(memberByUid.get(uid)?.color) || 'bg-stone-400 dark:bg-stone-500'
+  const colorFor = (uid) => {
+    const m = uid ? memberByUid.get(uid) : null;
+    return m
+      ? memberColorClass(memberColorToken(members, m)) || 'bg-stone-400 dark:bg-stone-500'
       : 'bg-stone-400 dark:bg-stone-500';
+  };
   const nameFor = (uid) => (uid ? memberByUid.get(uid)?.display_name || '?' : t('everyone'));
   const fmtTime = (tm) => (tm ? format.dateTime(new Date('1970-01-01T' + tm), 'time') : '');
 
@@ -721,11 +723,7 @@ export default function CalendarModule({
                           key={j}
                           className={cx(
                             'h-1 w-1 rounded-full',
-                            isSel
-                              ? 'bg-white/70 dark:bg-stone-900/70'
-                              : uid === '!needs'
-                                ? 'bg-orange-500'
-                                : colorFor(uid === 'all' ? null : uid),
+                            uid === '!needs' ? 'bg-orange-500' : colorFor(uid === 'all' ? null : uid),
                           )}
                         />
                       ))}

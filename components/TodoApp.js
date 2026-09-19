@@ -28,7 +28,7 @@ import {
   ROW_PRESS,
 } from './ui';
 
-const LIST_EMOJIS = ['📋', '🏖️', '🏠', '🛒', '🎉', '🪴', '🛠️', '✈️', '📚', '🥗', '🌾', '🎸', '🐶', '🌱', '💼'];
+const LIST_EMOJIS = ['📋', '🏖️', '🏠', '🛒', '🎉', '🪴', '🛠️', '✈️', '📚', '🥗', '🌾', '🎸', '🐶', '🌱', '💼', '🐎'];
 
 // ─── MAIN TODO APP ───
 // All todo data + mutators arrive via props from AppShell's persistent hooks,

@@ -436,7 +436,12 @@
       "monthly": "Monthly",
       "yearly": "Yearly",
       "custom": "Custom"
-    }
+    },
+    "needsDelegateField": "Needs a helper (e.g. a ride)",
+    "notYetAssigned": "Not assigned yet",
+    "needsDelegate": "Who's taking this?",
+    "whoTakesOver": "Who's taking this?",
+    "clearDelegate": "Clear assignment"
   },
   "Todo": {
     "title": "✅ To-do",
@@ -491,7 +496,8 @@
     "inHours": "in {h}h {m}m",
     "inMinutes": "in {m}m",
     "connectCalendar": "Connect calendar",
-    "connectCalendarHint": "See your events on the home screen"
+    "connectCalendarHint": "See your events on the home screen",
+    "needsDelegate": "Who's taking this?"
   },
   "HomeModule": {
     "home": "Home",

@@ -454,6 +454,7 @@ export default function AppShell({ user, household, members, signOut }) {
           todoListsLoading={todoListsLoading}
           todoItemsByList={todoItemsByList}
           calEvents={calEvents}
+          updateCalEvent={updateCalEvent}
           homeSettings={homeSettings}
           homeSettingsLoading={homeSettingsLoading}
           saveHomeSettings={saveHomeSettings}

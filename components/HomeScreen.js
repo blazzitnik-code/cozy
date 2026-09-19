@@ -27,7 +27,7 @@ import WeatherWidget from './WeatherWidget';
 // ─── UP-NEXT (calendar) CARD ───
 // Next timed manual event today (recurrences expanded). Renders nothing when
 // there's no upcoming event — Google sync is phase 2.
-function UpNextCard({ calEvents, members, navigate }) {
+function UpNextCard({ calEvents, members, navigate, updateCalEvent }) {
   const t = useTranslations('HomeScreen');
   const format = useFormatter();
   const fmt = (tm) => (tm ? format.dateTime(new Date('1970-01-01T' + tm), 'time') : '');
@@ -71,6 +71,30 @@ function UpNextCard({ calEvents, members, navigate }) {
         {next.end_time ? ` – ${fmt(next.end_time)}` : ''}
         {personName(next.assigned_to) ? ` · ${personName(next.assigned_to)}` : ''}
       </div>
+      {next.delegation_requested &&
+        (next.delegated_to ? (
+          <div className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-stone-100 px-2 py-0.5 text-[11px] font-bold text-stone-600 dark:bg-white/10 dark:text-stone-300">
+            🚗 {personName(next.delegated_to)}
+          </div>
+        ) : (
+          <div className="mt-2 flex items-center gap-1.5 rounded-xl bg-orange-500/10 px-2.5 py-1.5">
+            <span className="text-xs font-bold text-orange-600 dark:text-orange-400">🚗 {t('needsDelegate')}</span>
+            <div className="ml-auto flex gap-1">
+              {members.map((m) => (
+                <button
+                  key={m.user_id}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    updateCalEvent(next.id, { delegated_to: m.user_id });
+                  }}
+                  className="rounded-full bg-white px-2 py-0.5 text-[11px] font-bold text-stone-700 shadow-sm dark:bg-stone-800 dark:text-stone-200"
+                >
+                  {m.display_name?.[0] || '?'}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
       {after && (
         <div className="mt-2 flex items-center justify-between border-t border-dotted border-stone-300 pt-2 dark:border-stone-700">
           <span className="min-w-0 truncate text-xs text-stone-500 dark:text-stone-400">
@@ -410,6 +434,7 @@ export default function HomeScreen({
   todoListsLoading,
   todoItemsByList,
   calEvents,
+  updateCalEvent,
   homeSettings,
   homeSettingsLoading,
   saveHomeSettings,
@@ -454,7 +479,7 @@ export default function HomeScreen({
         <WeatherWidget weather={weather} settings={homeSettings} saveSettings={saveHomeSettings} devices={devices} />
 
         {/* Up next (calendar) */}
-        <UpNextCard calEvents={calEvents} members={members} navigate={navigate} />
+        <UpNextCard calEvents={calEvents} members={members} navigate={navigate} updateCalEvent={updateCalEvent} />
 
         {/* Home module: consolidated "Domov" ETA card */}
         <HomeModule settings={homeSettings} loading={homeSettingsLoading} saveSettings={saveHomeSettings} />

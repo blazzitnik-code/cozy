@@ -68,6 +68,8 @@ function EventForm({ event, members, user, onSave, onDelete, onSkip }) {
   const [person, setPerson] = useState(event.assigned_to ?? null);
   const [recurrence, setRecurrence] = useState(event.recurrence || 'once');
   const [intervalN, setIntervalN] = useState(event.recurrence_interval || 2);
+  const [delegationRequested, setDelegationRequested] = useState(!!event.delegation_requested);
+  const [delegatedTo, setDelegatedTo] = useState(event.delegated_to ?? null);
   const [note, setNote] = useState(event.note || '');
 
   const save = () => {
@@ -81,6 +83,8 @@ function EventForm({ event, members, user, onSave, onDelete, onSkip }) {
         start_time: allDay ? null : start || null,
         end_time: allDay ? null : end || null,
         assigned_to: person,
+        delegation_requested: delegationRequested,
+        delegated_to: delegationRequested ? delegatedTo : null,
         note: note.trim() || null,
         recurrence,
         recurrence_interval: recurrence === 'custom' ? Math.max(2, Number(intervalN) || 2) : 1,
@@ -158,6 +162,36 @@ function EventForm({ event, members, user, onSave, onDelete, onSkip }) {
           </button>
         ))}
       </div>
+
+      <button
+        onClick={() => setDelegationRequested((v) => !v)}
+        className={cx(
+          'mb-3 flex w-full items-center justify-between rounded-xl border px-4 py-3',
+          PRESS_SM,
+          delegationRequested ? CHIP_ON : CHIP_OFF,
+        )}
+      >
+        <span className="text-sm font-semibold">🚗 {t('needsDelegateField')}</span>
+        <span className="text-sm">{delegationRequested ? '✓' : ''}</span>
+      </button>
+
+      {delegationRequested && (
+        <div className="mb-4 flex flex-wrap gap-1.5">
+          <button onClick={() => setDelegatedTo(null)} className={chipCx(delegatedTo == null)}>
+            {t('notYetAssigned')}
+          </button>
+          {members.map((m) => (
+            <button
+              key={m.user_id}
+              onClick={() => setDelegatedTo(m.user_id)}
+              className={cx(chipCx(delegatedTo === m.user_id), 'flex items-center gap-1.5')}
+            >
+              <span className={cx('h-2 w-2 rounded-full', memberColorClass(m.color) || 'bg-stone-400')} />
+              {m.display_name || tc('user')}
+            </button>
+          ))}
+        </div>
+      )}
 
       <Label>{t('repeatField')}</Label>
       <div className="mb-3 flex flex-wrap gap-1.5">
@@ -251,7 +285,7 @@ function CommonFreeRow({ timeLabel }) {
   );
 }
 
-function EventRow({ ev, colorClass, personName, timeLabel, onClick }) {
+function EventRow({ ev, colorClass, personName, timeLabel, onClick, delegateChip, onDelegateClick }) {
   return (
     <Card onClick={onClick} className="flex items-stretch gap-3 rounded-2xl px-3.5 py-3">
       <span className={cx('w-1 shrink-0 rounded-full', colorClass)} />
@@ -264,8 +298,57 @@ function EventRow({ ev, colorClass, personName, timeLabel, onClick }) {
         </div>
         <div className="text-base font-semibold text-stone-900 dark:text-stone-100">{ev.title}</div>
         {ev.note && <div className="mt-0.5 truncate text-xs text-stone-400 dark:text-stone-500">📝 {ev.note}</div>}
+        {delegateChip && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelegateClick();
+            }}
+            className={cx(
+              'mt-1.5 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold',
+              delegateChip.pending
+                ? 'bg-orange-500/10 text-orange-600 dark:text-orange-400'
+                : 'bg-stone-100 text-stone-600 dark:bg-white/10 dark:text-stone-300',
+            )}
+          >
+            🚗 {delegateChip.label}
+          </button>
+        )}
       </div>
     </Card>
+  );
+}
+
+// Quick "who takes this over" picker — one tap from the Week/Agenda row's
+// delegation chip, so reassigning a ride doesn't require opening the full
+// edit form. Writes delegated_to only; delegation_requested is untouched.
+function DelegateSheet({ event, members, onPick, onClear, onClose }) {
+  const t = useTranslations('Calendar');
+  if (!event) return null;
+  return (
+    <Modal open={!!event} onClose={onClose}>
+      <h3 className="mb-1 text-center font-serif text-xl font-semibold tracking-tight text-stone-900 dark:text-stone-100">
+        {t('whoTakesOver')}
+      </h3>
+      <div className="mb-4 text-center text-sm text-stone-500 dark:text-stone-400">{event.title}</div>
+      <div className="mb-4 flex flex-wrap justify-center gap-1.5">
+        {members.map((m) => (
+          <button
+            key={m.user_id}
+            onClick={() => onPick(m.user_id)}
+            className={cx(chipCx(event.delegated_to === m.user_id), 'flex items-center gap-1.5')}
+          >
+            <span className={cx('h-2 w-2 rounded-full', memberColorClass(m.color) || 'bg-stone-400')} />
+            {m.display_name || '?'}
+          </button>
+        ))}
+      </div>
+      {event.delegated_to && (
+        <Btn v="ghost" onClick={onClear}>
+          {t('clearDelegate')}
+        </Btn>
+      )}
+    </Modal>
   );
 }
 
@@ -297,6 +380,7 @@ export default function CalendarModule({
   const [showFilter, setShowFilter] = useState(false);
   const [editing, setEditing] = useState(null);
   const [confirmDel, setConfirmDel] = useState(null);
+  const [delegating, setDelegating] = useState(null);
   const [view, setView] = useState('week'); // 'week' | 'agenda' | 'month'
 
   const today = useMemo(() => {
@@ -328,7 +412,10 @@ export default function CalendarModule({
   );
   const dotsByDate = useMemo(() => {
     const map = {};
-    for (const e of weekEvents) (map[e._date] ||= new Set()).add(e.assigned_to || 'all');
+    for (const e of weekEvents) {
+      (map[e._date] ||= new Set()).add(e.assigned_to || 'all');
+      if (e.delegation_requested && !e.delegated_to) map[e._date].add('!needs');
+    }
     return map;
   }, [weekEvents]);
   const dayEvents = weekEvents.filter((e) => e._date === selStr);
@@ -378,6 +465,12 @@ export default function CalendarModule({
       personName={nameFor(ev.assigned_to)}
       timeLabel={ev.all_day ? t('allDay') : fmtTime(ev.start_time) + (ev.end_time ? '–' + fmtTime(ev.end_time) : '')}
       onClick={() => setEditing({ ...ev })}
+      delegateChip={
+        ev.delegation_requested
+          ? { label: ev.delegated_to ? nameFor(ev.delegated_to) : t('needsDelegate'), pending: !ev.delegated_to }
+          : null
+      }
+      onDelegateClick={() => setDelegating(ev)}
     />
   );
 
@@ -628,7 +721,11 @@ export default function CalendarModule({
                           key={j}
                           className={cx(
                             'h-1 w-1 rounded-full',
-                            isSel ? 'bg-white/70 dark:bg-stone-900/70' : colorFor(uid === 'all' ? null : uid),
+                            isSel
+                              ? 'bg-white/70 dark:bg-stone-900/70'
+                              : uid === '!needs'
+                                ? 'bg-orange-500'
+                                : colorFor(uid === 'all' ? null : uid),
                           )}
                         />
                       ))}
@@ -802,6 +899,20 @@ export default function CalendarModule({
             : null
         }
         onClose={() => setConfirmDel(null)}
+      />
+
+      <DelegateSheet
+        event={delegating}
+        members={members}
+        onPick={async (uid) => {
+          await updateEvent(delegating.id, { delegated_to: uid });
+          setDelegating(null);
+        }}
+        onClear={async () => {
+          await updateEvent(delegating.id, { delegated_to: null });
+          setDelegating(null);
+        }}
+        onClose={() => setDelegating(null)}
       />
     </Screen>
   );

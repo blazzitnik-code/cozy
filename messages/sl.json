@@ -436,7 +436,12 @@
       "monthly": "Vsak mesec",
       "yearly": "Vsako leto",
       "custom": "Po meri"
-    }
+    },
+    "needsDelegateField": "Potrebuje prevzem (npr. prevoz)",
+    "notYetAssigned": "Še ni določeno",
+    "needsDelegate": "Kdo prevzame?",
+    "whoTakesOver": "Kdo prevzame?",
+    "clearDelegate": "Odstrani dodelitev"
   },
   "Todo": {
     "title": "✅ Opravila",
@@ -491,7 +496,8 @@
     "inHours": "čez {h}h {m}m",
     "inMinutes": "čez {m}m",
     "connectCalendar": "Poveži koledar",
-    "connectCalendarHint": "Poglej svoje dogodke na domačem zaslonu"
+    "connectCalendarHint": "Poglej svoje dogodke na domačem zaslonu",
+    "needsDelegate": "Kdo prevzame?"
   },
   "HomeModule": {
     "home": "Domov",

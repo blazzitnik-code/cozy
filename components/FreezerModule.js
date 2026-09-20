@@ -38,6 +38,7 @@ import {
   BackBtn,
   CHIP_ON,
   CHIP_OFF,
+  CHIP_IN,
   POPOVER,
   POPOVER_POP,
   LIST_ROW,

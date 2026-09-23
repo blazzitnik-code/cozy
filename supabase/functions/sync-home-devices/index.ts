@@ -133,6 +133,18 @@ function toHomeDevice(unit: any, roomName: string | null) {
 }
 
 class MelCloudAuthError extends Error {}
+// MELCloud's own token/API endpoints occasionally 5xx (maintenance, rate
+// limiting, a bad moment) — that's a transient hiccup, NOT the household's
+// refresh token being invalid. Mirrors providers/melcloud-home/index.js's
+// MelCloudServiceError, which the client-side command route already
+// distinguishes; the edge function's "hand-kept-in-sync port" had drifted
+// and was missing it, treating a transient 5xx as a hard auth rejection and
+// forcing a full password reconnect roughly every couple of days.
+class MelCloudServiceError extends Error {
+  constructor(status: number) {
+    super(`MELCloud service error: HTTP ${status}`);
+  }
+}
 
 async function refreshAccessToken(refreshToken: string) {
   const res = await fetch(`${AUTH_BASE_URL}/connect/token`, {
@@ -140,6 +152,7 @@ async function refreshAccessToken(refreshToken: string) {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'User-Agent': USER_AGENT },
     body: new URLSearchParams({ grant_type: 'refresh_token', refresh_token: refreshToken, client_id: OAUTH_CLIENT_ID }),
   });
+  if (res.status >= 500) throw new MelCloudServiceError(res.status);
   if (res.status !== 200) throw new MelCloudAuthError('REFRESH_REJECTED');
   const data = await res.json();
   return {
@@ -154,6 +167,7 @@ async function getDevices(accessToken: string) {
     headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/json', 'User-Agent': USER_AGENT },
   });
   if (res.status === 401) throw new MelCloudAuthError('TOKEN_EXPIRED');
+  if (res.status >= 500) throw new MelCloudServiceError(res.status);
   if (!res.ok) throw new Error(`MELCloud API error: HTTP ${res.status}`);
   const context = await res.json();
   const buildings = [...(context?.buildings || []), ...(context?.guestBuildings || [])];
@@ -168,6 +182,14 @@ async function getDevices(accessToken: string) {
 }
 
 // --- sync loop ------------------------------------------------------------
+//
+// status: 'error' is what the frontend reads as "needs a full password
+// reconnect" (needsReauth in AppShell.js) — reserved for a genuine auth
+// rejection (MelCloudAuthError surviving a refresh-and-retry). Anything
+// else (a transient MelCloudServiceError, a network blip, an unexpected
+// response shape) only updates last_error and leaves status alone, so the
+// next cron tick can just quietly retry. Same pattern as sync-netatmo-devices
+// and sync-vaillant-devices.
 
 async function syncConnection(connection: { id: string; household_id: string }) {
   const { data: secret, error: secretErr } = await supabase
@@ -181,26 +203,44 @@ async function syncConnection(connection: { id: string; household_id: string }) 
   }
 
   let accessToken = secret.access_token as string;
+  let currentRefreshToken = secret.refresh_token as string;
+
+  const markTransient = async (err: unknown) => {
+    console.error('transient error for connection', connection.id, err);
+    await supabase
+      .from('provider_connections')
+      .update({ last_error: String((err as Error)?.message || err), updated_at: new Date().toISOString() })
+      .eq('id', connection.id);
+  };
+  const markAuthError = async () => {
+    await supabase
+      .from('provider_connections')
+      .update({ status: 'error', last_error: 'refresh_rejected', updated_at: new Date().toISOString() })
+      .eq('id', connection.id);
+  };
+  async function refreshAndPersist() {
+    const refreshed = await refreshAccessToken(currentRefreshToken);
+    accessToken = refreshed.accessToken;
+    currentRefreshToken = refreshed.refreshToken;
+    await supabase
+      .from('provider_connection_secrets')
+      .update({
+        access_token: refreshed.accessToken,
+        refresh_token: refreshed.refreshToken,
+        token_expires_at: new Date(refreshed.expiresAt).toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('connection_id', connection.id);
+  }
+
   const expiresAt = new Date(secret.token_expires_at).getTime();
   if (!Number.isFinite(expiresAt) || expiresAt - Date.now() <= 60_000) {
     try {
-      const refreshed = await refreshAccessToken(secret.refresh_token);
-      accessToken = refreshed.accessToken;
-      await supabase
-        .from('provider_connection_secrets')
-        .update({
-          access_token: refreshed.accessToken,
-          refresh_token: refreshed.refreshToken,
-          token_expires_at: new Date(refreshed.expiresAt).toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .eq('connection_id', connection.id);
+      await refreshAndPersist();
     } catch (err) {
+      if (err instanceof MelCloudServiceError) return await markTransient(err);
       console.error('refresh failed for connection', connection.id, err);
-      await supabase
-        .from('provider_connections')
-        .update({ status: 'error', last_error: 'refresh_rejected', updated_at: new Date().toISOString() })
-        .eq('id', connection.id);
+      await markAuthError();
       return;
     }
   }
@@ -209,12 +249,26 @@ async function syncConnection(connection: { id: string; household_id: string }) 
   try {
     devices = await getDevices(accessToken);
   } catch (err) {
-    console.error('getDevices failed for connection', connection.id, err);
-    await supabase
-      .from('provider_connections')
-      .update({ status: 'error', last_error: String((err as Error)?.message || err), updated_at: new Date().toISOString() })
-      .eq('id', connection.id);
-    return;
+    if (err instanceof MelCloudAuthError) {
+      // Access token looked fresh by our stored expiry but MELCloud rejected
+      // it anyway — refresh once and retry, same pattern as the command
+      // route's TOKEN_EXPIRED handling, before concluding it's a real
+      // reconnect-worthy failure.
+      try {
+        await refreshAndPersist();
+        devices = await getDevices(accessToken);
+      } catch (retryErr) {
+        if (retryErr instanceof MelCloudServiceError) return await markTransient(retryErr);
+        console.error('refresh-and-retry failed for connection', connection.id, retryErr);
+        await markAuthError();
+        return;
+      }
+    } else if (err instanceof MelCloudServiceError) {
+      return await markTransient(err);
+    } else {
+      // Unexpected shape, network blip, etc. — log it, don't force a reconnect.
+      return await markTransient(err);
+    }
   }
 
   for (const d of devices) {
